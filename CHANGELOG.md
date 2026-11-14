@@ -9,4 +9,4 @@
 - Shorter board-reading approach and bounded slow-loading/action-confirmation waits with regressions.
 - Public setup/troubleshooting/verification docs, suggestion/strategy-only contributions, Windows core CI/build.
 - Original import/history private; public profile independent of private source; confined scene paths and sanitized references.
-- Recheck the owner's Large UI/vertical-upgrade settings; ignore dim terrain through empty hotbar slots while retaining extra bright-price rejection.
+- Verified a 7m39s/450-coin full win with the owner's Large UI/vertical-upgrade settings. Ignore dim terrain through empty hotbar slots while retaining extra bright-price rejection.

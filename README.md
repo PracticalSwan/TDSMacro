@@ -31,7 +31,7 @@ The client area excludes title bar/borders. A 1920Ã—1080 display is tested; a â€
 
 ## Verified behavior and limits
 
-The integrated app completed five consecutive wins on the development account (450 coins each), then safely stopped on a clipped map-board view. The release shortens that approach and allows bounded waits for slow loading and delayed acknowledgements. See [verification](docs/verification.md) for release checks and limits.
+The release app completed a **7m39s / 450-coin win with all 44 actions confirmed**, then automatically entered the next game using the documented settings. Earlier testing completed five consecutive 450-coin wins before a safe stop on a clipped board view. The release repairs both approach distances and allows bounded loading/action delays. See [verification](docs/verification.md) for checks and limits.
 
 Cash/prices are read from the game; starting cash is not fixed. Tower identity uses labels and levels rather than skin portraits. Wins with every modifier configuration, no modifiers, or other skins have **not** been established. UI changes may require recalibration.
 
