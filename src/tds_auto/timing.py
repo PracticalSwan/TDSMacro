@@ -1,0 +1,7 @@
+"""Bounded slow-machine/network allowances; waits never repeat spending."""
+READ_SECONDS = 5
+SELECTION_SECONDS = 8
+ACTION_CONFIRM_SECONDS = 20
+MATCH_START_SECONDS = 60
+TELEPORT_SECONDS = 180
+RESULT_CONFIRM_SECONDS = 20

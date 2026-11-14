@@ -1,0 +1,32 @@
+name: Strategy proposal
+description: Propose a new data-only strategy for review.
+title: "[Strategy] "
+labels: [strategy]
+body:
+  - type: input
+    id: identity
+    attributes:
+      label: Map, mode and required towers
+    validations:
+      required: true
+  - type: textarea
+    id: setup
+    attributes:
+      label: Reproducible setup and trial results
+      description: Client size/DPI, UI version, camera, skin, modifiers, action count, wins/losses, time/rewards. Separate live and simulated evidence.
+    validations:
+      required: true
+  - type: textarea
+    id: permission
+    attributes:
+      label: Authorship and redistribution permission
+      description: Author and license/permission for all data. No unknown-license private imports.
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: This is data only, follows CONTRIBUTING.md and contains no private account information.
+          required: true

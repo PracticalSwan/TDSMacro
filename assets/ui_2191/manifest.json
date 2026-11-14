@@ -1,0 +1,379 @@
+{
+  "version": "TDS 2.19.1 English, 1920x991 physical client, 120 DPI",
+  "size": [
+    1920,
+    991
+  ],
+  "states": {
+    "lobby": [
+      {
+        "file": "lobby_0.png",
+        "box": [
+          909,
+          767,
+          1014,
+          800
+        ],
+        "alternatives": [
+          "lobby_play_normal.png"
+        ]
+      },
+      {
+        "file": "lobby_1.png",
+        "box": [
+          118,
+          420,
+          215,
+          451
+        ],
+        "alternatives": [
+          "lobby_items_hover.png"
+        ]
+      }
+    ],
+    "play_menu": [
+      {
+        "file": "play_menu_0.png",
+        "box": [
+          900,
+          56,
+          940,
+          70
+        ]
+      },
+      {
+        "file": "play_menu_1.png",
+        "box": [
+          105,
+          117,
+          340,
+          145
+        ]
+      }
+    ],
+    "survival_menu": [
+      {
+        "file": "survival_menu_0.png",
+        "box": [
+          116,
+          579,
+          165,
+          599
+        ]
+      },
+      {
+        "file": "survival_menu_1.png",
+        "box": [
+          115,
+          866,
+          197,
+          889
+        ]
+      },
+      {
+        "file": "survival_menu_2.png",
+        "box": [
+          105,
+          174,
+          228,
+          199
+        ]
+      }
+    ],
+    "squad_easy": [
+      {
+        "file": "squad_easy_0.png",
+        "box": [
+          826,
+          49,
+          1101,
+          75
+        ]
+      },
+      {
+        "file": "squad_easy_1.png",
+        "box": [
+          755,
+          197,
+          961,
+          217
+        ]
+      }
+    ],
+    "map_vote": [
+      {
+        "file": "map_vote_ready_normal.png",
+        "box": [
+          909,
+          762,
+          1002,
+          802
+        ],
+        "alternatives": [
+          "map_vote_ready_hover.png"
+        ],
+        "search_x": 24
+      },
+      {
+        "file": "map_vote_1.png",
+        "box": [
+          680,
+          765,
+          804,
+          796
+        ],
+        "search_x": 24
+      }
+    ],
+    "settings": [
+      {
+        "file": "settings_0.png",
+        "box": [
+          445,
+          216,
+          580,
+          247
+        ]
+      },
+      {
+        "file": "settings_1.png",
+        "box": [
+          1070,
+          301,
+          1234,
+          339
+        ]
+      }
+    ],
+    "inventory_scout": [
+      {
+        "file": "inventory_scout_0.png",
+        "box": [
+          1080,
+          166,
+          1217,
+          206
+        ],
+        "alternatives": [
+          "inventory_scout_title_alt.png"
+        ]
+      },
+      {
+        "file": "inventory_scout_1.png",
+        "box": [
+          327,
+          239,
+          438,
+          267
+        ]
+      }
+    ],
+    "loading": [
+      {
+        "file": "loading_0.png",
+        "box": [
+          748,
+          565,
+          1179,
+          628
+        ]
+      },
+      {
+        "file": "loading_1.png",
+        "box": [
+          853,
+          626,
+          1069,
+          689
+        ]
+      }
+    ],
+    "vip_maps": [
+      {
+        "file": "vip_maps_0.png",
+        "box": [
+          629,
+          263,
+          701,
+          288
+        ]
+      },
+      {
+        "file": "vip_maps_1.png",
+        "box": [
+          784,
+          263,
+          857,
+          288
+        ]
+      },
+      {
+        "file": "vip_maps_2.png",
+        "box": [
+          757,
+          827,
+          1164,
+          846
+        ]
+      }
+    ],
+    "match_ready": [
+      {
+        "file": "match_ready_0.png",
+        "box": [
+          823,
+          168,
+          931,
+          194
+        ]
+      },
+      {
+        "file": "match_ready_1.png",
+        "box": [
+          901,
+          37,
+          1018,
+          60
+        ]
+      },
+      {
+        "file": "match_ready_2.png",
+        "box": [
+          1000,
+          195,
+          1070,
+          218
+        ]
+      }
+    ],
+    "in_match": [
+      {
+        "file": "in_match_0.png",
+        "box": [
+          901,
+          37,
+          1018,
+          60
+        ]
+      },
+      {
+        "file": "in_match_wave_label.png",
+        "box": [
+          578,
+          54,
+          646,
+          74
+        ]
+      }
+    ],
+    "defeat": [
+      {
+        "file": "defeat_0.png",
+        "box": [
+          825,
+          365,
+          1095,
+          410
+        ],
+        "colored": true
+      },
+      {
+        "file": "defeat_1.png",
+        "box": [
+          726,
+          754,
+          951,
+          786
+        ],
+        "colored": false
+      }
+    ],
+    "disconnect": [
+      {
+        "file": "disconnect_0.png",
+        "box": [
+          883,
+          359,
+          1041,
+          387
+        ]
+      },
+      {
+        "file": "disconnect_1.png",
+        "box": [
+          809,
+          588,
+          879,
+          622
+        ],
+        "colored": true
+      }
+    ],
+    "victory": [
+      {
+        "file": "victory_0.png",
+        "box": [
+          825,
+          365,
+          1095,
+          410
+        ],
+        "colored": true
+      },
+      {
+        "file": "victory_1.png",
+        "box": [
+          1008,
+          752,
+          1188,
+          790
+        ],
+        "colored": false,
+        "alternatives": [
+          "victory_play_again_normal.png",
+          "victory_play_again_hover.png"
+        ]
+      }
+    ],
+    "login_rewards": [
+      {
+        "file": "login_rewards_0.png",
+        "box": [
+          667,
+          338,
+          955,
+          381
+        ]
+      },
+      {
+        "file": "login_rewards_1.png",
+        "box": [
+          910,
+          773,
+          1010,
+          806
+        ]
+      }
+    ],
+    "inventory_list": [
+      {
+        "file": "inventory_list_0.png",
+        "box": [
+          327,
+          239,
+          438,
+          267
+        ]
+      },
+      {
+        "file": "inventory_list_1.png",
+        "box": [
+          764,
+          92,
+          827,
+          113
+        ]
+      }
+    ]
+  }
+}

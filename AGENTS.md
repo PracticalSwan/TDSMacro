@@ -1,0 +1,15 @@
+# Project instructions — TDS Macro
+
+- Read README.md, docs/development.md, docs/setup.md and docs/verification.md before implementation. Inspect actual status and nearby instructions. Preserve unrelated and ignored user work.
+- Keep the Python/Tk app small: one supported strategy, global F1 start/F2 stop, responsive GUI, separate guarded worker, stop on close. No services or auto-updates.
+- Never invoke Codex CLI. Never use injection, executors, client memory/session/cookie access, modified clients, anti-cheat bypass, anti-idle or auto-refocus. No credentials are needed.
+- Input requires an explicitly started run and verified foreground identity/geometry/DPI. Reuse control.py guards and release cleanup. Preserve F2/F8/Escape and stop markers inside waits/holds. Never overlap controllers.
+- Preserve map/title/vote, overhead pose, actual cash/price, tower name/level/count and result checks. Detect results before spending. Never repeat uncertain placement/purchase clicks. One selection-only retry requires two positive hover checks and unchanged count.
+- Play Again may return to map_vote: select/vote and set a fresh camera. Direct match_ready restarts verify zero towers and retained pose without repeated movement. Establish four physical boards; never guess an index.
+- Baseline: English TDS Store GDK, physical 1920×991/120 DPI, Solo Survival/Easy Dead Ahead, Golden Scout only slot 1, nine vertical Scouts/44 actions. Other geometry needs independent calibration/live proof, not proportional clicks. Modifiers change income; skins cannot define identity.
+- Use CodeGraph for structural discovery when .codegraph exists, then targeted reads for stale/non-symbol data. Actual source/runtime remain authoritative.
+- Fix demonstrated causes with small coherent changes and meaningful regressions. Run relevant checks and one full suite when warranted. Do not restart long soaks for cosmetic changes. Update CHANGELOG.md and verification docs for material changes.
+- Stop GUI/worker before native tests; F1/F2/F8 must be free. Offline CI is not game proof.
+- Keep original GOLDIE SCOUTO.strat, historical variants, account captures/logs and local notes private/ignored. Public source/package contains only the calibrated nine-Scout strategy and sanitized data. Inspect actual staged files/artifacts.
+- **Automatic commit and push:** the owner authorizes committing/pushing coherent verified fixes, features and documentation milestones to this repository after relevant checks pass and exact diff/privacy review. Stage explicit intended paths. Do not publish incomplete changes, private artifacts or unrelated work. Never force-push, rewrite history, change destinations or create branches without authorization. Verify remote commit and hosted checks; distinguish failures from local success.
+- Public contributions are suggestions and new data-only strategies. Owner-maintained engine fixes are allowed by owner task authorization. Do not auto-load community strategies before review, calibration and supervised live checks.

@@ -1,0 +1,64 @@
+name: Windows checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  core:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Community contribution scope
+        if: github.event_name == 'pull_request'
+        shell: pwsh
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          $changes = git diff --no-renames --name-status "$env:BASE_SHA...$env:HEAD_SHA"
+          foreach ($change in $changes) {
+            $parts = $change -split "`t", 2
+            if ($parts[0] -ne 'A' -or $parts[1] -notmatch '^(strategies/community/.+\.strat|calibrations/community/.+\.(json|png)|docs/strategies/.+\.md)$') {
+              throw 'Community PRs may add only strategy data, calibration JSON/PNG and evidence Markdown in the documented paths. Use a suggestion issue for core changes.'
+            }
+          }
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.14'
+      - name: Isolated dependencies
+        shell: pwsh
+        run: |
+          python -m venv .venv
+          .\.venv\Scripts\python.exe -m pip install -r requirements-runtime.txt -r requirements-build.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          .\.venv\Scripts\python.exe -m pip check
+      - name: Syntax and Windows core tests
+        shell: pwsh
+        run: |
+          .\.venv\Scripts\python.exe -m compileall -q src tests tds_launcher.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          foreach ($suite in @('strategy','phase1','control','navigation','match','run','app','vertical_profile')) {
+            .\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_$suite.py" -v
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Build Windows app
+        if: github.event_name != 'pull_request'
+        shell: pwsh
+        run: .\scripts\build-app.ps1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: github.event_name != 'pull_request'
+        with:
+          name: TDSMacro-Windows-build
+          path: dist/TDSMacro
+          if-no-files-found: error
+          retention-days: 7

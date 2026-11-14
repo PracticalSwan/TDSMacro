@@ -1,0 +1,50 @@
+# Python and editors
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.vscode/
+.idea/
+
+# Local code intelligence index
+.codegraph/
+
+# Private runtime and user-generated data
+.env
+.env.*
+!.env.example
+logs/
+captures/
+recordings/
+runtime/
+sessions/
+user_data/
+diagnostics/private/
+*.log
+
+# Build and package outputs
+build/
+dist/
+*.egg-info/
+
+# Keep the original import and historical strategy/calibration files local.
+strategies/*
+!strategies/README.md
+!strategies/GOLDIE SCOUTO.vertical-nine-slot1.strat
+!strategies/community/
+calibrations/*.json
+!calibrations/dead_ahead_vertical_nine_v4.json
+!calibrations/community/
+memory/
+LESSONS.md
+scripts/menu_probe.ahk
+docs/*
+!docs/setup.md
+!docs/troubleshooting.md
+!docs/development.md
+!docs/verification.md
+!docs/strategies.md
+!docs/images/
+!docs/strategies/

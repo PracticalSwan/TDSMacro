@@ -1,0 +1,68 @@
+{
+  "status": "calibrated_current_setup",
+  "strategy": "strategies/GOLDIE SCOUTO.vertical-nine-slot1.strat",
+  "strategy_sha256": "59548c3cf386f63eb0ae9f820ec165747c600706bbb59c7ce6acbd4da133eafb",
+  "size": [
+    1920,
+    991
+  ],
+  "dpi": 120,
+  "map": "Dead Ahead",
+  "mode": "Easy",
+  "tower": "Scout",
+  "slot": 1,
+  "first_verified_placement": [
+    855,
+    330
+  ],
+  "setup": {
+    "movement": "W",
+    "movement_ms": 950,
+    "zoom_in": 20,
+    "zoom_out": 18,
+    "pitch_down": 840,
+    "pitch_repetitions": 2
+  },
+  "landmarks": [
+    {
+      "box": [
+        1250,
+        250,
+        1460,
+        450
+      ],
+      "file": "camera_0.png"
+    },
+    {
+      "box": [
+        500,
+        550,
+        620,
+        750
+      ],
+      "file": "camera_1.png"
+    }
+  ],
+  "scene": "scene.png",
+  "scene_rois": [
+    [
+      600,
+      250,
+      850,
+      850
+    ],
+    [
+      1080,
+      250,
+      1300,
+      850
+    ]
+  ],
+  "baseline": "TDS lobby; Golden Scout slot 1, slots 2-5 empty",
+  "placement_layout": "Nine vertical positions; 44-action current-setup winning strategy. See docs/verification.md for evidence and limits.",
+  "provenance": {
+    "original_author": "gall",
+    "original_sha256": "834eca1282be36a8cb5f94da4ace8beddefac0adcf0903f02697545226b05021",
+    "original_distribution": "Private user-supplied reference; not included in public source or release."
+  }
+}

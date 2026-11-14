@@ -1,0 +1,71 @@
+[Info]
+title=Golden Scout vertical nine-tower trial
+author=gall
+desc=Derived from gall source; first 44 game-changing operations of observed win16. Current-account modifiers only; repeated full macro verification pending.
+income=Unverified
+time=Observed 8m4s in initial trial; variable
+
+[Settings]
+map=Dead Ahead
+difficulty=Easy
+requiredTowers=Scout
+modifiers=
+chainInterval=10
+caravanInterval=20
+autoChain=OFF
+autoCaravan=OFF
+autoDropTheBeat=OFF
+autoSkip=ON
+moveEnabled=1
+moveDirection=W
+moveDuration=950
+
+[DO NOT EDIT]
+width=1920
+height=991
+
+[Steps]
+SpawnTower(855, 330, 1, 1)
+UpgradeTower(1)
+UpgradeTower(1)
+SpawnTower(855, 375, 1, 2)
+UpgradeTower(2)
+UpgradeTower(2)
+SpawnTower(855, 420, 1, 3)
+UpgradeTower(3)
+UpgradeTower(3)
+SpawnTower(855, 465, 1, 4)
+UpgradeTower(4)
+UpgradeTower(4)
+SpawnTower(855, 510, 1, 5)
+UpgradeTower(5)
+UpgradeTower(5)
+SpawnTower(825, 555, 1, 6)
+UpgradeTower(6)
+UpgradeTower(6)
+SpawnTower(1020, 330, 1, 7)
+UpgradeTower(7)
+UpgradeTower(7)
+SpawnTower(1020, 375, 1, 8)
+UpgradeTower(8)
+UpgradeTower(8)
+UpgradeTower(8)
+UpgradeTower(3)
+UpgradeTower(5)
+UpgradeTower(1)
+UpgradeTower(7)
+UpgradeTower(4)
+UpgradeTower(6)
+UpgradeTower(2)
+SpawnTower(1020, 420, 1, 9)
+UpgradeTower(7)
+UpgradeTower(4)
+UpgradeTower(6)
+UpgradeTower(2)
+UpgradeTower(3)
+UpgradeTower(8)
+UpgradeTower(1)
+UpgradeTower(5)
+UpgradeTower(9)
+UpgradeTower(9)
+UpgradeTower(9)
