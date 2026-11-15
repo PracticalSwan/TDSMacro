@@ -347,7 +347,7 @@
       },
       {
         "file": "login_rewards_1.png",
-        "alternatives": ["login_rewards_close.png"],
+        "alternatives": ["login_rewards_close.png", "login_rewards_claim_hover.png"],
         "box": [
           910,
           773,

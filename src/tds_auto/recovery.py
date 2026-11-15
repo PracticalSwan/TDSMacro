@@ -13,6 +13,7 @@ from .session import Session,SessionControl
 from .resources import LocalOCR
 
 ROBLOX_URI='roblox://experiences/start?placeId=3260590327'
+LAUNCHER_SETTLE_SECONDS=60
 NO_RECOVERY={'user_stop','focus_lost','window_changed','setup','storage'}
 
 
@@ -108,7 +109,7 @@ def confirm_close(window,control,platform):
         if not close_prompt(capture(window)):
             raise StopRun('Roblox close confirmation changed; no click sent.',kind='setup')
     driver.before_click=verify
-    try:driver.click(800,715)
+    try:driver.click(680,715)  # Left padding keeps Close Roblox readable after hover.
     except (RuntimeError,OSError) as exc:
         # This one click intentionally destroys the guarded window. Stop and
         # focus/geometry signals still cancel; only its absence is expected.
@@ -135,8 +136,11 @@ def restart_client(control,platform,report,*,locate=locate_client,close=close_cl
             if not confirmed:
                 confirmed=confirm(window,control,platform)
             wait(control,platform,.05)
-        # The Store activation broker can outlive the game process briefly.
-        wait(control,platform,3)
+    # The Store broker can still own the old activation after process exit,
+    # including a crash before recovery started. Three seconds reproduced
+    # 0x800705b4; sixty passed a live normal-close/single-launch cycle.
+    report(stage='settling_launcher',seconds=LAUNCHER_SETTLE_SECONDS)
+    wait(control,platform,LAUNCHER_SETTLE_SECONDS)
     check_cancel(control,platform)
     report(stage='launching')
     launch()

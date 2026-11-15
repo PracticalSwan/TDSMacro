@@ -65,12 +65,47 @@ class CalibrationTests(unittest.TestCase):
             self.assertTrue(gate.check(frame))
             self.assertFalse(gate.check(ImageChops.offset(frame,10,0)))
 
+    def test_camera_feature_work_is_confined_to_padded_map_regions_without_losing_coordinates(self):
+        gate=CameraGate(ROOT/'calibrations/dead_ahead_vertical_nine_v4.json')
+        detector=gate.detector;areas=[]
+        class MeasuredDetector:
+            def detectAndCompute(self,image,mask):
+                areas.append(image.size)
+                return detector.detectAndCompute(image,mask)
+        gate.detector=MeasuredDetector()
+        with Image.open(ROOT/'calibrations/scene.png') as source:
+            frame=ImageChops.offset(source,5,-4)
+            self.assertTrue(gate.bind(frame))
+            self.assertEqual(gate.map_point((855,330)),(860,326))
+            self.assertTrue(gate.check(frame))
+            self.assertFalse(gate.check(ImageChops.offset(frame,10,0)))
+            self.assertLess(max(areas),frame.width*frame.height/2,
+                            'Camera checks must not build SIFT pyramids over the unused full viewport.')
+
     def test_fresh_match_view_can_be_calibrated_within_strict_bounds(self):
         for name in ("camera_fresh_match", "camera_fresh_match_settled"):
             gate=CameraGate(ROOT / "calibrations/dead_ahead_vertical_nine_v4.json")
             with Image.open(ROOT / "tests/fixtures" / f"{name}.png") as frame:
                 self.assertTrue(gate.bind(frame))
                 self.assertTrue(gate.check(frame))
+
+    def test_zoom_guidance_requires_matching_terrain_and_centered_scale_change(self):
+        import cv2
+        import numpy as np
+        gate=CameraGate(ROOT/'calibrations/dead_ahead_vertical_nine_v4.json')
+        with Image.open(ROOT/'calibrations/scene.png') as image:
+            source=np.asarray(image.convert('RGB'))
+        center=(source.shape[1]/2,source.shape[0]/2)
+        for scale,expected in ((1.04,-10),(.96,10)):
+            matrix=cv2.getRotationMatrix2D(center,0,scale)
+            frame=Image.fromarray(cv2.warpAffine(source,matrix,(1920,991)))
+            self.assertFalse(gate.bind(frame),'Guidance must not widen the placement acceptance gate.')
+            self.assertEqual(gate.zoom_step(frame),expected)
+            matrix[0,2]+=35
+            shifted=Image.fromarray(cv2.warpAffine(source,matrix,(1920,991)))
+            self.assertIsNone(gate.zoom_step(shifted),'A moved character is not a zoom correction.')
+        self.assertIsNone(gate.zoom_step(Image.new('RGB',(1920,991))))
+        self.assertIsNone(gate.zoom_step(Image.fromarray(source).rotate(6)))
 
     def test_ui_outside_map_regions_does_not_change_camera_calibration(self):
         gate=CameraGate(ROOT / "calibrations/dead_ahead_vertical_nine_v4.json")

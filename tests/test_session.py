@@ -15,7 +15,120 @@ from test_control import FakeOS
 class SessionTests(unittest.TestCase):
     def test_normal_lobby_skips_the_login_rewards_click(self):
         self.state='lobby'
+        readings=[]
+        self.session.ocr=SimpleNamespace(read=lambda frame:readings.append(frame.size) or '')
         self.session.lobby()
+        self.assertEqual(self.platform.events,[])
+        self.assertEqual(readings,[])
+
+    def test_login_claim_is_clicked_once_then_close_and_lobby_are_confirmed(self):
+        self.state='login_rewards'
+        readings=iter(['CLAIM','Claim','claim','Close','Close','Close',''])
+        self.session.ocr=SimpleNamespace(read=lambda frame:next(readings,''))
+        original=self.platform.emit
+        def emit(kind,*args):
+            original(kind,*args)
+            if kind=='left_up':
+                if self.platform.events.count(('left_down',))==2: self.state='lobby'
+        self.platform.emit=emit
+        self.session.lobby()
+        self.assertEqual(self.platform.events.count(('left_down',)),2)
+        self.assertEqual([e[1:] for e in self.platform.events if e[0]=='move'],[(1045,816),(1718,71)])
+        self.assertEqual(self.state,'lobby')
+        self.assertEqual(self.session.driver.before_click,self.session.click_gate)
+
+    def test_already_claimed_login_overlay_dismisses_without_claiming(self):
+        self.state='login_rewards'
+        readings=iter(['Close','Close','Close'])
+        self.session.ocr=SimpleNamespace(read=lambda frame:next(readings,''))
+        original=self.platform.emit
+        def emit(kind,*args):
+            original(kind,*args)
+            if kind=='left_up': self.state='lobby'
+        self.platform.emit=emit
+        self.session.lobby()
+        self.assertEqual([e[1:] for e in self.platform.events if e[0]=='move'],[(1718,71)])
+        self.assertEqual(self.platform.events.count(('left_down',)),1)
+        self.assertEqual(self.state,'lobby')
+
+    def test_claim_can_close_the_popup_directly_without_a_dismiss_click(self):
+        self.state='login_rewards'
+        self.session.ocr=SimpleNamespace(read=lambda frame:'CLAIM')
+        original=self.platform.emit
+        def emit(kind,*args):
+            original(kind,*args)
+            if kind=='left_up':self.state='lobby'
+        self.platform.emit=emit
+        self.session.lobby()
+        self.assertEqual(self.platform.events.count(('left_down',)),1)
+        self.assertEqual(self.state,'lobby')
+
+    def test_changed_claim_label_before_click_is_refused(self):
+        self.state='login_rewards'
+        readings=iter(['Claim','Claim','close'])
+        self.session.ocr=SimpleNamespace(read=lambda frame:next(readings,''))
+        def refuse_transition(name):
+            raise AssertionError('An uncertain claim must not dismiss the overlay.')
+        self.session.transition=refuse_transition
+        gate=self.session.driver.before_click
+        with self.assertRaisesRegex(StopRun,'Claim label changed'):
+            self.session.lobby()
+        self.assertNotIn(('left_down',),self.platform.events)
+        self.assertEqual(self.session.driver.before_click,gate)
+
+    def test_delayed_claim_observation_never_sends_a_second_claim(self):
+        self.state='login_rewards'
+        readings=iter(['Claim','Claim'])
+        self.session.ocr=SimpleNamespace(read=lambda frame:next(readings,'Claim'))
+        original=self.platform.emit
+        def emit(kind,*args):
+            original(kind,*args)
+            if kind=='left_up': self.state='login_rewards'
+        self.platform.emit=emit
+        def refuse_transition(name):
+            raise AssertionError('A delayed claim must not be clicked or dismissed again.')
+        self.session.transition=refuse_transition
+        with self.assertRaisesRegex(StopRun,'login reward action did not settle'):
+            self.session.lobby()
+        self.assertEqual(self.platform.events.count(('left_down',)),1)
+        self.assertEqual([e[1:] for e in self.platform.events if e[0]=='move'],[(1045,816)])
+        self.assertGreaterEqual(self.platform.clock,8)
+
+    def test_uncertain_login_caption_waits_bounded_and_never_clicks(self):
+        self.state='login_rewards'
+        self.session.ocr=SimpleNamespace(read=lambda frame:'')
+        def refuse_transition(name):
+            raise AssertionError('An unreadable caption must not dismiss the overlay.')
+        self.session.transition=refuse_transition
+        with self.assertRaisesRegex(StopRun,'unreadable'):
+            self.session.lobby()
+        self.assertEqual(self.platform.events,[])
+        self.assertGreaterEqual(self.platform.clock,8)
+
+    def test_claim_requires_green_button_and_exact_real_caption(self):
+        for name,expected in (('login_rewards.png','claim'),('login_rewards_current.png','close')):
+            with Image.open(ROOT/'tests/fixtures'/name) as frame:
+                self.assertEqual(self.session._login_caption(frame),expected)
+                if expected=='claim':
+                    self.assertIsNone(self.session._login_caption(frame.convert('L').convert('RGB')))
+
+    def test_unreadable_caption_breaks_the_claim_confirmation_sequence(self):
+        self.state='login_rewards';readings=iter(['Claim','','Claim',''])
+        self.session.ocr=SimpleNamespace(read=lambda frame:next(readings,''))
+        with self.assertRaises(StopRun):self.session.lobby()
+        self.assertEqual(self.platform.events,[])
+
+    def test_a_brief_reward_overlay_restarts_the_lobby_stability_wait(self):
+        def capture():
+            frame=Image.new('RGB',(1920,991))
+            reward=1.59<=self.platform.now()<1.79
+            frame.info['state']='login_rewards' if reward else 'lobby'
+            if reward:frame.paste((100,220,120),Session.LOGIN_CAPTION_BOX)
+            return frame
+        self.session.capture=capture
+        self.session.ocr=SimpleNamespace(read=lambda frame:'Claim')
+        self.session.lobby()
+        self.assertGreaterEqual(self.platform.now(),3.79)
         self.assertEqual(self.platform.events,[])
 
     def test_recovery_attempt_uses_root_controls_and_shared_totals(self):
@@ -115,7 +228,13 @@ class SessionTests(unittest.TestCase):
             movements.append((name,seconds))
             original_key(name,seconds)
         self.driver.key=key
-        with patch('tds_auto.session.vip_target_matches',return_value=True):
+        def card_matches(frame):
+            moves=[e for e in self.platform.events if e[0]=='move']
+            x,y=moves[-1][1],moves[-1][2]-self.driver.expected.y
+            self.assertFalse(635<=x<752 and 350<=y<398,
+                             'VIP hover must leave the complete map title clear for OCR.')
+            return True
+        with patch('tds_auto.session.vip_target_matches',side_effect=card_matches):
             self.session.choose_map()
         # Matching forward/back duration preserves the existing VIP spawn route.
         self.assertEqual(movements[:2],[('W',2.8),('S',2.8)])
@@ -132,6 +251,8 @@ class SessionTests(unittest.TestCase):
         self.state='lobby'
         def frame():
             image=Image.new('RGB',(1920,991))
+            if self.state=='login_rewards':
+                image.paste((100,220,120),Session.LOGIN_CAPTION_BOX)
             image.info['state']=self.state
             return image
         self.session=Session(self.driver,self.path,read_frame=frame,now=self.platform.now)
@@ -140,6 +261,7 @@ class SessionTests(unittest.TestCase):
 
     def test_login_overlay_is_dismissed_once_then_lobby_is_confirmed(self):
         self.state='login_rewards'
+        self.session.ocr=SimpleNamespace(read=lambda frame:'Close')
         original=self.platform.emit
         def emit(kind,*args):
             original(kind,*args)
@@ -174,6 +296,36 @@ class SessionTests(unittest.TestCase):
             hud.return_value.read.return_value=SimpleNamespace(tower_count=0,cash=250)
             gate.return_value.bind.return_value=True
             self.session.prepare_camera(retained=True)
+        self.assertEqual(self.platform.events,[])
+
+    def test_fresh_camera_can_correct_zoom_only_before_any_tower_exists(self):
+        self.state='match_ready'
+        from unittest.mock import Mock
+        gate=Mock();gate.bind.side_effect=[False,True];gate.zoom_step.return_value=-10
+        with patch('tds_auto.session.HudReader') as hud:
+            hud.return_value.read.return_value=SimpleNamespace(tower_count=0)
+            self.session.align_fresh_camera(gate)
+        self.assertEqual([e for e in self.platform.events if e[0]=='wheel'],[('wheel',-10)])
+        self.assertFalse(any(e[0] in {'key_down','left_down','right_down'} for e in self.platform.events))
+        self.platform.events.clear();gate.reset_mock();gate.bind.side_effect=None;gate.bind.return_value=False
+        with patch('tds_auto.session.HudReader') as hud:
+            hud.return_value.read.return_value=SimpleNamespace(tower_count=1)
+            with self.assertRaises(StopRun):self.session.align_fresh_camera(gate)
+        self.assertEqual(self.platform.events,[])
+        gate.zoom_step.assert_not_called()
+
+    def test_fresh_camera_adjustments_are_bounded_and_retained_restarts_never_adjust(self):
+        self.state='match_ready'
+        from unittest.mock import Mock
+        gate=Mock();gate.bind.return_value=False;gate.zoom_step.return_value=-10
+        with patch('tds_auto.session.HudReader') as hud:
+            hud.return_value.read.return_value=SimpleNamespace(tower_count=0)
+            with self.assertRaises(StopRun):self.session.align_fresh_camera(gate)
+        self.assertEqual([e for e in self.platform.events if e[0]=='wheel'],[('wheel',-10)]*6)
+        self.platform.events.clear()
+        with patch('tds_auto.session.HudReader') as hud,patch('tds_auto.session.CameraGate',return_value=gate):
+            hud.return_value.read.return_value=SimpleNamespace(tower_count=0)
+            with self.assertRaises(StopRun):self.session.prepare_camera(retained=True)
         self.assertEqual(self.platform.events,[])
 
     def test_result_banner_interrupts_playback_before_any_click(self):
@@ -447,6 +599,22 @@ class SessionTests(unittest.TestCase):
         self.assertTrue(result['all_requested_matches_won'])
         self.assertEqual(calls,['preflight','choose_map',('camera',False),'play_again','choose_map',('camera',False)])
 
+    def test_diagnostic_storage_failure_preserves_win_but_stops_before_replay(self):
+        calls=[]
+        class Engine:
+            def __init__(engine,*args,**kwargs):engine.profile=self.session.profile
+            def play(engine,**kwargs):return {'status':'victory','coins':450,'full_strategy_verified':True,'diagnostic_error':'PNG locked'}
+        self.session.preflight=lambda:None
+        self.session.choose_map=lambda:None
+        self.session.prepare_camera=lambda retained=False:None
+        self.session.transition=lambda name:calls.append(name) or 'map_vote'
+        with patch('tds_auto.session.Playback',Engine):result=self.session.run(matches=2)
+        self.assertEqual(result['status'],'stopped')
+        self.assertEqual(result['stop_kind'],'storage')
+        self.assertEqual((result['wins'],result['coins_total']),(1,450))
+        self.assertEqual(result['matches'][0]['status'],'victory')
+        self.assertEqual(calls,[])
+
     def test_partial_result_banner_waits_for_controls_without_gameplay_input(self):
         from tds_auto.observer import Observer
         from tds_auto.results import ResultReader
@@ -506,6 +674,7 @@ class SessionTests(unittest.TestCase):
         locate.assert_not_called()
 
     def test_ready_can_take_thirty_seconds_to_start_without_another_click(self):
+        from tds_auto.recording import LatestFrame
         from tds_auto.resources import Hud
         from tds_auto.match import Snapshot
         from tds_auto.run import Progress
@@ -515,8 +684,9 @@ class SessionTests(unittest.TestCase):
         playback.profile={'slot':1,'dpi':120,'strategy_sha256':'test'}
         playback.strategy=SimpleNamespace(steps=())
         playback.output=self.path;playback.full_evidence=False
+        playback.recording=LatestFrame(self.path/'latest.png')
         playback.camera=SimpleNamespace(bind=lambda f:True,check=lambda f:True,map_point=lambda p:p)
-        playback.finish_if_result=lambda frame:None
+        playback.finish_if_result=lambda frame:playback.observer.observe(frame).state
         playback.frame=lambda:None
         playback.save_evidence=lambda *args:None
         playback.notify=lambda *args:None;playback.pause=lambda *args:None

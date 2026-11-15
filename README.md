@@ -31,7 +31,7 @@ The client area excludes title bar/borders. A 1920Ã—1080 display is tested; a â€
 
 ## Verified behavior and limits
 
-The updated app completed **three consecutive 450-coin wins** (7m43s, 7m44s, 7m44s), verified all 44 actions each time, and used normal Play Again to enter match 4 with **zero recoveries**. Separate live tests verified close/reopen recovery, F2 cancellation before relaunch, and conditional Login Rewards dismissal. See [verification](docs/verification.md) for the observed failures, corrections and finite test scope.
+Version 0.2.1 completed a live recovery-to-win cycle: **7m41s / 450 coins, all 44 actions confirmed**, followed by normal Play Again through map voting and fresh camera setup into match 2. It adds measured processing improvements, bounded camera alignment, one-time Login Reward claiming and a longer cancellable launcher settle for recovery. See [verification](docs/verification.md) for actual trials, the earlier three-win 0.2.0 baseline, observed failures and finite test scope.
 
 Cash/prices are read from the game; starting cash is not fixed. Tower identity uses labels and levels rather than skin portraits. Wins with every modifier configuration, no modifiers, or other skins have **not** been established. UI changes may require recalibration.
 

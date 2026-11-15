@@ -63,16 +63,29 @@ class CameraGate:
         self.mask = np.zeros(self.reference.shape, dtype=np.uint8)
         for left, top, right, bottom in self.profile["scene_rois"]:
             self.mask[top:bottom, left:right] = 255
+        rows,columns=np.nonzero(self.mask)
+        if not len(rows):
+            raise ValueError('Camera calibration has no visible map regions.')
+        # Keep black context around the same two map regions, but avoid SIFT
+        # pyramids over unused HUD/sky pixels. Align the crop to its octave grid.
+        self.feature_box=(max(0,(int(columns.min())-64)//32*32),
+                          max(0,(int(rows.min())-64)//32*32),
+                          min(self.mask.shape[1],(int(columns.max())+65+31)//32*32),
+                          min(self.mask.shape[0],(int(rows.max())+65+31)//32*32))
         # Use identical ROI context for reference/live descriptors. Range fills
         # reduce terrain contrast, so retain more low-contrast features while
         # keeping the same inlier, both-sides and drift requirements.
         self.reference=np.where(self.mask!=0,self.reference,0).astype(np.uint8)
         self.detector = cv2.SIFT_create(nfeatures=4000, contrastThreshold=0.001)
-        self.keypoints, self.descriptors = self.detector.detectAndCompute(self.reference, self.mask)
+        self.keypoints, self.descriptors = self.features(Image.fromarray(self.reference))
 
     def features(self, frame):
         current = np.where(self.mask != 0, np.asarray(frame.convert('L')), 0).astype(np.uint8)
-        return self.detector.detectAndCompute(current, self.mask)
+        left,top,right,bottom=self.feature_box
+        points,descriptors=self.detector.detectAndCompute(current[top:bottom,left:right],self.mask[top:bottom,left:right])
+        for point in points:
+            point.pt=(point.pt[0]+left,point.pt[1]+top)
+        return points,descriptors
 
     def estimate(self, frame, reference=None):
         if frame.size != tuple(self.profile["size"]):
@@ -99,6 +112,23 @@ class CameraGate:
         if (source[selected, 0] < 900).sum() < 10 or (source[selected, 0] > 1000).sum() < 10:
             return None
         return matrix
+
+    def zoom_step(self, frame):
+        """Guide setup only when matching terrain differs by centered zoom.
+
+        This never certifies placement: bind() must still pass its original
+        tighter pose limits after each small, bounded wheel step.
+        """
+        matrix=self.estimate(frame)
+        if matrix is None:
+            return None
+        scale=float(np.hypot(matrix[0,0],matrix[1,0]))
+        angle=float(np.degrees(np.arctan2(matrix[1,0],matrix[0,0])))
+        center=np.float32([[np.asarray(self.profile['size'])/2]])
+        offset=float(np.linalg.norm(cv2.transform(center,matrix)-center))
+        if not .90 <= scale <= 1.10 or abs(angle)>1 or offset>10 or abs(scale-1)<.005:
+            return None
+        return -10 if scale>1 else 10
 
     def bind(self, frame):
         """Bind a small fresh-match variation once, before any placement."""

@@ -37,19 +37,17 @@ def spawn_board_row(frame):
     """Locate the distant four-banner row before walking; no map identity implied."""
     if frame.size!=(1920,991):
         return None
-    pixels=np.asarray(frame.convert('RGB')).astype(np.float32)
+    pixels=np.asarray(frame.crop((0,240,1920,320)).convert('RGB')).astype(np.float32)
     red,green,blue=(pixels[:,:,i] for i in range(3))
     mask=np.uint8((red>170)&(red>green*1.4)&(red>blue*1.4))*255
-    mask[:240]=0
     # Trim red thumbnail decorations beneath the upper four map-board ribbons.
     # Retain the existing four-header, alignment, and separation checks.
-    mask[320:]=0
     contours,_=cv2.findContours(mask,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
     boxes=[]
     for contour in contours:
         x,y,w,h=cv2.boundingRect(contour)
         if 55<=w<=180 and 10<=h<=40 and 3<=w/h<=8 and cv2.contourArea(contour)>600:
-            boxes.append((x+w/2,y+h/2,w))
+            boxes.append((x+w/2,y+240+h/2,w))
     if len(boxes)!=4:
         return None
     boxes.sort()
@@ -66,17 +64,16 @@ def read_headers(frame):
     """Visible headers for tracking while walking; indices are view-relative."""
     if frame.size!=(1920,991):
         return ()
-    pixels=np.asarray(frame.convert('RGB')).astype(np.float32)
+    pixels=np.asarray(frame.crop((0,180,1920,315)).convert('RGB')).astype(np.float32)
     red,green,blue=(pixels[:,:,i] for i in range(3))
     mask=np.uint8((red>170)&(red>green*1.4)&(red>blue*1.4))*255
-    mask[:180]=0
-    mask[315:]=0  # Header band; lower red thumbnail scenery is not another board.
+    # Same header band; restore client y coordinates after contour detection.
     contours,_=cv2.findContours(mask,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
     boxes=[]
     for contour in contours:
         x,y,w,h=cv2.boundingRect(contour)
         if w>120 and h>20 and cv2.contourArea(contour)>1000:
-            boxes.append((x,y,x+w,y+int(h*.66)))
+            boxes.append((x,y+180,x+w,y+180+int(h*.66)))
     if not 1<=len(boxes)<=4:
         return ()
     ocr=LocalOCR()

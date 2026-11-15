@@ -13,8 +13,8 @@ from .phase1 import USER, capture, locate_roblox, BlankCapture
 from .timing import TELEPORT_SECONDS
 
 TRANSITIONS = {
-    # Upper button padding keeps a 3D player's profile tooltip above PLAY text.
-    "open_play": ("lobby", "play_menu", (960, 758)),
+    # Upper-left padding keeps the pointer/profile tooltip clear of PLAY text.
+    "open_play": ("lobby", "play_menu", (850, 758)),
     "survival": ("play_menu", "survival_menu", (830, 48)),
     "easy": ("survival_menu", "squad_easy", (365, 430)),
     "solo": ("squad_easy", "map_vote", (745, 420)),
@@ -23,7 +23,7 @@ TRANSITIONS = {
     "return_victory": ("victory", "lobby", (835, 768)),
     "play_again": ("victory", "match_ready", (1095,768)),
     "restart_match": ("defeat", "match_ready", (1095,768)),
-    "open_inventory": ("lobby", "inventory_list", (120,430)),
+    "open_inventory": ("lobby", "inventory_list", (180,398)),
     "scout_details": ("inventory_list", "inventory_scout", (390,370)),
     "close_inventory": ("inventory_scout", "lobby", (1130,80)),
 }
@@ -46,12 +46,13 @@ class Navigator:
             targets.add('login_rewards')
         if name=='play_again':
             targets.add('map_vote')  # Current TDS can start a new voting room.
-        for _ in range(2):
+        for index in range(2):
             self.driver.check()
             observed = self.observer.observe(self.read_frame())
             if observed.state != source:
                 raise StopRun(f"Expected {source}; saw {observed.state}. No click sent.")
-            self.sleep(0.2)
+            if index==0:
+                self.sleep(0.2)
         self.driver.click(*point)
         deadline, stable = self.now() + timeout, StableState()
         while self.now() < deadline:

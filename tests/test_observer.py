@@ -104,7 +104,7 @@ class ObserverTests(unittest.TestCase):
             self.assertEqual(self.observer.observe(frame).state,'login_rewards')
 
     def test_login_rewards_accepts_claim_and_close_but_requires_both_anchors(self):
-        for name in ('login_rewards.png','login_rewards_current.png'):
+        for name in ('login_rewards.png','login_rewards_current.png','login_rewards_claim_hover.png'):
             with self.subTest(name=name),Image.open(ROOT/'tests/fixtures'/name) as frame:
                 self.assertEqual(self.observer.observe(frame).state,'login_rewards')
                 for missing in ((667,338,955,381),(910,773,1010,806)):

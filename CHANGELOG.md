@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.2.1 — Camera alignment and performance
+
+- Verify a packaged recovery-to-win cycle (7m41s / 450 coins, all 44 actions), followed by normal Play Again through map voting, fresh overhead setup and the first confirmed placement/upgrade in match 2.
+- Claim an available Login Reward once after two exact green-button readings and a final guarded check. Accept automatic popup closure or dismiss confirmed Close; skip absent rewards and never repeat an uncertain claim. Recognize the normal Claim hover font and avoid its profile tooltip.
+- Wait 60 cancellable seconds after the verified Roblox process exits before one relaunch. This avoids the observed Store activation race and 0x800705b4 error; no force termination is added to the macro.
+- Process only the existing 80/135-row map-header bands, restoring screen coordinates and preserving the four-board/title/vote checks.
+- Remove the 200 ms unobserved wait after the second menu source confirmation; retain both spaced observations, normal polling and the final click guard.
+- Limit camera feature extraction to padded map regions at native resolution, preserving client coordinates, matching requirements and drift limits.
+- Remove repeated classification of the same gameplay frame and an extra discarded result-wait read; each measured failure still reaches the guarded action check.
+- Use lossless fast PNG compression and bound gameplay latest-frame writes to once per second. Preserve critical evidence and flush the actual final frame.
+- Preserve confirmed wins if the final diagnostic PNG write fails, then stop for the storage error before replay or recovery.
+- Allow at most six fine zoom adjustments during verified fresh zero-tower setup, followed by the unchanged strict placement pose check. Keep retained restarts check-only and leave avatar settings unchanged.
+- Keep lobby, VIP-card and client-close clicks in button/card padding so the pointer leaves verification labels clear.
+- Remove verified duplicate local binary payloads while preserving captures, originals, release archives and the current fallback app.
+
 ## 0.2.0 — Failure recovery and replay voting-room navigation
 
 - Verified three consecutive 450-coin wins (7m43s/7m44s/7m44s), all 44 actions in each, followed by normal Play Again entry into match 4 with zero recoveries.

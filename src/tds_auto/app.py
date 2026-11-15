@@ -130,7 +130,9 @@ def status_text(data, running, stopping=False):
         return 'Ready — open the TDS lobby, then press F1.'
     phase = data.get('phase', 'starting')
     if phase=='recovering':
-        stages={'cooldown':'restarting shortly','closing':'leaving the failed game','launching':'opening Roblox','waiting_lobby':'waiting for the lobby'}
+        stages={'cooldown':'restarting shortly','closing':'leaving the failed game',
+                'settling_launcher':'waiting 60 seconds for the Roblox launcher',
+                'launching':'opening Roblox','waiting_lobby':'waiting for the lobby'}
         return f"Recovery {data.get('recovery_attempt',1)}/{data.get('max_recoveries',3)} · {stages.get(data.get('stage'),'restarting TDS')} · F2 cancels."
     progress = data.get('progress', {})
     if phase == 'playing' and 'confirmed_step' in progress:

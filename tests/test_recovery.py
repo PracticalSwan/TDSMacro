@@ -141,6 +141,39 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual(caught.exception.kind,'user_stop')
         self.assertEqual(actions,[])
 
+    def test_store_broker_settles_for_sixty_seconds_after_process_exit(self):
+        recovery=self.module();closed=[];launched=[];stages=[]
+        recovery.restart_client(SessionControl(self.path),self.platform,lambda **row:stages.append(row['stage']),
+            locate=lambda:self.platform.window,close=lambda w:closed.append(self.platform.now()),
+            exists=lambda w:False,launch=lambda:launched.append(self.platform.now()),observe=lambda w:'lobby')
+        self.assertEqual(len(launched),1)
+        self.assertGreaterEqual(launched[0]-closed[0],60)
+        self.assertIn('settling_launcher',stages)
+
+    def test_an_already_absent_client_still_allows_the_launcher_to_settle(self):
+        recovery=self.module();launched=[];seen=[]
+        def missing():
+            seen.append(1)
+            if len(seen)==1:raise RuntimeError('No Roblox window')
+            return self.platform.window
+        recovery.restart_client(SessionControl(self.path),self.platform,lambda **row:None,
+            locate=missing,close=lambda w:self.fail('No client to close'),
+            launch=lambda:launched.append(self.platform.now()),observe=lambda w:'lobby',timeout=1)
+        self.assertEqual(len(launched),1)
+        self.assertGreaterEqual(launched[0],65)
+
+    def test_stop_partway_through_broker_settle_prevents_launch(self):
+        recovery=self.module();actions=[]
+        def stop_later(platform):
+            if platform.now()>=35:(self.path/'stop').touch()
+        self.platform.on_sleep=stop_later
+        with self.assertRaises(StopRun) as caught:
+            recovery.restart_client(SessionControl(self.path),self.platform,lambda **row:None,
+                locate=lambda:self.platform.window,close=lambda w:actions.append('close'),
+                exists=lambda w:False,launch=lambda:actions.append('launch'),observe=lambda w:'lobby')
+        self.assertEqual(caught.exception.kind,'user_stop')
+        self.assertEqual(actions,['close'])
+
     def test_emergency_stop_also_cancels_recovery_before_close(self):
         recovery=self.module();actions=[];self.platform.stopped=True
         with self.assertRaises(StopRun) as caught:
@@ -200,6 +233,19 @@ class RecoveryTests(unittest.TestCase):
             with self.assertRaisesRegex(StopRun,'confirmation changed'):
                 recovery.confirm_close(self.platform.window,control,self.platform)
         self.assertFalse(any(event[0]=='left_down' for event in self.platform.events))
+
+    def test_close_click_keeps_its_caption_clear_for_the_last_recheck(self):
+        recovery=self.module();control=SessionControl(self.path)
+        def readable(frame):
+            moves=[e for e in self.platform.events if e[0]=='move']
+            if not moves:return True
+            x,y=moves[-1][1],moves[-1][2]-self.platform.window.y
+            return not (740<=x<=860 and 694<=y<=736)
+        with patch.object(recovery,'client_exists',return_value=True), \
+             patch.object(recovery,'capture',return_value=Image.new('RGB',(1920,991))), \
+             patch.object(recovery,'close_prompt',side_effect=readable):
+            self.assertTrue(recovery.confirm_close(self.platform.window,control,self.platform))
+        self.assertEqual(self.platform.events.count(('left_down',)),1)
 
     def test_expected_client_disappearance_after_close_click_allows_relaunch(self):
         recovery=self.module();control=SessionControl(self.path)

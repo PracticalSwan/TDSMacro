@@ -144,6 +144,14 @@ class GuardedInput:
             self.platform.emit("wheel", 120 if notches > 0 else -120)
             self.wait(0.08)
 
+    def zoom_fine(self, delta: int):
+        """One small wheel step for verified, zero-tower camera alignment."""
+        if type(delta) is not int or not 0 < abs(delta) <= 20:
+            raise StopRun('Fine zoom must be a nonzero integer within twenty wheel units.')
+        self.check()
+        self.platform.emit('wheel',delta)
+        self.wait(.08)
+
 
 class WindowsOS:
     hotkey_id = 0x5444

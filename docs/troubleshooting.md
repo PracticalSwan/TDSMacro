@@ -8,7 +8,7 @@ Read the last reason in the app. Use F2 before adjusting the game. With recovery
 | Foreground / window changed | Keep Roblox visible, unobscured and focused. Manual focus/geometry changes stop and require F1 again. Only an armed recovery may bind a newly launched client. |
 | Hotkey registration failed | Close another controller that owns F1/F2/F8; never overlap workers. |
 | OCR unavailable | English Windows OCR must be available locally; no cloud fallback. |
-| Login/tutorial overlay | Recognized Login Rewards is dismissed once; clear unfamiliar first-play dialogues manually. |
+| Login/tutorial overlay | An available green Claim is clicked once; a recognized grey Close is dismissed. Unreadable or delayed claims stop without a second claim. Clear unfamiliar first-play dialogues manually. |
 | Loadout / hotbar | Golden Scout slot 1 only, remaining tower slots empty; tower rather than item bar. |
 | Board/VIP/vote unreadable | Four physical positions, target title and one solo vote must be verified. Decorations/UI changes may need recalibration. No guessed board. |
 | VIP proximity / voting floor | The actual Override Map prompt and flat stone walkway are required. The macro stops instead of continuing onto decorations. Keep the documented camera/settings baseline and report a redacted stop reason; do not bypass the floor check. |
@@ -18,6 +18,7 @@ Read the last reason in the app. Use F2 before adjusting the game. With recovery
 | Defeat / income timeout | Modifiers affect timing/viability. Current-account wins do not establish every modifier configuration. |
 | Result/reward unreadable | The app stops before replay. Send a redacted stop reason through a suggestion issue. |
 | Recovery limit / close or lobby timeout | Three relaunches without a win exhaust the limit. Check the original reason and settings before F1 again. Unknown close dialogs receive no click; the client is never force-killed. |
+| Roblox launch error 0x800705b4 / already running | Recovery waits for process exit and then 60 seconds before one launch. F2 cancels that wait. If it still fails, stop and open Roblox normally; do not repeatedly launch over a stuck instance. |
 
 ## Slow connections and animation
 

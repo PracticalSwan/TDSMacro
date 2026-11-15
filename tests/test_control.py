@@ -172,6 +172,15 @@ class ControlTests(unittest.TestCase):
         with self.assertRaises(StopRun):
             self.driver.zoom(100)
 
+    def test_fine_zoom_is_bounded_and_keeps_stop_checks(self):
+        self.driver.zoom_fine(-10)
+        self.assertEqual(self.os.events,[('wheel',-10)])
+        for value in (0,21,-21,1.5,True):
+            with self.assertRaises(StopRun):self.driver.zoom_fine(value)
+        self.os.stopped=True
+        with self.assertRaises(StopRun):self.driver.zoom_fine(10)
+        self.assertEqual(self.os.events,[('wheel',-10)])
+
     def test_placement_preview_move_never_presses_a_button(self):
         self.driver.move(855, 330)
         self.assertEqual(self.os.events, [("move", 855, 359), ("relative", 1, 0), ("relative", -1, 0)])

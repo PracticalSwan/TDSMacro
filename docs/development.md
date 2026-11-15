@@ -18,11 +18,18 @@ No training, GPU runtime, credentials or cloud OCR is needed.
 | phase1.py / control.py | Identity/capture, physical coordinates, guarded ordinary input, stop/release |
 | observer.py / resources.py / loadout.py / hotbar.py / results.py | Local visual/OCR readers |
 | strategy.py / calibration.py / run.py / match.py / timing.py | Strict parser, camera binding, ordered confirmed actions, deadlines |
+| recording.py | Lossless latest-frame diagnostics with bounded PNG write frequency |
 | calibrations / assets / tests/fixtures | Sanitized UI/world regions and independent regressions |
 
 Strategy commands use a whitelist and are never evaluated as code. Runtime strategy hashes are mandatory. Strategy/scene/landmark paths are confined to their directories. Initial source-scene binding verifies pose; drift uses a fixed prepared frame, never rebound after placement.
 
+Camera feature extraction uses the same masked map regions with padded native-resolution crops; keypoints are restored to client coordinates. Fresh zero-tower setup may guide a bounded zoom correction using matching terrain, but placement acceptance and prepared-frame drift limits are unchanged. Retained restarts do not correct the camera.
+
+Playback classifies each captured frame once and saves its diagnostic latest PNG at most once per second, using lossless fast compression. Every frame is still captured and checked; critical evidence remains separate and the actual last frame is flushed at exit. A failed final PNG write preserves an already confirmed result and stops the session as a storage error before replay. Navigation keeps fresh diagnostics on every capture with fast compression.
+
 ## Checks and build
+
+Menu transitions retain two source observations 200 ms apart; the click follows the second without another unobserved delay. The normal polling cadence and action guards remain. Map detection converts only the existing header bands to RGB arrays and restores contour coordinates before OCR, avoiding full-frame allocations without reducing the four-board checks.
 
 Stop the GUI and worker before the full suite: native tests require exclusive F1/F2/F8 ownership. Tests use fake input except named native hotkey registration/latch checks, which send no gameplay actions.
 

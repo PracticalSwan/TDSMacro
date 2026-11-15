@@ -9,6 +9,26 @@ except ImportError:
     read_boards=None
 
 class MapTests(unittest.TestCase):
+    def test_board_detection_only_processes_its_header_bands_and_keeps_screen_coordinates(self):
+        from tds_auto import maps
+        from unittest.mock import patch
+        import numpy as np
+        convert=np.asarray
+        for name,read in (('vote_spawn_row.png',maps.spawn_board_row),('boards_read_distance.png',maps.read_boards)):
+            with self.subTest(name=name),Image.open(ROOT/'tests/fixtures'/name) as frame:
+                areas=[]
+                def measured(image,*args,**kwargs):
+                    if isinstance(image,Image.Image):areas.append(image.width*image.height)
+                    return convert(image,*args,**kwargs)
+                with patch('tds_auto.maps.np.asarray',side_effect=measured):result=read(frame)
+                if read is maps.spawn_board_row:
+                    self.assertTrue(980<result[0]<1020 and 295<result[1]<320)
+                else:
+                    self.assertEqual(len(result),4)
+                    self.assertEqual(find_target(result).index,1)
+                    self.assertTrue(all(180<=board.box[1]<315 for board in result))
+                self.assertLessEqual(max(areas),1920*135,'Unused world/HUD pixels must not enter header color analysis.')
+
     def test_tight_header_read_recovers_complete_phrase_but_never_guesses_partial(self):
         from tds_auto.maps import visible_target
         with Image.open(ROOT/'tests/fixtures/boards_title_raw_partial.png') as frame:

@@ -55,6 +55,18 @@ class NavigationTests(unittest.TestCase):
         clicks = [event for event in self.platform.events if event == ("left_down",)]
         self.assertEqual(len(clicks), 4)
 
+    def test_menu_click_follows_two_spaced_confirmations_without_an_extra_blind_wait(self):
+        nav=self.nav(['lobby','lobby','play_menu','play_menu'])
+        read=nav.read_frame;observed=[];clicked=[]
+        def measured_read():observed.append(self.clock.now());return read()
+        click=nav.driver.click
+        def measured_click(*point):clicked.append(self.clock.now());return click(*point)
+        nav.read_frame=measured_read;nav.driver.click=measured_click
+        self.assertEqual(nav.step('open_play'),'play_menu')
+        self.assertEqual(observed[:2],[0,.2])
+        self.assertEqual(clicked,[.2],'A third unobserved delay adds latency without another screen check.')
+        self.assertEqual(self.platform.events.count(('left_down',)),1)
+
     def test_wrong_start_unknown_or_wrong_mode_sends_no_input(self):
         for state in ("unknown", "settings", "map_vote"):
             with self.subTest(state=state):

@@ -15,6 +15,7 @@ from .observer import Observer
 from .phase1 import capture, locate_roblox
 from .resources import HudReader, hovered_scout_at
 from .results import ResultReader
+from .recording import LatestFrame
 from .timing import READ_SECONDS, MATCH_START_SECONDS, RESULT_CONFIRM_SECONDS
 
 ROOT=Path(__file__).resolve().parents[2]
@@ -91,6 +92,7 @@ class Playback:
         self.output.mkdir(parents=True,exist_ok=False)
         self.full_evidence=full_evidence
         self.latest_path=Path(latest_path) if latest_path else self.output/'latest.png'
+        self.recording=LatestFrame(self.latest_path)
         self.observer,self.hud=Observer(),HudReader()
         self.results=ResultReader(self.observer)
         self.camera=CameraGate(profile_path)
@@ -101,7 +103,7 @@ class Playback:
     def frame(self):
         self.driver.check()
         image=capture(self.window)
-        image.save(self.latest_path)
+        self.recording.write(image)
         return image
 
     def save_evidence(self,image,name):
@@ -113,7 +115,7 @@ class Playback:
     def finish_if_result(self,frame):
         state=self.observer.observe(frame).state
         if state not in {'victory','defeat'} and not getattr(self.observer,'result_banner',lambda frame:None)(frame):
-            return
+            return state
         # No purchase/placement input after even one observed result banner.
         deadline=time.monotonic()+RESULT_CONFIRM_SECONDS
         previous=None
@@ -138,17 +140,16 @@ class Playback:
 
     def read(self):
         frame=self.frame()
-        self.finish_if_result(frame)
+        state=self.finish_if_result(frame)
         bar=read_hotbar(frame,slot=self.profile['slot'])
-        return Snapshot(self.observer.observe(frame).state,self.hud.read(frame),self.camera.check(frame),
+        return Snapshot(state,self.hud.read(frame),self.camera.check(frame),
                         valid_preview(frame,*self.preview_point) if self.preview_point else False,bar.valid,bar.price)
 
     def click_gate(self):
         deadline=time.monotonic()+READ_SECONDS
         while True:
             frame=self.frame()
-            self.finish_if_result(frame)
-            state=self.observer.observe(frame).state
+            state=self.finish_if_result(frame)
             if state=='unknown' and time.monotonic()<deadline:
                 self.driver.wait(.15)  # Observe a HUD animation; no click retry.
                 continue
@@ -206,6 +207,7 @@ class Playback:
                     self.driver.wait(.2)
                 raise StopRun('Active-match HUD not confirmed after Ready.')
         save(progress)
+        diagnostic_error=None
         try:
             run_sequence(self.strategy,runner,progress,self.camera.map_point,operations,before,save)
             if wait_result and progress.next_step==len(self.strategy.steps):
@@ -214,7 +216,6 @@ class Playback:
                 deadline=time.monotonic()+result_timeout
                 while time.monotonic()<deadline:
                     self.pause(self.read)
-                    self.read()  # Also keeps checking camera, via checked below.
                     runner.checked()
                     self.driver.wait(.25)
                 raise StopRun('Timed out waiting for a verified match result.')
@@ -226,6 +227,10 @@ class Playback:
             result={'status':'stopped','reason':str(exc),'stop_kind':getattr(exc,'kind','failure'),'full_strategy_verified':False}
         finally:
             self.driver.before_click=old_gate
+            try:self.recording.flush()
+            except OSError as exc:diagnostic_error=str(exc)
+        if diagnostic_error is not None:
+            result['diagnostic_error']=diagnostic_error
         result['progress']=asdict(progress)
         result['strategy_sha256']=self.profile['strategy_sha256']
         result['modifier_scope']='Observed current account only; active modifiers may change income and win timing.'

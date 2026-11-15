@@ -11,6 +11,7 @@ import time
 import shutil
 from dataclasses import asdict
 from pathlib import Path
+from PIL import ImageStat
 from .calibration import CameraGate,load_profile
 from .control import GuardedInput,StopRun,WindowsOS
 from .hotbar import read_hotbar
@@ -49,6 +50,10 @@ class SessionControl:
 
 
 class Session:
+    LOGIN_CAPTION_BOX=(910,773,1010,806)
+    # Right padding avoids both the caption and the avatar profile tooltip.
+    LOGIN_CLAIM_POINT=(1045,787)
+
     def __init__(self,driver,output,profile_path=None,read_frame=None,now=time.monotonic,control=None,totals=None):
         self.driver=driver
         self.output=Path(output)
@@ -71,8 +76,23 @@ class Session:
     def frame(self):
         self.driver.check()
         frame=self.capture()
-        frame.save(self.output/'latest.png')
+        frame.save(self.output/'latest.png',compress_level=1)
         return frame
+
+    def _login_caption(self,frame):
+        """Read the shared Claim/Close control; absent text stays uncertain."""
+        button=frame.crop(self.LOGIN_CAPTION_BOX).convert('RGB')
+        text=self.ocr.read(button).strip().casefold()
+        if text=='claim':
+            red,green,blue=ImageStat.Stat(button).mean
+            if not (green>150 and green>red*1.1 and green>blue*1.1):
+                return None
+        return text if text in {'claim','close'} else None
+
+    def _login_click_gate(self,caption):
+        frame=self.frame()
+        if self.observer.observe(frame).state!='login_rewards' or self._login_caption(frame)!=caption:
+            raise StopRun(caption.capitalize()+' label changed before the guarded click.')
 
     def status(self,phase,**detail):
         self.phase=phase
@@ -137,13 +157,52 @@ class Session:
         deadline=self.now()+8
         stable_since=None
         dismissed=False
+        claim_seen=0
+        close_seen=0
+        claimed=False
         while self.now()<deadline:
-            state=self.observer.observe(self.frame()).state
-            if state=='login_rewards' and not dismissed:
-                self.transition('dismiss_login')
-                dismissed=True
+            frame=self.frame()
+            state=self.observer.observe(frame).state
+            if state=='login_rewards':
                 stable_since=None
+                caption=self._login_caption(frame)
+                if caption=='claim' and not claimed:
+                    close_seen=0
+                    claim_seen+=1
+                    if claim_seen>=2:
+                        self.allowed={'login_rewards'}
+                        self.status('login_reward_claim_confirmed')
+                        guarded_before_click=self.driver.before_click
+                        def claim_before_click():
+                            self._login_click_gate('claim')
+                        self.driver.before_click=claim_before_click
+                        try:
+                            self.driver.click(*self.LOGIN_CLAIM_POINT)
+                        finally:
+                            self.driver.before_click=guarded_before_click
+                        self.allowed=set()
+                        claimed=True
+                        # Claim may need the rest of the popup animation, so the
+                        # original lobby bound can reset exactly once after it.
+                        deadline=self.now()+8
+                        stable_since=None
+                elif caption=='close' and not dismissed:
+                    claim_seen=0
+                    close_seen+=1
+                    if close_seen>=2:
+                        guarded_before_click=self.driver.before_click
+                        self.driver.before_click=lambda:self._login_click_gate('close')
+                        try:self.transition('dismiss_login')
+                        finally:self.driver.before_click=guarded_before_click
+                        dismissed=True
+                    stable_since=None
+                else:
+                    # Claim is still animating, or the control is unreadable.
+                    # Absence of Claim never becomes a Close inference.
+                    stable_since=None
+                    claim_seen=close_seen=0
             elif state=='lobby':
+                claim_seen=close_seen=0
                 if stable_since is None:
                     stable_since=self.now()
                 if self.now()-stable_since>=2:
@@ -152,8 +211,9 @@ class Session:
                 raise StopRun(f'Expected lobby/login rewards; saw {state}.')
             else:
                 stable_since=None
+                claim_seen=close_seen=0
             self.driver.wait(.2)
-        raise StopRun('Lobby did not settle after login-reward check.')
+        raise StopRun('Lobby did not settle: the login reward action did not settle or its caption was unreadable.')
 
     def preflight(self):
         self.lobby()
@@ -277,7 +337,7 @@ class Session:
             self.driver.click(946,231)
             self.driver.select_all()
             self.driver.text('dead ahead')
-            self.driver.move(694,371)
+            self.driver.move(694,418)  # Lower card padding leaves the title clear.
             self.driver.wait(.4)
             deadline=self.now()+3
             stable=0
@@ -288,7 +348,7 @@ class Session:
                 self.driver.wait(.15)
             else:
                 raise StopRun('VIP search and matching card text were not confirmed.')
-            self.driver.click(694,371)
+            self.driver.click(694,418)
             self.wait_state('map_vote',10,{'vip_maps'})
             self.allowed={'map_vote'}
             if sideways:
@@ -404,6 +464,22 @@ class Session:
         candidates.sort()
         return candidates[0][1] if candidates else None
 
+    def align_fresh_camera(self,gate):
+        for attempt in range(7):
+            frame=self.frame()
+            if self.observer.observe(frame).state!='match_ready' or HudReader().read(frame).tower_count!=0:
+                raise StopRun('Require a fresh match with zero towers before camera alignment.')
+            if gate.bind(frame):
+                return
+            step=gate.zoom_step(frame) if attempt<6 else None
+            if step is None:
+                break
+            self.status('camera_alignment',step=attempt+1,wheel_delta=step)
+            self.driver.move(1450,450)  # World area, outside the HUD and hotbar.
+            self.driver.zoom_fine(step)
+            self.driver.wait(.4)
+        raise StopRun('Fresh overhead pose did not match the map calibration.')
+
     def prepare_camera(self,retained=False):
         self.status('camera_check',retained=retained)
         self.allowed={'match_ready'}
@@ -422,8 +498,7 @@ class Session:
             for _ in range(setup['pitch_repetitions']):
                 self.driver.orbit(0,setup['pitch_down'])
             self.driver.wait(.4)
-            if not gate.bind(self.frame()):
-                raise StopRun('Fresh overhead pose did not match the map calibration.')
+            self.align_fresh_camera(gate)
         bar=read_hotbar(self.frame(),slot=1)
         if not bar.valid:
             raise StopRun('Tower hotbar not confirmed after camera setup.')
@@ -473,6 +548,11 @@ class Session:
             results=results[-20:]
             summary={'status':result['status'],**self.totals,'matches':results,
                 'continuous':continuous,'all_requested_matches_won':not continuous and index==matches and self.totals['wins']==matches}
+            if result.get('diagnostic_error'):
+                summary.update(status='stopped',stop_kind='storage',reason='Diagnostic PNG write failed: '+result['diagnostic_error'])
+                (self.output/'result.json').write_text(json.dumps(summary,indent=2),encoding='utf-8')
+                self.status('stopped',reason=summary['reason'],stop_kind='storage',last_result=result)
+                return summary
             (self.output/'result.json').write_text(json.dumps(summary,indent=2),encoding='utf-8')
             self.status('match_complete' if result['status'] in {'victory','defeat'} else 'stopped',match=match_number,last_result=result,continuous=continuous)
             if result['status']=='victory' and (type(result.get('coins')) is not int or result['coins']<0):
