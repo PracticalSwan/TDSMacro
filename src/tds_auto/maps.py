@@ -15,6 +15,18 @@ class Board:
     title: str
 
 
+def voting_floor(frame,require_both=True):
+    """Flat voting walkway beside both feet in the verified third-person view."""
+    if frame.size!=(1920,991):
+        return False
+    supported=0
+    for box in ((835,680,875,725),(1045,680,1085,725)):
+        pixels=np.asarray(frame.crop(box).convert('RGB')).astype(np.int16)
+        stone=(pixels.max(axis=2)-pixels.min(axis=2)<30)&(pixels.min(axis=2)>80)
+        supported+=int(stone.mean()>=.70)
+    return supported==2 if require_both else supported>=1
+
+
 def title_matches(text,name='Dead Ahead'):
     """Read the complete map phrase within harmless surrounding OCR noise."""
     phrase=re.escape(name.casefold()).replace(r'\ ',r'\s*')
@@ -68,7 +80,28 @@ def read_headers(frame):
     if not 1<=len(boxes)<=4:
         return ()
     ocr=LocalOCR()
-    return tuple(Board(index,box,ocr.read(frame.crop(box)))
+    def read_title(box):
+        sample=frame.crop(box)
+        text=ocr.read(sample)
+        if not title_matches(text):
+            inset=round(sample.width*.09)
+            sample=sample.crop((inset,0,sample.width-inset,round(sample.height*.90)))
+            candidate=ocr.read(sample)
+            if title_matches(candidate):
+                return candidate
+            # The stylized two-word title can lose Ahead in a whole-line OCR
+            # read. Dark glyph groups locate words; read each original crop.
+            pixels=np.asarray(sample.convert('RGB'))
+            dark=np.uint8(pixels.max(axis=2)<100)*255
+            joined=cv2.morphologyEx(dark,cv2.MORPH_CLOSE,np.ones((1,3),np.uint8))
+            contours,_=cv2.findContours(joined,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+            words=sorted(cv2.boundingRect(c) for c in contours if cv2.boundingRect(c)[2]*cv2.boundingRect(c)[3]>50)
+            if len(words)==2:
+                candidate=' '.join(ocr.read(sample.crop((max(0,x-2),max(0,y-2),min(sample.width,x+w+2),min(sample.height,y+h+2)))) for x,y,w,h in words)
+                if title_matches(candidate):
+                    return candidate
+        return text
+    return tuple(Board(index,box,read_title(box))
                  for index,box in enumerate(sorted(boxes),1))
 
 
@@ -115,6 +148,23 @@ def vote_prompt(frame,target=None):
     return any('vote' in re.findall(r'[a-z]+',ocr.read(sample).casefold()) for sample in (label,ink(label)))
 
 
+def vip_prompt(frame):
+    """Require the actual Override Map proximity prompt before pressing E."""
+    if frame.size!=(1920,991):
+        return False
+    with Image.open(Path(__file__).resolve().parents[2]/'assets/ui_2191/interaction_e.png') as source:
+        template=np.asarray(source.convert('L'))
+    crop=frame.crop((900,340,1500,700))
+    scores=cv2.matchTemplate(np.asarray(crop.convert('L')),template,cv2.TM_CCOEFF_NORMED)
+    _,score,_,(x,y)=cv2.minMaxLoc(scores)
+    if score<.93:
+        return False
+    x+=900;y+=340
+    label=frame.crop((x-80,y+55,x+180,y+105))
+    ocr=LocalOCR()
+    return any(''.join(ocr.read(sample).casefold().split())=='overridemap' for sample in (label,ink(label)))
+
+
 def badge_is_one(frame,box):
     """Exact UI digit fallback: local OCR often omits a solitary numeral 1."""
     left,top,right,bottom=box
@@ -126,7 +176,7 @@ def badge_is_one(frame,box):
         return False
     glyph=mask.crop(bounds).resize((24,32)).point(lambda p:255 if p>127 else 0)
     folder=Path(__file__).resolve().parents[2]/'assets/ui_2191'
-    for name in ('vote_one.png','vote_one_board4.png'):
+    for name in ('vote_one.png','vote_one_board4.png','vote_one_replay.png'):
         with Image.open(folder/name) as reference:
             if overlap(glyph,reference.convert('L').point(lambda p:255 if p>127 else 0))>=.90:
                 return True

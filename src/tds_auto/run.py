@@ -223,7 +223,7 @@ class Playback:
             result=asdict(finished.result)
             result['full_strategy_verified']=finished.result.status=='victory' and progress.next_step==len(self.strategy.steps)
         except (RuntimeError,ValueError,OSError) as exc:
-            result={'status':'stopped','reason':str(exc),'full_strategy_verified':False}
+            result={'status':'stopped','reason':str(exc),'stop_kind':getattr(exc,'kind','failure'),'full_strategy_verified':False}
         finally:
             self.driver.before_click=old_gate
         result['progress']=asdict(progress)

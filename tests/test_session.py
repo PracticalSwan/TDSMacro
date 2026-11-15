@@ -13,6 +13,90 @@ from tds_auto.results import GameResult
 from test_control import FakeOS
 
 class SessionTests(unittest.TestCase):
+    def test_normal_lobby_skips_the_login_rewards_click(self):
+        self.state='lobby'
+        self.session.lobby()
+        self.assertEqual(self.platform.events,[])
+
+    def test_recovery_attempt_uses_root_controls_and_shared_totals(self):
+        child=self.path/'attempt_001';child.mkdir()
+        control=SessionControl(self.path,context={'attempt_folder':'attempt_001'})
+        totals={'attempts':2,'matches_completed':2,'wins':2,'coins_total':900}
+        session=Session(self.driver,child,control=control,totals=totals,read_frame=lambda:Image.new('RGB',(1920,991)),now=self.platform.now)
+        self.assertIs(session.totals,totals)
+        session.status('starting')
+        import json
+        self.assertEqual(json.loads((self.path/'status.json').read_text())['attempt_folder'],'attempt_001')
+        (self.path/'stop').touch()
+        with self.assertRaises(StopRun):self.driver.key('W')
+        self.assertEqual(self.platform.events,[])
+    def test_transient_missing_title_is_reobserved_without_any_movement(self):
+        from tds_auto.maps import Board
+        self.state='map_vote'
+        target=Board(1,(750,220,1100,270),'Dead Ahead')
+        with patch('tds_auto.session.visible_target',side_effect=[None,target]), \
+             patch('tds_auto.session.vote_prompt',side_effect=[False,True]), \
+             patch('tds_auto.session.voting_floor',return_value=True):
+            self.session.approach_target()
+        self.assertEqual(self.platform.events,[])
+
+    def test_persistent_missing_title_remains_a_bounded_no_movement_stop(self):
+        self.state='map_vote'
+        with patch('tds_auto.session.visible_target',return_value=None), \
+             patch('tds_auto.session.vote_prompt',return_value=False):
+            with self.assertRaises(StopRun):self.session.approach_target()
+        self.assertEqual(self.platform.events,[])
+        self.assertLessEqual(self.platform.clock,6)
+
+    def test_vip_walk_stops_on_confirmed_prompt_and_measures_the_return(self):
+        self.state='map_vote'
+        self.assertTrue(callable(getattr(self.session,'approach_vip',None)))
+        with patch('tds_auto.session.vip_prompt',side_effect=[False,False,True,True],create=True):
+            duration=self.session.approach_vip()
+        self.assertAlmostEqual(duration,.30)
+        self.assertEqual([e for e in self.platform.events if e[0]=='key_down'],[('key_down','D')]*2)
+
+    def test_missing_vip_prompt_never_sends_e_or_walks_past_the_budget(self):
+        self.state='map_vote'
+        self.assertTrue(callable(getattr(self.session,'approach_vip',None)))
+        with patch('tds_auto.session.vip_prompt',return_value=False,create=True):
+            with self.assertRaisesRegex(StopRun,'VIP proximity'):
+                self.session.approach_vip()
+        self.assertEqual([e for e in self.platform.events if e[0]=='key_down'],[('key_down','D')]*12)
+
+    def test_approach_reaches_voting_floor_before_strafing_toward_outer_board(self):
+        from tds_auto.maps import Board
+        self.state='map_vote'
+        far=Board(1,(450,255,790,290),'Dead Ahead')
+        near=Board(1,(750,220,1100,270),'Dead Ahead')
+        with patch('tds_auto.session.voting_floor',side_effect=[False,True],create=True), \
+             patch('tds_auto.session.visible_target',side_effect=[far,near]), \
+             patch('tds_auto.session.vote_prompt',side_effect=[False,True]):
+            self.session.approach_target()
+        self.assertEqual([e for e in self.platform.events if e[0]=='key_down'],[('key_down','W')])
+
+    def test_losing_the_verified_floor_stops_before_more_strafing(self):
+        from tds_auto.maps import Board
+        self.state='map_vote'
+        target=Board(1,(450,230,790,280),'Dead Ahead')
+        with patch('tds_auto.session.voting_floor',side_effect=[True,False,False],create=True), \
+             patch('tds_auto.session.visible_target',return_value=target), \
+             patch('tds_auto.session.vote_prompt',return_value=False):
+            with self.assertRaisesRegex(StopRun,'voting floor'):
+                self.session.approach_target()
+        self.assertEqual([e for e in self.platform.events if e[0]=='key_down'],[('key_down','A')])
+
+    def test_walkway_edge_advances_inward_before_resuming_alignment(self):
+        from tds_auto.maps import Board
+        self.state='map_vote'
+        far=Board(1,(450,230,790,280),'Dead Ahead')
+        near=Board(1,(750,220,1100,270),'Dead Ahead')
+        with patch('tds_auto.session.voting_floor',side_effect=[True,False,True,True]), \
+             patch('tds_auto.session.visible_target',side_effect=[far,far,near]), \
+             patch('tds_auto.session.vote_prompt',side_effect=[False,False,True]):
+            self.session.approach_target()
+        self.assertEqual([e for e in self.platform.events if e[0]=='key_down'],[('key_down','A'),('key_down','W')])
+
     def test_board_read_walk_and_vip_return_use_the_verified_distance(self):
         from tds_auto.maps import Board
         self.state='map_vote'
@@ -22,6 +106,7 @@ class SessionTests(unittest.TestCase):
         self.session.boards=lambda:next(boards)
         boards=iter((unknown,target))
         self.session.wait_state=lambda *args:None
+        self.session.approach_vip=lambda:.6
         self.session.vote_target=lambda target:None
         self.driver.before_click=None
         original_key=self.driver.key
@@ -35,6 +120,7 @@ class SessionTests(unittest.TestCase):
         # Matching forward/back duration preserves the existing VIP spawn route.
         self.assertEqual(movements[:2],[('W',2.8),('S',2.8)])
         self.assertEqual(movements[-1],('W',.9))
+        self.assertIn(('A',.6),movements)
 
     def setUp(self):
         self.enterContext(contextlib.redirect_stdout(io.StringIO()))
@@ -112,6 +198,16 @@ class SessionTests(unittest.TestCase):
         with Image.open(ROOT/'tests/fixtures/vote_board4_badges.png') as frame:
             self.assertEqual(self.session.vote_count(frame,Board(4,(901,253,1126,286),'Dead Ahead')),1)
 
+    def test_replay_vote_one_is_read_at_the_cleared_camera_angle(self):
+        from tds_auto.maps import visible_target,badge_is_one
+        with Image.open(ROOT/'tests/fixtures/vote_badge_clear_replay.png') as frame:
+            target=visible_target(frame)
+            self.assertEqual(self.session.vote_count(frame,target),1)
+            for box in ((1110,387,1157,432),(1387,390,1444,437),(1760,403,1850,462)):
+                self.assertFalse(badge_is_one(frame,box))
+            frame.paste('black',(834,391,880,435))
+            self.assertIsNone(self.session.vote_count(frame,target))
+
     def test_already_selected_solo_does_not_require_player_list_overlay(self):
         self.state='map_vote'
         with Image.open(ROOT/'tests/fixtures/vote_spawn_row.png') as image:frame=image.copy()
@@ -170,8 +266,9 @@ class SessionTests(unittest.TestCase):
         for frame in images:frame.info['state']='map_vote'
         frames=iter(images)
         self.session.capture=lambda:next(frames,images[-1])
-        try:frame,target=self.session.approach_target()
-        except AttributeError as exc:self.fail(f'Feedback approach is unavailable: {exc}')
+        with patch('tds_auto.session.voting_floor',return_value=True,create=True):
+            try:frame,target=self.session.approach_target()
+            except AttributeError as exc:self.fail(f'Feedback approach is unavailable: {exc}')
         self.assertEqual(target.title,'Dead Ahead')
         self.assertIn(('key_down','S'),self.platform.events)
         self.assertNotIn(('key_down','W'),self.platform.events)

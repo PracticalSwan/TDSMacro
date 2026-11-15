@@ -14,6 +14,7 @@ No training, GPU runtime, credentials or cloud OCR is needed.
 |---|---|
 | tds_launcher.py / app.py | Tk selector, global F1/F2, child worker lifecycle |
 | session.py / navigation.py / maps.py | Lobby, Login Rewards, loadout, menus, four-board/VIP voting, replay branches |
+| recovery.py | Cancellable process close/relaunch, verified new lobby, fresh attempts and shared totals |
 | phase1.py / control.py | Identity/capture, physical coordinates, guarded ordinary input, stop/release |
 | observer.py / resources.py / loadout.py / hotbar.py / results.py | Local visual/OCR readers |
 | strategy.py / calibration.py / run.py / match.py / timing.py | Strict parser, camera binding, ordered confirmed actions, deadlines |

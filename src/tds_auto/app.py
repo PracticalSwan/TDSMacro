@@ -76,7 +76,7 @@ class Controller:
     def running(self):
         return self.worker is not None and self.worker.poll() is None
 
-    def start(self, strategy):
+    def start(self, strategy, auto_recover=True):
         if self.running:
             return False
         if strategy not in STRATEGIES:
@@ -88,6 +88,8 @@ class Controller:
         entry = [sys.executable] if getattr(sys, 'frozen', False) else [sys.executable, str(self.root/'tds_launcher.py')]
         command = [*entry, '--engine', 'start', '--confirm-start', '--continuous',
                    '--startup-delay', '5', '--profile', str(profile), '--output', str(self.output)]
+        if auto_recover:
+            command.append('--auto-recover')
         # A windowed application has no inherited console streams.
         with (self.output.parent/f'{self.output.name}.log').open('wb') as log:
             self.worker = self.launch(command, cwd=self.root, stdout=log, stderr=log,
@@ -119,7 +121,7 @@ def status_text(data, running, stopping=False):
         if stopping:
             return 'Stopped. Return to the TDS lobby before starting again.'
         result = data.get('result', {})
-        matches = result.get('matches', [])
+        matches = result.get('matches', data.get('matches', []))
         reason = data.get('reason') or result.get('reason') or (matches[-1].get('reason') if matches else None)
         if reason:
             return 'Stopped: '+reason
@@ -127,6 +129,9 @@ def status_text(data, running, stopping=False):
             return 'Defeat — stopped. Return to the TDS lobby before starting again.'
         return 'Ready — open the TDS lobby, then press F1.'
     phase = data.get('phase', 'starting')
+    if phase=='recovering':
+        stages={'cooldown':'restarting shortly','closing':'leaving the failed game','launching':'opening Roblox','waiting_lobby':'waiting for the lobby'}
+        return f"Recovery {data.get('recovery_attempt',1)}/{data.get('max_recoveries',3)} · {stages.get(data.get('stage'),'restarting TDS')} · F2 cancels."
     progress = data.get('progress', {})
     if phase == 'playing' and 'confirmed_step' in progress:
         return f"Match {data.get('match', 1)} · {progress.get('count', 0)} Scouts · {progress['confirmed_step']}/44 actions"
@@ -146,7 +151,7 @@ class App:
         self.controller = Controller()
         self.root = tk.Tk()
         self.root.title('TDS Strategy Macro')
-        self.root.geometry('650x430')
+        self.root.geometry('650x465')
         self.root.resizable(False, False)
         self.root.configure(bg='#101827')
         self.closing = False
@@ -162,6 +167,11 @@ class App:
         self.strategy = tk.StringVar(value=next(iter(STRATEGIES)))
         self.selector = ttk.Combobox(self.root, textvariable=self.strategy, values=list(STRATEGIES), state='readonly')
         self.selector.pack(fill='x', padx=30)
+        self.auto_recover=tk.BooleanVar(value=True)
+        self.recover_toggle=tk.Checkbutton(self.root,text='Recover game failures automatically',variable=self.auto_recover,
+            bg='#101827',fg='#c1cede',selectcolor='#25334a',activebackground='#101827',activeforeground='#f2f5fa',
+            font=('Segoe UI',10),highlightthickness=0)
+        self.recover_toggle.pack(anchor='w',padx=27,pady=(9,0))
         actions = tk.Frame(self.root, bg='#101827')
         actions.pack(fill='x', padx=30, pady=18)
         self.start_button = tk.Button(actions, text='Start  ·  F1', command=self.start,
@@ -185,7 +195,7 @@ class App:
         if self.closing:
             return
         try:
-            if self.controller.start(self.strategy.get()):
+            if self.controller.start(self.strategy.get(),auto_recover=self.auto_recover.get()):
                 self.message.set('Starting in 5 seconds — switch to Roblox.')
                 self.root.iconify()
         except (OSError, ValueError) as exc:
@@ -215,6 +225,7 @@ class App:
         self.start_button.configure(state='disabled' if running else 'normal')
         self.stop_button.configure(state='normal' if running else 'disabled')
         self.selector.configure(state='disabled' if running else 'readonly')
+        self.recover_toggle.configure(state='disabled' if running else 'normal')
         if self.closing and not running:
             self.hotkeys.close()
             self.root.destroy()

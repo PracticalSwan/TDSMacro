@@ -37,7 +37,12 @@ class AppTests(unittest.TestCase):
         self.assertIn('--engine',command)
         self.assertIn('--confirm-start',command)
         self.assertIn('--continuous',command)
+        self.assertIn('--auto-recover',command)
         self.assertEqual(command[command.index('--startup-delay')+1],'5')
+
+    def test_auto_recovery_can_be_disabled_for_a_supervised_trial(self):
+        self.controller.start(next(iter(STRATEGIES)),auto_recover=False)
+        self.assertNotIn('--auto-recover',self.commands[0])
 
     def test_f2_stop_marker_works_even_before_worker_creates_its_folder(self):
         self.controller.start(next(iter(STRATEGIES)))
@@ -60,6 +65,7 @@ class AppTests(unittest.TestCase):
         self.assertIn('7 Scouts',status_text({'phase':'playing','match':2,'progress':{'count':7,'confirmed_step':21}},True))
         data={'result':{'matches':[{'status':'stopped','reason':'Map was not confirmed.'}]}}
         self.assertEqual(status_text(data,False),'Stopped: Map was not confirmed.')
+        self.assertEqual(status_text({'phase':'stopped','matches':[{'reason':'Focus changed.'}]},False),'Stopped: Focus changed.')
         self.assertIn('Stopped.',status_text(data,False,True))
 
     def test_native_f1_f2_queue_and_release_without_keyboard_input(self):

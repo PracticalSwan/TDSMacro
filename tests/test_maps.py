@@ -9,6 +9,53 @@ except ImportError:
     read_boards=None
 
 class MapTests(unittest.TestCase):
+    def test_tight_header_read_recovers_complete_phrase_but_never_guesses_partial(self):
+        from tds_auto.maps import visible_target
+        with Image.open(ROOT/'tests/fixtures/boards_title_raw_partial.png') as frame:
+            target=visible_target(frame)
+            self.assertIsNotNone(target,'The complete Dead Ahead phrase is visible in this real frame.')
+            self.assertEqual(target.index,1)
+            frame.paste('black',(554,254,642,283))
+            self.assertIsNone(visible_target(frame),'Dead alone cannot authorize more walking.')
+
+    def test_word_crops_recover_second_actual_partial_header_view(self):
+        from tds_auto.maps import visible_target
+        with Image.open(ROOT/'tests/fixtures/boards_title_raw_partial_2.png') as frame:
+            target=visible_target(frame)
+            self.assertIsNotNone(target)
+            self.assertEqual(target.index,1)
+            frame.paste('black',(560,254,650,285))
+            self.assertIsNone(visible_target(frame))
+
+    def test_vip_override_prompt_requires_keycap_and_literal_caption(self):
+        from tds_auto import maps
+        self.assertTrue(callable(getattr(maps,'vip_prompt',None)),'VIP approach has no proximity checkpoint.')
+        with Image.open(ROOT/'tests/fixtures/vip_override_prompt.png') as frame:
+            self.assertTrue(maps.vip_prompt(frame))
+            frame.paste('black',(1030,550,1280,605))
+            self.assertFalse(maps.vip_prompt(frame))
+        with Image.open(ROOT/'tests/fixtures/vote_prompt.png') as frame:
+            self.assertFalse(maps.vip_prompt(frame))
+
+    def test_voting_floor_requires_stone_on_both_sides_of_the_avatar(self):
+        from tds_auto import maps
+        self.assertTrue(callable(getattr(maps,'voting_floor',None)),'Voting approach has no floor checkpoint.')
+        for name,expected in [('stone',True),('grass',False),('decoration',False)]:
+            with Image.open(ROOT/'tests/fixtures'/f'vote_floor_{name}.png') as frame:
+                self.assertEqual(maps.voting_floor(frame),expected,name)
+                if expected:
+                    frame.paste('black',(835,680,875,725))
+                    self.assertFalse(maps.voting_floor(frame),'One stone patch is insufficient.')
+        self.assertFalse(maps.voting_floor(Image.new('RGB',(1000,750))))
+
+    def test_walkway_edge_retains_one_stone_support_but_decoration_does_not(self):
+        from tds_auto.maps import voting_floor
+        with Image.open(ROOT/'tests/fixtures/vote_floor_edge.png') as frame:
+            self.assertFalse(voting_floor(frame))
+            self.assertTrue(voting_floor(frame,require_both=False))
+        with Image.open(ROOT/'tests/fixtures/vote_floor_decoration.png') as frame:
+            self.assertFalse(voting_floor(frame,require_both=False))
+
     def test_read_distance_keeps_four_physical_headers_visible(self):
         with Image.open(ROOT/'tests/fixtures/boards_close_clipped.png') as frame:
             self.assertEqual(read_boards(frame),())

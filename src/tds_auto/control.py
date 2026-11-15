@@ -19,7 +19,10 @@ from . import phase1
 
 
 class StopRun(RuntimeError):
-    """Safety precondition failed. Do not retry automatically."""
+    """Stop the current input path; only a separate fresh session may recover."""
+    def __init__(self,message,*,kind='failure'):
+        super().__init__(message)
+        self.kind=kind
 
 
 KEYS = {**{c: ord(c) for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ12345"}, "SPACE": 0x20,
@@ -36,16 +39,16 @@ class GuardedInput:
 
     def check(self):
         if self.external_stop and self.external_stop():
-            raise StopRun("Stop requested by session control.")
+            raise StopRun("Stop requested by session control.",kind='user_stop')
         if self.platform.stop_requested():
-            raise StopRun("Emergency stop requested (F8/Escape).")
+            raise StopRun("Emergency stop requested (F8/Escape).",kind='user_stop')
         current = self.platform.current()
         if not current.foreground:
-            raise StopRun('Roblox is not foreground; no further input sent.')
+            raise StopRun('Roblox is not foreground; no further input sent.',kind='focus_lost')
         if current != self.expected:
             expected,actual=asdict(self.expected),asdict(current)
             changes=', '.join(f'{key} {expected[key]}->{actual[key]}' for key in expected if expected[key]!=actual[key])
-            raise StopRun(f'Roblox window changed ({changes}); no further input sent.')
+            raise StopRun(f'Roblox window changed ({changes}); no further input sent.',kind='window_changed')
 
     def wait(self, seconds):
         if not math.isfinite(seconds) or not 0 <= seconds <= 10:

@@ -103,6 +103,14 @@ class ObserverTests(unittest.TestCase):
                     frame.paste(b.crop(box),box[:2])
             self.assertEqual(self.observer.observe(frame).state,'login_rewards')
 
+    def test_login_rewards_accepts_claim_and_close_but_requires_both_anchors(self):
+        for name in ('login_rewards.png','login_rewards_current.png'):
+            with self.subTest(name=name),Image.open(ROOT/'tests/fixtures'/name) as frame:
+                self.assertEqual(self.observer.observe(frame).state,'login_rewards')
+                for missing in ((667,338,955,381),(910,773,1010,806)):
+                    incomplete=frame.copy();incomplete.paste('black',missing)
+                    self.assertNotEqual(self.observer.observe(incomplete).state,'login_rewards')
+
 
 
     def test_live_items_hover_uses_explicit_font_variant(self):

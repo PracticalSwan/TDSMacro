@@ -43,6 +43,14 @@ class FakeOS:
 
 
 class ControlTests(unittest.TestCase):
+    def test_explicit_stop_and_focus_loss_have_non_recoverable_kinds(self):
+        self.os.stopped=True
+        with self.assertRaises(StopRun) as caught:self.driver.check()
+        self.assertEqual(caught.exception.kind,'user_stop')
+        self.os.stopped=False
+        self.os.window=replace(self.os.window,foreground=False)
+        with self.assertRaises(StopRun) as caught:self.driver.check()
+        self.assertEqual(caught.exception.kind,'focus_lost')
     def setUp(self):
         self.assertIsNotNone(GuardedInput, "guarded input has not been implemented")
         self.os = FakeOS()

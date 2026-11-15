@@ -15,7 +15,7 @@ from .calibration import CameraGate,load_profile
 from .control import GuardedInput,StopRun,WindowsOS
 from .hotbar import read_hotbar
 from .loadout import verify_inventory
-from .maps import read_boards,find_target,read_headers,visible_target,vip_target_matches,vote_prompt,badge_is_one,spawn_board_row
+from .maps import read_boards,find_target,read_headers,visible_target,vip_target_matches,vote_prompt,badge_is_one,spawn_board_row,voting_floor,vip_prompt
 from .navigation import Navigator,MENU_ROUTE
 from .observer import Observer
 from .phase1 import capture,locate_roblox,BlankCapture
@@ -25,8 +25,9 @@ from .timing import READ_SECONDS, TELEPORT_SECONDS
 
 
 class SessionControl:
-    def __init__(self,path):
+    def __init__(self,path,context=None):
         self.path=Path(path)
+        self.context=context if context is not None else {}
     def stopped(self):
         return (self.path/'stop').exists()
     def paused(self):
@@ -34,15 +35,24 @@ class SessionControl:
     def write(self,data):
         # Atomic replace so status readers never consume partially written JSON.
         temporary=self.path/'status.tmp'
-        temporary.write_text(json.dumps(data,indent=2),encoding='utf-8')
-        temporary.replace(self.path/'status.json')
+        temporary.write_text(json.dumps({**data,**self.context},indent=2),encoding='utf-8')
+        for attempt in range(5):
+            try:
+                temporary.replace(self.path/'status.json')
+                return
+            except PermissionError as exc:
+                # Windows readers can briefly deny delete sharing. Retry only
+                # the atomic file replacement, never a confirmed game action.
+                if getattr(exc,'winerror',None) not in {5,32} or attempt==4:
+                    raise
+                time.sleep(.025)
 
 
 class Session:
-    def __init__(self,driver,output,profile_path=None,read_frame=None,now=time.monotonic):
+    def __init__(self,driver,output,profile_path=None,read_frame=None,now=time.monotonic,control=None,totals=None):
         self.driver=driver
         self.output=Path(output)
-        self.control=SessionControl(output)
+        self.control=control if control is not None else SessionControl(output)
         self.driver.external_stop=self.control.stopped
         self.profile_path=Path(profile_path or ROOT/'calibrations/dead_ahead_vertical_nine_v4.json')
         self.profile,self.strategy=load_profile(self.profile_path)
@@ -56,7 +66,7 @@ class Session:
         self.allowed=set()
         self.driver.before_click=self.click_gate
         self.board_index=None
-        self.totals={"attempts":0,"matches_completed":0,"wins":0,"coins_total":0}
+        self.totals=totals if totals is not None else {"attempts":0,"matches_completed":0,"wins":0,"coins_total":0}
 
     def frame(self):
         self.driver.check()
@@ -88,7 +98,7 @@ class Session:
         while self.control.paused():
             self.driver.check()
             if self.now()>=deadline:
-                raise StopRun('Pause exceeded five minutes; stopped without further input.')
+                raise StopRun('Pause exceeded five minutes; stopped without further input.',kind='user_stop')
             if read:
                 read()  # Result/focus/view validation remains active while paused.
             self.driver.wait(.2)
@@ -219,6 +229,27 @@ class Session:
             self.driver.wait(.2)
         raise StopRun('Distant board row was not verified; no walking or vote sent.')
 
+    def approach_vip(self):
+        steps=stable=0
+        for index in range(16):
+            self.pause()
+            frame=self.frame()
+            frame.save(self.output/f'vip_step_{index:02}.png')
+            if self.observer.observe(frame).state!='map_vote':
+                raise StopRun('Map-vote state changed while approaching VIP.')
+            if vip_prompt(frame):
+                stable+=1
+                if stable>=2:
+                    return steps*.15
+            else:
+                stable=0
+                if steps>=12:
+                    break
+                self.driver.key('D',.15)
+                steps+=1
+            self.driver.wait(.2)
+        raise StopRun('VIP proximity prompt was not confirmed; no E or further walking sent.')
+
     def choose_map(self):
         self.allowed={'map_vote'}
         frame=self.frame()
@@ -237,8 +268,9 @@ class Session:
             # Return to the spawn reference before the independently observed VIP route.
             self.driver.key('S',2.8)
             self.driver.key('W',1.9)
-            self.driver.key('D',1.7)
-            self.driver.wait(.3)
+            self.frame().save(self.output/'vip_before_sidewalk.png')
+            sideways=self.approach_vip()
+            self.frame().save(self.output/'vip_machine_approach.png')
             self.driver.key('E',.8)
             self.wait_state('vip_maps',10,{'map_vote'})
             self.allowed={'vip_maps'}
@@ -259,9 +291,11 @@ class Session:
             self.driver.click(694,371)
             self.wait_state('map_vote',10,{'vip_maps'})
             self.allowed={'map_vote'}
-            self.driver.key('A',1.7)
+            if sideways:
+                self.driver.key('A',sideways)
             self.driver.key('W',.9)
             self.driver.wait(.3)
+            self.frame().save(self.output/'vip_return.png')
             boards=self.boards()
             target=find_target(boards)
             if target is None:
@@ -304,23 +338,41 @@ class Session:
     def approach_target(self):
         # Keep the physical board index from the original four-header view.
         # Movement is bounded and each step is followed by fresh visual feedback.
-        for _ in range(22):
+        reached_floor=False
+        unreadable_since=None
+        for index in range(22):
             self.pause()
             frame=self.frame()
+            frame.save(self.output/f'approach_{index:02}.png')
             if self.observer.observe(frame).state!='map_vote':
                 raise StopRun('Map-vote state changed while approaching the target.')
             current=visible_target(frame)
             prompt=vote_prompt(frame,current)
             if current is None:
                 if not prompt:
-                    raise StopRun('Lost the target title without a known Vote prompt; no further walking.')
+                    if unreadable_since is None:
+                        unreadable_since=self.now()
+                    if self.now()-unreadable_since>=READ_SECONDS:
+                        raise StopRun('Lost the target title without a known Vote prompt; no further walking.')
+                    self.driver.wait(.2)
+                    continue
                 self.driver.key('S',.12)  # A close header can be hidden by the fixed HUD.
             else:
+                unreadable_since=None
                 center=(current.box[0]+current.box[2])/2
                 error=center-960
+                on_floor=voting_floor(frame)
+                if not on_floor:
+                    if reached_floor and not voting_floor(frame,require_both=False):
+                        raise StopRun('Lost the verified voting floor; no further walking toward decorations.')
+                    self.driver.key('W',.10)
+                    self.driver.wait(.2)
+                    continue
+                reached_floor=True
                 if prompt and abs(error)<=140:
                     return frame,current
-                if current.box[2]-current.box[0]>400:
+                width=current.box[2]-current.box[0]
+                if width>400:
                     self.driver.key('S',.12)
                 elif abs(error)>90:
                     self.driver.key('A' if error<0 else 'D',min(.20,max(.06,abs(error)/950)))
@@ -382,7 +434,7 @@ class Session:
         if not 1<=matches<=10 or repeat_route not in {'play-again','lobby'} or (continuous and prepare_only):
             raise StopRun('Require 1..10 bounded matches or explicit continuous play, with a supported repeat route.')
         if shutil.disk_usage(self.output).free<2*1024**3:
-            raise StopRun('Less than 2 GiB free on the evidence disk; no game input sent.')
+            raise StopRun('Less than 2 GiB free on the evidence disk; no game input sent.',kind='storage')
         self.preflight()
         self.choose_map()
         self.prepare_camera()
@@ -395,16 +447,17 @@ class Session:
         if not 1<=matches<=10 or repeat_route not in {'play-again','lobby'}:
             raise StopRun('Unsupported repeat route or match count.')
         if shutil.disk_usage(self.output).free<2*1024**3:
-            raise StopRun('Less than 2 GiB free on the evidence disk; no game input sent.')
+            raise StopRun('Less than 2 GiB free on the evidence disk; no game input sent.',kind='storage')
         results=[]
         index=0
         while True:
             self.pause()
-            self.totals['attempts']=index+1
-            self.status('playing',match=index+1,continuous=continuous)
+            self.totals['attempts']+=1
+            match_number=self.totals['attempts']
+            self.status('playing',match=match_number,continuous=continuous)
             full_evidence=not continuous or index<2
             playback=Playback(self.profile_path,self.driver,self.output/f'match_{index+1:04}',
-                notify=lambda data:self.status('playing',match=index+1,progress=data),pause=self.pause,
+                notify=lambda data:self.status('playing',match=match_number,progress=data),pause=self.pause,
                 full_evidence=full_evidence,latest_path=None if full_evidence else self.output/'latest.png')
             if playback.profile['strategy_sha256']!=self.profile['strategy_sha256']:
                 raise StopRun('Strategy changed during this session; no new-match playback sent.')
@@ -413,7 +466,7 @@ class Session:
             self.totals['matches_completed']+=int(result['status'] in {'victory','defeat'})
             self.totals['wins']+=int(result['status']=='victory')
             self.totals['coins_total']+=result.get('coins') or 0
-            row={'match':index,'elapsed_seconds':round(self.now()-self.started,1),'result':result}
+            row={'match':match_number,'elapsed_seconds':round(self.now()-self.started,1),'result':result}
             with (self.output/'matches.jsonl').open('a',encoding='utf-8') as ledger:
                 ledger.write(json.dumps(row)+'\n')
             results.append(result)
@@ -421,7 +474,7 @@ class Session:
             summary={'status':result['status'],**self.totals,'matches':results,
                 'continuous':continuous,'all_requested_matches_won':not continuous and index==matches and self.totals['wins']==matches}
             (self.output/'result.json').write_text(json.dumps(summary,indent=2),encoding='utf-8')
-            self.status('match_complete' if result['status'] in {'victory','defeat'} else 'stopped',match=index,last_result=result,continuous=continuous)
+            self.status('match_complete' if result['status'] in {'victory','defeat'} else 'stopped',match=match_number,last_result=result,continuous=continuous)
             if result['status']=='victory' and (type(result.get('coins')) is not int or result['coins']<0):
                 summary.update(status='stopped',reason='Victory observed but coin reward is unreadable; no repeat started.',all_requested_matches_won=False)
                 (self.output/'result.json').write_text(json.dumps(summary,indent=2),encoding='utf-8')
@@ -429,7 +482,7 @@ class Session:
             if result['status']!='victory' or (not continuous and index>=matches):
                 return summary
             if shutil.disk_usage(self.output).free<2*1024**3:
-                raise StopRun('Less than 2 GiB free on the evidence disk; stopped before another match.')
+                raise StopRun('Less than 2 GiB free on the evidence disk; stopped before another match.',kind='storage')
             if repeat_route=='lobby':
                 self.transition('return_victory')
                 self.preflight()
@@ -452,6 +505,7 @@ def main(argv=None):
     parser.add_argument('--profile',type=Path,default=ROOT/'calibrations/dead_ahead_vertical_nine_v4.json')
     parser.add_argument('--matches',type=int,default=1)
     parser.add_argument('--continuous',action='store_true',help='Explicit Solo grind until stop, focus loss, failure or low disk space')
+    parser.add_argument('--auto-recover',action='store_true',help='Reopen TDS after game failures; continuous mode only; manual stops/focus loss cancel')
     parser.add_argument('--repeat-route',choices=['play-again','lobby'],default='play-again')
     parser.add_argument('--prepare-only',action='store_true')
     parser.add_argument('--startup-delay',type=int,default=0,choices=range(0,11),help='Seconds to switch focus to Roblox; no automatic refocus')
@@ -473,6 +527,8 @@ def main(argv=None):
         return 0
     if not args.confirm_start or not 1<=args.matches<=10 or (args.continuous and (args.matches!=1 or args.prepare_only)):
         parser.error('Start requires --confirm-start and either 1..10 matches or --continuous; F8/Escape stops.')
+    if args.auto_recover and not args.continuous:
+        parser.error('--auto-recover requires an explicitly started continuous run.')
     session=None
     platform=None
     try:
@@ -483,8 +539,14 @@ def main(argv=None):
         deadline=time.monotonic()+args.startup_delay
         while time.monotonic()<deadline:
             if platform.stop_requested() or (args.output/'stop').exists():
-                raise StopRun('Emergency stop during startup countdown.')
+                raise StopRun('Emergency stop during startup countdown.',kind='user_stop')
             time.sleep(.025)
+        if args.auto_recover:
+            pointer=ROOT/'captures/last_session.txt';pointer.parent.mkdir(parents=True,exist_ok=True)
+            pointer.write_text(str(args.output.resolve()),encoding='utf-8')
+            from .recovery import supervise
+            result=supervise(args.output,platform,args.profile)
+            return 0 if result['status'] in {'victory','prepared'} else 2
         driver=GuardedInput(locate_roblox(),platform)
         driver.check()
         if (driver.expected.width,driver.expected.height,driver.expected.dpi)!=(1920,991,120):

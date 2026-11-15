@@ -35,11 +35,17 @@ The worker reports actual versus required geometry if they differ. Other monitor
 
 The macro selects an existing Dead Ahead board or uses VIP, then confirms its title and solo vote. It prepares an overhead view before every new match. No character movement is needed during tower placement.
 
+Leave the voting-room camera in its default third-person configuration. Navigation checks the stone walkway beside the avatar before moving sideways toward a board. Unusual avatar proportions or a different voting-room camera zoom have not been separately verified and may require calibration.
+
 ## During play
 
 F2 requests a stop at any time. F8 is the worker's queued emergency stop; Escape is also checked. Held inputs are released on exit. App close stops its worker. Switching focus away from Roblox also stops the run; it never refocuses.
 
-Play Again continues only while each result, reward and next state is confirmed. Defeat, unreadable reward, failed action or uncertain state stops the run. Reopen Roblox/TDS yourself after a crash/disconnect and explicitly start again from the lobby. The app does not relaunch the client unattended.
+Play Again continues only while each result, reward and next state is confirmed. With **Recover game failures automatically** checked (the default), defeat, disconnect, failed actions or unreadable game state end the current attempt. After a five-second cancellable countdown, the worker closes Roblox, handles the recognized Close Roblox confirmation if present, waits for that process to exit, and reopens TDS using its official launch link. It accepts a supported foreground lobby or Login Rewards screen, binds the new window and starts the full lobby/loadout/map/camera checks again. It never repeats an uncertain purchase in the old game.
+
+The Login Rewards check runs on each lobby entry and recognizes both green Claim and grey Close controls. It dismisses the recognized screen once if present and sends no dismissal click when absent; it does not claim rewards.
+
+F2, F8/Escape, app close, focus loss, geometry changes, setup/storage errors and pause cancel recovery. There is no automatic refocus or force termination. A close timeout or unreadable reopened lobby stops. At most three automatic relaunches are allowed without a confirmed win; a win resets that consecutive-failure limit. Uncheck recovery before F1 to stop on the first game failure instead.
 
 Local status, results, logs and screenshots are saved under `captures` beside the app. They can contain account information and are private by default. Do not upload that folder.
 

@@ -14,7 +14,7 @@ A Windows app for **Golden Scout · Dead Ahead · Survival / Easy / Solo** in Ro
 4. Press **F1**, then put Roblox in front during the five-second countdown.
 5. Keep Roblox focused. **F2 stops**; closing the app also stops its worker. F8/Escape are additional emergency stops.
 
-The app runs continuously until stopped or a check fails. It displays confirmed progress, wins, coins and the stop reason. No separate Python installation is needed.
+The app repeats successful matches and displays confirmed progress, wins and coins. **Recover game failures automatically** is enabled by default: a failed game is closed, TDS is reopened and the strategy starts fresh from the lobby. F2 cancels both play and recovery. No separate Python installation is needed.
 
 ## Required setup
 
@@ -31,11 +31,11 @@ The client area excludes title bar/borders. A 1920×1080 display is tested; a �
 
 ## Verified behavior and limits
 
-The release app completed a **7m39s / 450-coin win with all 44 actions confirmed**, then automatically entered the next game using the documented settings. Earlier testing completed five consecutive 450-coin wins before a safe stop on a clipped board view. The release repairs both approach distances and allows bounded loading/action delays. See [verification](docs/verification.md) for checks and limits.
+The updated app completed **three consecutive 450-coin wins** (7m43s, 7m44s, 7m44s), verified all 44 actions each time, and used normal Play Again to enter match 4 with **zero recoveries**. Separate live tests verified close/reopen recovery, F2 cancellation before relaunch, and conditional Login Rewards dismissal. See [verification](docs/verification.md) for the observed failures, corrections and finite test scope.
 
 Cash/prices are read from the game; starting cash is not fixed. Tower identity uses labels and levels rather than skin portraits. Wins with every modifier configuration, no modifiers, or other skins have **not** been established. UI changes may require recalibration.
 
-Uncertain map, pose, focus, resources or action confirmation stops the run. A delayed purchase is observed without clicking again. This unofficial project does not guarantee Roblox/TDS permission or account safety; review the [Community Standards](https://about.roblox.com/community-standards) and [exploiting guidance](https://en.help.roblox.com/hc/en-us/articles/203312450-Cheating-and-Exploiting).
+Uncertain map, pose, resources or action confirmation stops the current attempt. A delayed purchase is observed without clicking again. Recovery starts a new session; manual stop, lost focus, changed geometry, setup/storage errors and the recovery limit stop the run. This unofficial project does not guarantee Roblox/TDS permission or account safety; review the [Community Standards](https://about.roblox.com/community-standards) and [exploiting guidance](https://en.help.roblox.com/hc/en-us/articles/203312450-Cheating-and-Exploiting).
 
 ## Contribute
 
