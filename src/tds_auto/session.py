@@ -373,7 +373,7 @@ class Session:
         self.driver.wait(.3)
         frame=self.frame()
         frame.save(self.output/'after_vote.png')
-        current=visible_target(frame)
+        current=visible_target(frame,after_vote=True)
         if current is None:
             raise StopRun('Target identity was lost after voting; Ready was not clicked.')
         # The target's red vote badge sits beneath the header. Read the badge
@@ -387,7 +387,7 @@ class Session:
             self.driver.wait(.2)
             frame=self.frame()
             frame.save(self.output/'after_vote_clear.png')
-            current=visible_target(frame)
+            current=visible_target(frame,after_vote=True)
             count=self.vote_count(frame,current) if current is not None else None
         if count!=1:
             raise StopRun('The verified target does not show one solo vote; Ready was not clicked.')
@@ -435,7 +435,10 @@ class Session:
                 if width>400:
                     self.driver.key('S',.12)
                 elif abs(error)>90:
-                    self.driver.key('A' if error<0 else 'D',min(.20,max(.06,abs(error)/950)))
+                    if not voting_floor(frame,for_strafe=True):
+                        self.driver.key('W',.10)
+                    else:
+                        self.driver.key('A' if error<0 else 'D',min(.20,max(.06,abs(error)/950)))
                 else:
                     self.driver.key('W',.10)
             self.driver.wait(.2)

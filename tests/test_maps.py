@@ -76,6 +76,25 @@ class MapTests(unittest.TestCase):
         with Image.open(ROOT/'tests/fixtures/vote_floor_decoration.png') as frame:
             self.assertFalse(voting_floor(frame,require_both=False))
 
+    def test_strafe_requires_margin_before_the_curved_grass_edge(self):
+        from tds_auto.maps import voting_floor
+        for name,expected in [('vote_floor_margin_safe.png',True),('vote_floor_margin_edge.png',False)]:
+            with self.subTest(name=name),Image.open(ROOT/'tests/fixtures'/name) as frame:
+                self.assertTrue(voting_floor(frame))
+                self.assertEqual(voting_floor(frame,for_strafe=True),expected)
+
+    def test_post_vote_backstep_keeps_the_entire_lower_header(self):
+        from tds_auto.maps import visible_target
+        for name in ['boards_post_vote_low_3.png','boards_post_vote_low_4.png']:
+            with self.subTest(name=name),Image.open(ROOT/'tests/fixtures'/name) as frame:
+                self.assertIsNone(visible_target(frame))
+                target=visible_target(frame,after_vote=True)
+                self.assertIsNotNone(target)
+                self.assertEqual(target.title,'Dead Ahead')
+                # The second word must remain independently present.
+                frame.paste('black',(target.box[0]+(target.box[2]-target.box[0])//2,target.box[1],target.box[2],target.box[3]))
+                self.assertIsNone(visible_target(frame,after_vote=True))
+
     def test_read_distance_keeps_four_physical_headers_visible(self):
         with Image.open(ROOT/'tests/fixtures/boards_close_clipped.png') as frame:
             self.assertEqual(read_boards(frame),())

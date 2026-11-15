@@ -153,6 +153,34 @@ class SessionTests(unittest.TestCase):
             self.session.approach_target()
         self.assertEqual(self.platform.events,[])
 
+    def test_curved_floor_margin_moves_forward_before_the_next_strafe(self):
+        from tds_auto.maps import Board
+        self.state='map_vote'
+        images=[]
+        for name in ['vote_floor_margin_edge.png','vote_floor_margin_safe.png','vote_floor_margin_safe.png']:
+            with Image.open(ROOT/'tests/fixtures'/name) as f:images.append(f.copy())
+        for f in images:f.info['state']='map_vote'
+        frames=iter(images);self.session.capture=lambda:next(frames,images[-1])
+        far=Board(1,(710,249,950,283),'Dead Ahead')
+        near=Board(1,(840,249,1080,283),'Dead Ahead')
+        with patch('tds_auto.session.visible_target',side_effect=[far,far,near]), \
+             patch('tds_auto.session.vote_prompt',side_effect=[False,False,True]):
+            self.session.approach_target()
+        self.assertEqual([e for e in self.platform.events if e[0]=='key_down'],[('key_down','W'),('key_down','A')])
+
+    def test_vote_validation_keeps_the_lower_post_vote_header_and_physical_index(self):
+        from tds_auto.maps import Board
+        self.state='map_vote';self.session.allowed={'map_vote'}
+        with Image.open(ROOT/'tests/fixtures/boards_post_vote_low_4.png') as image:frame=image.copy()
+        frame.info['state']='map_vote';self.session.capture=lambda:frame
+        original=Board(4,(780,237,1042,277),'Dead Ahead')
+        with patch.object(self.session,'approach_target',return_value=(frame,original)), \
+             patch.object(self.session,'vote_count',return_value=1),patch.object(self.session,'wait_state'):
+            self.session.vote_target(original)
+        self.assertEqual(self.session.board_index,4)
+        self.assertEqual(self.platform.events.count(('key_down','E')),1)
+        self.assertEqual(self.platform.events.count(('left_down',)),1)
+
     def test_persistent_missing_title_remains_a_bounded_no_movement_stop(self):
         self.state='map_vote'
         with patch('tds_auto.session.visible_target',return_value=None), \
@@ -192,7 +220,7 @@ class SessionTests(unittest.TestCase):
         from tds_auto.maps import Board
         self.state='map_vote'
         target=Board(1,(450,230,790,280),'Dead Ahead')
-        with patch('tds_auto.session.voting_floor',side_effect=[True,False,False],create=True), \
+        with patch('tds_auto.session.voting_floor',side_effect=[True,True,False,False],create=True), \
              patch('tds_auto.session.visible_target',return_value=target), \
              patch('tds_auto.session.vote_prompt',return_value=False):
             with self.assertRaisesRegex(StopRun,'voting floor'):
@@ -204,7 +232,7 @@ class SessionTests(unittest.TestCase):
         self.state='map_vote'
         far=Board(1,(450,230,790,280),'Dead Ahead')
         near=Board(1,(750,220,1100,270),'Dead Ahead')
-        with patch('tds_auto.session.voting_floor',side_effect=[True,False,True,True]), \
+        with patch('tds_auto.session.voting_floor',side_effect=[True,True,False,True,True]), \
              patch('tds_auto.session.visible_target',side_effect=[far,far,near]), \
              patch('tds_auto.session.vote_prompt',side_effect=[False,False,True]):
             self.session.approach_target()

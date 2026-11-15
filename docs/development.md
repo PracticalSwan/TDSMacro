@@ -31,6 +31,8 @@ Playback classifies each captured frame once and saves its diagnostic latest PNG
 
 Menu transitions retain two source observations 200 ms apart; the click follows the second without another unobserved delay. The normal polling cadence and action guards remain. Map detection converts only the existing header bands to RGB arrays and restores contour coordinates before OCR, avoiding full-frame allocations without reducing the four-board checks.
 
+Sideways voting-room alignment requires a ten-pixel lower stone margin in addition to the original floor supports; a supported edge receives forward correction before another strafe. Only post-vote title validation expands the header band from y=315 to y=360 because the backstep lowers the ribbon. Normal board selection and physical-index establishment use the original band.
+
 Stop the GUI and worker before the full suite: native tests require exclusive F1/F2/F8 ownership. Tests use fake input except named native hotkey registration/latch checks, which send no gameplay actions.
 
 ```powershell

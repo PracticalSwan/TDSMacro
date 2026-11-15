@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.2 — Voting walkway margin and post-vote title
+
+- Verify the packaged candidate's 7m43s / 450-coin win, all 44 actions and zero recoveries; leave its continuous Play Again run active.
+- Require an additional ten-pixel stone margin before sideways voting-room movement. Near the curved grass edge, take a bounded forward correction first; retain the original two-sided/one-sided support checks and lost-floor stop.
+- Use a taller header band only after the vote backstep, preserving the full lowered Dead Ahead title. Keep normal board detection, the physical board index, exact title and one solo vote checks unchanged.
+- Add sanitized real-frame regressions for all six observed map-setup stops, including erased-word negatives and physical-index preservation. No vote or purchase action is repeated.
+- Extended 0.2.1 soak: 31 confirmed wins / 13,950 coins, all 44 actions in every match. Six natural map-setup stops recovered successfully; these fixes address their two demonstrated causes.
+
 ## 0.2.1 — Camera alignment and performance
 
 - Verify a packaged recovery-to-win cycle (7m41s / 450 coins, all 44 actions), followed by normal Play Again through map voting, fresh overhead setup and the first confirmed placement/upgrade in match 2.

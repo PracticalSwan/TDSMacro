@@ -15,12 +15,15 @@ class Board:
     title: str
 
 
-def voting_floor(frame,require_both=True):
+def voting_floor(frame,require_both=True,for_strafe=False):
     """Flat voting walkway beside both feet in the verified third-person view."""
     if frame.size!=(1920,991):
         return False
     supported=0
-    for box in ((835,680,875,725),(1045,680,1085,725)):
+    # A sideways step needs ten more pixels of stone toward the feet. The
+    # original support regions still govern edge correction and lost-floor stop.
+    bottom=735 if for_strafe else 725
+    for box in ((835,680,875,bottom),(1045,680,1085,bottom)):
         pixels=np.asarray(frame.crop(box).convert('RGB')).astype(np.int16)
         stone=(pixels.max(axis=2)-pixels.min(axis=2)<30)&(pixels.min(axis=2)>80)
         supported+=int(stone.mean()>=.70)
@@ -60,11 +63,14 @@ def spawn_board_row(frame):
     return tuple(sum(b[i] for b in boxes)/4 for i in (0,1))
 
 
-def read_headers(frame):
+def read_headers(frame,after_vote=False):
     """Visible headers for tracking while walking; indices are view-relative."""
     if frame.size!=(1920,991):
         return ()
-    pixels=np.asarray(frame.crop((0,180,1920,315)).convert('RGB')).astype(np.float32)
+    # Backing away after the vote lowers the ribbon. Keep normal navigation's
+    # narrow band; only the post-vote title check needs the taller region.
+    bottom=360 if after_vote else 315
+    pixels=np.asarray(frame.crop((0,180,1920,bottom)).convert('RGB')).astype(np.float32)
     red,green,blue=(pixels[:,:,i] for i in range(3))
     mask=np.uint8((red>170)&(red>green*1.4)&(red>blue*1.4))*255
     # Same header band; restore client y coordinates after contour detection.
@@ -108,8 +114,8 @@ def read_boards(frame):
     return boards if len(boards)==4 else ()
 
 
-def visible_target(frame,name='Dead Ahead'):
-    targets=[b for b in read_headers(frame) if title_matches(b.title,name)]
+def visible_target(frame,name='Dead Ahead',after_vote=False):
+    targets=[b for b in read_headers(frame,after_vote=after_vote) if title_matches(b.title,name)]
     return targets[0] if len(targets)==1 else None
 
 

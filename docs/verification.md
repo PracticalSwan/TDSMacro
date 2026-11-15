@@ -2,6 +2,22 @@
 
 Observed 15–16 November 2026: Windows 11, Microsoft Store Roblox GDK, English TDS v2.19.1, physical client 1920×991/120 DPI, local English Windows OCR, default controls, UI Scale Large and the settings in setup.md. Golden Scout Intern skin occupied slot 1; slots 2–5 were empty. The account had partial active modifiers.
 
+## 0.2.2 follow-up after extended running
+
+The unchanged 0.2.1 app continued to **31 confirmed wins / 13,950 coins**, with all 44 actions confirmed in every completed match. Observed durations were 7m38s–7m42s. This was not an uninterrupted run: after the initial deliberate recovery, six natural map-setup stops occurred. Every recovery closed/reopened TDS successfully; two failures occurred back-to-back before another win. The final run was stopped normally after win 31 for validation.
+
+Four stops followed sideways movement at the curved stone/grass edge. The original floor probes still passed just before the final strafe (left support 71–80%), then both supports disappeared. Extending the strafe probes ten pixels downward rejects each unsafe predecessor frame (left support 58–66%). The patch requires that additional margin before A/D, corrects forward while the original support permits it and retains the original lost-support stop. Sanitized edge/interior fixtures and a controller regression verify correction before strafing; all four saved traces retain their stop on the later lost-support frame.
+
+Two stops followed a successful vote and the normal backward step. That step lowered the ribbon to y=282/290; the normal band ending at y=315 cut the title crop. A post-vote-only band ending at y=360 reads the full title in both actual failure frames. Erasing Ahead still rejects the target. Normal four-board navigation keeps its existing band, and the controller still requires the unique full target and one vote before Ready. The original physical index is retained.
+
+A focused independent static review found no material issue. It did not provide live-game proof; local tests and packaged live checks are reported separately.
+
+The complete local suite passed **286/286 tests** in 73.553 seconds with the GUI/worker stopped. Compilation, the 18-package dependency check and whitespace validation exited zero. The 0.2.2 candidate built successfully and its self-check reported 44 actions, 16 observer states, English Play Again OCR and Tcl 8.6.15. Twenty source hashes and 73 runtime-data hashes matched; the previous 0.2.1 app and its complete 31-win evidence were preserved before installing the candidate.
+
+The candidate was started through native F1 from a verified lobby. It completed loadout, Survival/Easy/Solo, VIP Dead Ahead selection, physical-board-1 voting and fresh overhead setup, then won **7m43s / 450 coins with all 44 actions and zero recoveries**. The first live route did not reproduce the narrow edge or lowered-title failure geometry; the six original failure cases have saved-frame/controller regression coverage. The continuous worker then began Play Again. This is a finite baseline trial, not proof that every voting-room perspective is fixed.
+
+A clean public export passed **41 focused checks** across maps, strategy, the vertical profile and the two new controller regressions without the private original. Its 254 files and 182 PNGs passed private-pattern/metadata checks. The final candidate's duplicate executable/runtime was removed after installing and hash-checking the identical app, freeing a further 176,694,518 bytes while preserving candidate data, the active app and 12 protected paths, including the full 0.2.1 fallback/evidence.
+
 ## 0.2.1 checks and measurements
 
 The final packaged app's recovered match won **7m41s / 450 coins** on Dead Ahead / Survival / Easy, wave 20. All 44 actions were confirmed: nine vertical Scouts, eight level 4 and the ninth level 3. Normal Play Again returned to map voting. The same worker re-established the four-board row, selected/voted Dead Ahead through VIP, verified a fresh zero-tower overhead setup and confirmed the first placement and upgrade in match 2 without manual correction. These two setups used physical board 1; this release trial does not claim fresh live coverage of all four positions. The one recovery was deliberately triggered before that match; it is separate from normal replay.
