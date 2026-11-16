@@ -53,6 +53,8 @@ An existing environment created by uv can omit the `pip` module. In that case, `
 
 Build into a fresh destination; old packages are preserved. The builder includes only the calibrated nine-Scout strategy. A release ZIP must exclude captures, private originals, history, personal paths and diagnostic self-check files. Include license/notices/setup, validate the package and publish SHA-256. Inspect the actual artifact, not just its build script.
 
+**Post-release local install check (2026-11-16):** A stale `dist/TDSMacro` folder can remain after a new release candidate is built. Identify the actual release by comparing the complete extracted app and its EXE SHA-256 with the release ZIP, run `--self-check`, and separately launch and inspect the GUI before promoting a candidate as the local standard. The verified v0.2.3 executable hash is `ddf76edbb7b440c83fc61b48635d18a24574cff86c7d1e3de826dd49416f4624`. The maintainer's previous standard was preserved as `dist/TDSMacro-previous-20261116/`; a desktop shortcut points to the current `dist/TDSMacro/TDSMacro.exe` and sets its working directory. This local repair is ignored by Git and **does not modify the published release**. Do not hard-code this machine's paths into the distributed binary.
+
 CI runs Windows core tests, syntax checks and packaging. Full OCR/image checks and live games require the supported interactive environment; CI does not prove wins. Fix demonstrated causes, preserve small sanitized regressions and update changelog/verification. Gameplay changes warrant a live win/replay; cosmetic docs do not warrant restarting long soaks. See AGENTS.md for automatic commit/push rules.
 
 ## Release security

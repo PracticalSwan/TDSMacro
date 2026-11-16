@@ -1,5 +1,13 @@
 # Verification
 
+## 2026-11-16 — Post-release local v0.2.3 GUI installation verification
+
+The local `dist/TDSMacro/TDSMacro.exe` was an older build after v0.2.3 was published. The executable inside the published release ZIP matched the existing `dist/candidate-v0.2.3-r2/TDSMacro/TDSMacro.exe` at SHA-256 `ddf76edbb7b440c83fc61b48635d18a24574cff86c7d1e3de826dd49416f4624`. The verified existing build was moved to the standard local `dist/TDSMacro/` path. The previous standard directory was archived as `dist/TDSMacro-previous-20261116/`. A desktop shortcut with the correct target and working directory was created and tested. These paths are local, ignored build/install artifacts and not release contents.
+
+The installed executable's `--self-check` exited 0, reporting frozen mode, **44 operations**, **16 observer states**, local OCR reading `Play Again`, Tcl 8.6.15 and strategy hash `59548c3cf386f63eb0ae9f820ec165747c600706bbb59c7ce6acbd4da133eafb`. A launch **through the actual shortcut** created a visible, responsive `TDS Strategy Macro` Tk GUI with Golden Scout selection, F1/F2 controls, recovery checked and Ready status. An earlier successfully launched GUI was behind another foreground application, rather than crashing. The previous binary was preserved, and diagnostic screenshots were removed after review.
+
+**Scope:** This was a Windows launcher/GUI test with Roblox closed; it does not establish a new match victory or retest gameplay. No source code, published ZIP/tag, Windows display scaling or Roblox settings were modified. The release's existing 301 automated tests and live match/focus-recovery verification remain documented below.
+
 ## 0.2.3 — Foreground recovery with modifiers deferred
 
 Verified on 16 November 2026 with Python 3.14.2, Windows 11, English Store Roblox GDK/TDS 2.19.1, physical 1920×991/120 DPI, UI Scale Large, vertical upgrades and Golden Scout alone in slot 1. The owner deferred modifier settings because the required challenges are not unlocked. The strategy/profile and its SHA remain unchanged. Committed + Limitation + Hidden Enemies + Glass has no accepted selection, full-combination win or reward measurement. Historical references below to partial account modifiers do not establish Challenge Trial unlocks or a verified selectable set.

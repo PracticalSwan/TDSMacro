@@ -1,5 +1,15 @@
 # Troubleshooting
 
+## Application does not open or appear
+
+1. Confirm you extracted **the complete v0.2.3 release folder**. Do not run `TDSMacro.exe` from inside the ZIP or move the EXE without `_internal`, `assets`, `calibrations`, and `strategies`.
+2. Check **Alt+Tab and the taskbar**; Windows may create the `TDS Strategy Macro` window behind another app. If it is visible there, bring it forward normally.
+3. Ensure a desktop shortcut targets the current executable and sets **Start in** to the containing `TDSMacro` directory. Multiple files named `TDSMacro.exe` in older build folders are not necessarily the published release.
+4. If the process starts but the window still fails, close any competing `TDSMacro` instance (global F1/F2 registration is exclusive) and record the exact Windows error or dialog. Inspect Event Viewer → Windows Logs → Application when an actual crash is reported. Do not disable Windows protections or fetch unofficial DLLs.
+5. For development builds, use the documented `--self-check` on the **specific executable** to verify the frozen strategy, Tcl/Tk, OCR and resources. This is a package integrity check, not a guarantee that the normal GUI opens or gameplay works.
+
+On 2026-11-16, a local launch complaint was resolved without code changes: both existing copies passed self-check, the old generic `dist/TDSMacro` was replaced by the verified v0.2.3 release build, the original was archived, and a desktop shortcut and visible responsive GUI were tested. The reported problem was **not** reproduced as an application crash. This local repair did not change the published v0.2.3 ZIP or run Roblox.
+
 Read the last reason in the app. Use F2 before adjusting the game. With recovery enabled, a game failure starts a fresh lobby session after closing the failed client. It never resumes a partial match or repeats an uncertain purchase. Disable recovery before starting if you want to inspect the first failure in place.
 
 | Stop / condition | Check |

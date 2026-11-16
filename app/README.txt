@@ -1,6 +1,10 @@
 TDS Strategy Macro — Windows
 
-Keep this entire folder together. Double-click TDSMacro.exe.
+Keep this entire folder together, including _internal, assets, calibrations,
+and strategies. Double-click TDSMacro.exe from the extracted folder;
+do not run the executable alone or directly inside a ZIP. If the app
+opens behind another window, select TDS Strategy Macro using Alt+Tab.
+Check desktop shortcuts point to this copy, not an older build.
 Choose Golden Scout, open Roblox at the TDS lobby, then press F1.
 F2 stops the macro. Closing the app also requests a safe stop.
 Start gives you five seconds to put Roblox in front.

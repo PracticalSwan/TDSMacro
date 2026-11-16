@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-16 — Post-release local launcher correction (v0.2.3 unchanged)
+
+- Resolved a confusing local launch setup: the generic `dist/TDSMacro` executable was still a v0.2.2-era copy even though a correct v0.2.3 build existed separately. Verified that the release's executable SHA-256 is `ddf76edbb7b440c83fc61b48635d18a24574cff86c7d1e3de826dd49416f4624` and that the bundled OCR, Tcl/Tk, 44 operations, 16 observer states and strategy hash pass its frozen self-check.
+- Promoted the verified **existing** v0.2.3 release build to the local standard `dist/TDSMacro/` folder, retaining the previous folder as `dist/TDSMacro-previous-20261116/`. Created and tested a local desktop shortcut with the correct executable and working directory. Verified a responsive, visible Tk GUI from that shortcut with no Roblox game input.
+- The GUI initially opened behind another window; a visible window is not necessarily the foreground one. No app source, strategy, Windows scaling or published ZIP was changed. The installed binary and desktop shortcut are local, ignored files, not repository/release assets.
+- Version the existing optional project-local debugging, unittest and verification skill guidance under `.agents/skills/` with its original source references and MIT license notices. These are documentation only and do not change dependencies or runtime behavior.
+
 ## 0.2.3 — Passive foreground recovery and protected stops
 
 - Add passive recovery after foreground interruption: immediately release input, wait up to five seconds for the same verified client to return naturally, then restart from a fresh session. Preserve manual stop/pause, geometry/identity, setup/storage and three-relaunch limits. No automatic refocus or interrupted purchase resumption.

@@ -14,6 +14,8 @@ A Windows app for **Golden Scout · Dead Ahead · Survival / Easy / Solo** in Ro
 4. Press **F1**, then put Roblox in front during the five-second countdown.
 5. Keep Roblox focused. **F2 stops**; closing the app also stops its worker. F8/Escape are additional emergency stops.
 
+**Launch note (v0.2.3):** Run `TDSMacro.exe` **inside the fully extracted `TDSMacro` folder**, alongside `_internal`, `assets`, `calibrations`, and `strategies`. The `.exe` by itself is not a standalone app. If it appears not to open, check **Alt+Tab** or the taskbar; a working GUI can start behind another window. Multiple locally built versions can have the same filename, so prefer the current [release ZIP](https://github.com/PracticalSwan/tds-macro/releases/tag/v0.2.3) rather than an older `dist` copy. [Troubleshooting](docs/troubleshooting.md) covers further checks.
+
 The app repeats successful matches and displays confirmed progress, wins and coins. **Recover game failures automatically** is enabled by default: a failed game is closed, TDS is reopened and the strategy starts fresh from the lobby. F2 cancels both play and recovery. No separate Python installation is needed.
 
 ## Required setup
