@@ -76,8 +76,13 @@ class Session:
     def frame(self):
         self.driver.check()
         frame=self.capture()
-        frame.save(self.output/'latest.png',compress_level=1)
+        self.save_frame(frame,'latest.png')
         return frame
+
+    def save_frame(self,frame,name):
+        try:frame.save(self.output/name,compress_level=1)
+        except OSError as exc:
+            raise StopRun(f'Cannot save session evidence ({name}): {exc}',kind='storage') from exc
 
     def _login_caption(self,frame):
         """Read the shared Claim/Close control; absent text stays uncertain."""
@@ -226,18 +231,18 @@ class Session:
             frame=self.frame()
             stable=stable+1 if verify_inventory(frame) is None else 0
             if stable>=2:
-                frame.save(self.output/'loadout_identity.png')
+                self.save_frame(frame,'loadout_identity.png')
                 break
             self.driver.wait(.2)
         else:
-            raise StopRun('Equipped Scout/Golden label/slot-1 perk not confirmed; skin portraits are not checked.')
+            raise StopRun('Equipped Scout/Golden label/slot-1 perk not confirmed; skin portraits are not checked.',kind='setup')
         self.transition('close_inventory')
         self.lobby()
         for name in MENU_ROUTE:
             self.transition(name)
         bar=read_hotbar(self.frame(),slot=1)
         if not bar.valid or bar.price is None:
-            raise StopRun('Require Scout in slot 1 and no tower prices in slots 2..5.')
+            raise StopRun('Require Scout in slot 1 and no tower prices in slots 2..5.',kind='setup')
         self.status('loadout_verified',placement_price=bar.price)
 
     def boards(self,timeout=4):
@@ -262,12 +267,12 @@ class Session:
             if self.observer.observe(frame).state!='map_vote':
                 raise StopRun('Map-vote state changed during the board-row camera search.')
             if index==0:
-                frame.save(self.output/'voting_spawn.png')
+                self.save_frame(frame,'voting_spawn.png')
             row=spawn_board_row(frame)
             if row and 975<=row[0]<=1005 and 285<=row[1]<=330:
                 stable+=1
                 if stable>=2:
-                    frame.save(self.output/'voting_aligned.png')
+                    self.save_frame(frame,'voting_aligned.png')
                     self.status('voting_camera_verified',coarse_turns=coarse,alignment_turns=alignment,row_center=row)
                     return
                 self.driver.wait(.2)
@@ -294,7 +299,7 @@ class Session:
         for index in range(16):
             self.pause()
             frame=self.frame()
-            frame.save(self.output/f'vip_step_{index:02}.png')
+            self.save_frame(frame,f'vip_step_{index:02}.png')
             if self.observer.observe(frame).state!='map_vote':
                 raise StopRun('Map-vote state changed while approaching VIP.')
             if vip_prompt(frame):
@@ -328,9 +333,9 @@ class Session:
             # Return to the spawn reference before the independently observed VIP route.
             self.driver.key('S',2.8)
             self.driver.key('W',1.9)
-            self.frame().save(self.output/'vip_before_sidewalk.png')
+            self.save_frame(self.frame(),'vip_before_sidewalk.png')
             sideways=self.approach_vip()
-            self.frame().save(self.output/'vip_machine_approach.png')
+            self.save_frame(self.frame(),'vip_machine_approach.png')
             self.driver.key('E',.8)
             self.wait_state('vip_maps',10,{'map_vote'})
             self.allowed={'vip_maps'}
@@ -355,7 +360,7 @@ class Session:
                 self.driver.key('A',sideways)
             self.driver.key('W',.9)
             self.driver.wait(.3)
-            self.frame().save(self.output/'vip_return.png')
+            self.save_frame(self.frame(),'vip_return.png')
             boards=self.boards()
             target=find_target(boards)
             if target is None:
@@ -364,15 +369,15 @@ class Session:
 
     def vote_target(self,target):
         self.board_index=target.index
-        self.frame().save(self.output/f'boards_target{target.index}.png')
+        self.save_frame(self.frame(),f'boards_target{target.index}.png')
         self.status('walk_to_target',physical_board=target.index,title=target.title)
         frame,current=self.approach_target()
-        frame.save(self.output/'before_vote.png')
+        self.save_frame(frame,'before_vote.png')
         self.driver.key('E',.8)
         self.driver.key('S',.5)  # Clear the proximity prompt from the numeric vote badge.
         self.driver.wait(.3)
         frame=self.frame()
-        frame.save(self.output/'after_vote.png')
+        self.save_frame(frame,'after_vote.png')
         current=visible_target(frame,after_vote=True)
         if current is None:
             raise StopRun('Target identity was lost after voting; Ready was not clicked.')
@@ -386,7 +391,7 @@ class Session:
             self.driver.key('D',.35)  # Open floor; left can climb the board-1 bench.
             self.driver.wait(.2)
             frame=self.frame()
-            frame.save(self.output/'after_vote_clear.png')
+            self.save_frame(frame,'after_vote_clear.png')
             current=visible_target(frame,after_vote=True)
             count=self.vote_count(frame,current) if current is not None else None
         if count!=1:
@@ -403,7 +408,7 @@ class Session:
         for index in range(22):
             self.pause()
             frame=self.frame()
-            frame.save(self.output/f'approach_{index:02}.png')
+            self.save_frame(frame,f'approach_{index:02}.png')
             if self.observer.observe(frame).state!='map_vote':
                 raise StopRun('Map-vote state changed while approaching the target.')
             current=visible_target(frame)
@@ -505,7 +510,7 @@ class Session:
         bar=read_hotbar(self.frame(),slot=1)
         if not bar.valid:
             raise StopRun('Tower hotbar not confirmed after camera setup.')
-        self.frame().save(self.output/'prepared.png')
+        self.save_frame(self.frame(),'prepared.png')
         self.status('prepared',physical_board=self.board_index,placement_price=bar.price)
 
     def run(self,matches=1,repeat_route='play-again',prepare_only=False,continuous=False):
@@ -587,8 +592,8 @@ def main(argv=None):
     parser.add_argument('--confirm-start',action='store_true')
     parser.add_argument('--profile',type=Path,default=ROOT/'calibrations/dead_ahead_vertical_nine_v4.json')
     parser.add_argument('--matches',type=int,default=1)
-    parser.add_argument('--continuous',action='store_true',help='Explicit Solo grind until stop, focus loss, failure or low disk space')
-    parser.add_argument('--auto-recover',action='store_true',help='Reopen TDS after game failures; continuous mode only; manual stops/focus loss cancel')
+    parser.add_argument('--continuous',action='store_true',help='Explicit Solo grind until stopped, a guard fails or disk space is low')
+    parser.add_argument('--auto-recover',action='store_true',help='Fresh TDS session after game failures or verified natural focus return within five seconds; continuous mode only')
     parser.add_argument('--repeat-route',choices=['play-again','lobby'],default='play-again')
     parser.add_argument('--prepare-only',action='store_true')
     parser.add_argument('--startup-delay',type=int,default=0,choices=range(0,11),help='Seconds to switch focus to Roblox; no automatic refocus')

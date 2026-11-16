@@ -5,17 +5,20 @@ Read the last reason in the app. Use F2 before adjusting the game. With recovery
 | Stop / condition | Check |
 |---|---|
 | Geometry or DPI mismatch | Physical client must be 1920×991 at 120 DPI. Window borders are excluded. |
-| Foreground / window changed | Keep Roblox visible, unobscured and focused. Manual focus/geometry changes stop and require F1 again. Only an armed recovery may bind a newly launched client. |
+| Foreground interrupted | Input stops immediately. With recovery enabled, the same verified client must return naturally within five seconds, twice observed, before a fresh session can start. If it does not, return to the lobby and press F1 when ready. The macro cannot bring Roblox to the foreground. |
+| Window / identity changed | Position, size, DPI or client identity changes stop recovery. Restore the supported setup before F1. Only an armed recovery may bind its newly launched client. |
 | Hotkey registration failed | Close another controller that owns F1/F2/F8; never overlap workers. |
 | OCR unavailable | English Windows OCR must be available locally; no cloud fallback. |
 | Login/tutorial overlay | An available green Claim is clicked once; a recognized grey Close is dismissed. Unreadable or delayed claims stop without a second claim. Clear unfamiliar first-play dialogues manually. |
 | Loadout / hotbar | Golden Scout slot 1 only, remaining tower slots empty; tower rather than item bar. |
+| Storage / evidence write failed | Check that the app's captures folder is writable and the disk has at least 2 GiB free. This stops the run; reopening Roblox cannot repair local storage. |
 | Board/VIP/vote unreadable | Four physical positions, target title and one solo vote must be verified. Decorations/UI changes may need recalibration. No guessed board. |
 | VIP proximity / voting floor | The actual Override Map prompt and flat stone walkway are required. The macro stops instead of continuing onto decorations. Keep the documented camera/settings baseline and report a redacted stop reason; do not bypass the floor check. |
 | Camera changed | Do not move or touch camera during placement. Two-sided terrain must match the prepared frame. |
 | Cash/price/count unreadable | Keep HUD visible; animations receive bounded no-input observation. |
 | Action unconfirmed | The server may have applied it. Inspect actual state; begin a fresh match for ordinary use. Never blindly repeat purchases. |
 | Defeat / income timeout | Modifiers affect timing/viability. Current-account wins do not establish every modifier configuration. |
+| Modifier settings | Automatic modifier selection and four-modifier win/reward validation are deferred pending challenge unlocks. The current release does not select or change modifiers. |
 | Result/reward unreadable | The app stops before replay. Send a redacted stop reason through a suggestion issue. |
 | Recovery limit / close or lobby timeout | Three relaunches without a win exhaust the limit. Check the original reason and settings before F1 again. Unknown close dialogs receive no click; the client is never force-killed. |
 | Roblox launch error 0x800705b4 / already running | Recovery waits for process exit and then 60 seconds before one launch. F2 cancels that wait. If it still fails, stop and open Roblox normally; do not repeatedly launch over a stuck instance. |

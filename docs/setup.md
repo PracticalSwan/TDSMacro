@@ -47,13 +47,17 @@ The owner's existing avatar is unchanged. TDS Character Scale is not required or
 
 ## During play
 
-F2 requests a stop at any time. F8 is the worker's queued emergency stop; Escape is also checked. Held inputs are released on exit. App close stops its worker. Switching focus away from Roblox also stops the run; it never refocuses.
+F2 requests a stop at any time. F8 is the worker's queued emergency stop; Escape is also checked. Held inputs are released on interruption. App close stops its worker. Losing Roblox foreground immediately stops input and abandons that attempt; the macro never refocuses Roblox.
+
+With automatic recovery enabled, the worker passively waits up to **five seconds** for the same Roblox window to return to foreground naturally. Two observations must confirm the original process, window, position, size and DPI. A verified return starts the normal fresh-session recovery below; it never resumes the interrupted placement or purchase. If focus stays elsewhere, or the window changes or becomes unverifiable, the run stops without closing or reopening Roblox. A notification that leaves foreground unchanged has no effect. Disable recovery before F1 to stop immediately on any focus loss.
 
 Play Again continues only while each result, reward and next state is confirmed. With **Recover game failures automatically** checked (the default), defeat, disconnect, failed actions or unreadable game state end the current attempt. After a five-second cancellable countdown, the worker closes Roblox, handles the recognized Close Roblox confirmation if present, waits for that process to exit, then allows 60 seconds for the Store launcher to settle before opening TDS once through its official launch link. It accepts a supported foreground lobby or Login Rewards screen, binds the new window and starts the full lobby/loadout/map/camera checks again. It never repeats an uncertain purchase in the old game.
 
 The Login Rewards check runs on each lobby entry. Two consecutive exact Claim readings on the green button authorize one guarded claim click. The popup may close automatically; otherwise the macro waits for grey Close before dismissing it once. An already-claimed Close screen is dismissed directly. An unreadable or delayed claim is never clicked again. An ordinary lobby skips reward input.
 
-F2, F8/Escape, app close, focus loss, geometry changes, setup/storage errors and pause cancel recovery. There is no automatic refocus or force termination. A close timeout or unreadable reopened lobby stops. At most three automatic relaunches are allowed without a confirmed win; a win resets that consecutive-failure limit. Uncheck recovery before F1 to stop on the first game failure instead.
+F2, F8/Escape, app close, unrecovered focus loss, identity/geometry changes, setup/storage errors and pause cancel recovery. An invalid loadout stops after bounded verification; correct it before F1 again. A session evidence-write failure is a storage stop. There is no automatic refocus or force termination. A close timeout or unreadable reopened lobby stops. At most three automatic relaunches are allowed without a confirmed win; a win resets that consecutive-failure limit. Uncheck recovery before F1 to stop on the first game failure instead.
+
+Modifier selection is deferred until the required challenges are unlocked. This release retains the existing strategy and does not configure modifiers. Committed + Limitation + Hidden Enemies + Glass is a future target requiring separate UI and win/reward verification. Current account settings can affect results; no four-modifier win or reward boost is claimed.
 
 Local status, results, logs and screenshots are saved under `captures` beside the app. They can contain account information and are private by default. Do not upload that folder.
 

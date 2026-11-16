@@ -27,6 +27,12 @@ Camera feature extraction uses the same masked map regions with padded native-re
 
 Playback classifies each captured frame once and saves its diagnostic latest PNG at most once per second, using lossless fast compression. Every frame is still captured and checked; critical evidence remains separate and the actual last frame is flushed at exit. A failed final PNG write preserves an already confirmed result and stops the session as a storage error before replay. Navigation keeps fresh diagnostics on every capture with fast compression.
 
+Navigation evidence saves share one storage-error boundary; an unwritable PNG stops instead of reopening Roblox. Unverified loadout/hotbar preflight is a setup stop after the existing bounded observations.
+
+The input guard still raises `focus_lost` immediately and releases held controls through its existing cleanup. Only the explicitly started continuous recovery supervisor can observe the same original window passively for five seconds, requiring two foreground samples 200 ms apart before a fresh session. Persistent loss, changed identity/geometry, manual stop, pause and storage/setup errors stop. The original client anchor survives disappearance through the close cooldown, so a replacement client cannot be closed. The reopened lobby must be stable on the same new window before the next attempt. No focus activation is part of recovery.
+
+Never use computer-control sessions (`cua_repl`, `@oai/sky`, CUA/computer-use or desktop browser-act) for this project. Their pointer/blue effects can enter native captures, and their input activation can restore or resize a window. Use the existing `GuardedInput`/`WindowsOS` and native capture functions for supervised tests. The owner brings Roblox to the foreground; recovery never does. Establish recognition failures from clean captures without those overlays before changing references or thresholds.
+
 ## Checks and build
 
 Menu transitions retain two source observations 200 ms apart; the click follows the second without another unobserved delay. The normal polling cadence and action guards remain. Map detection converts only the existing header bands to RGB arrays and restores contour coordinates before OCR, avoiding full-frame allocations without reducing the four-board checks.
@@ -42,6 +48,8 @@ Stop the GUI and worker before the full suite: native tests require exclusive F1
 .\scripts\build-app.ps1 -Destination dist\new-build
 Start-Process dist\new-build\TDSMacro\TDSMacro.exe -ArgumentList '--self-check', 'package-check.json' -Wait
 ```
+
+An existing environment created by uv can omit the `pip` module. In that case, `uv pip check --python .\.venv\Scripts\python.exe` checks the same installed environment without installing or upgrading packages. Record the command actually used.
 
 Build into a fresh destination; old packages are preserved. The builder includes only the calibrated nine-Scout strategy. A release ZIP must exclude captures, private originals, history, personal paths and diagnostic self-check files. Include license/notices/setup, validate the package and publish SHA-256. Inspect the actual artifact, not just its build script.
 

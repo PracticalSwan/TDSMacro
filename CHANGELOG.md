@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.3 — Passive foreground recovery and protected stops
+
+- Add passive recovery after foreground interruption: immediately release input, wait up to five seconds for the same verified client to return naturally, then restart from a fresh session. Preserve manual stop/pause, geometry/identity, setup/storage and three-relaunch limits. No automatic refocus or interrupted purchase resumption.
+- Keep the original client identity through disappearance and the recovery cooldown; reject a replacement before closing. Require two stable observations of the same reopened lobby window.
+- Stop for unverified loadout/hotbar setup and failed navigation evidence writes instead of treating them as recoverable game failures.
+- Require clean native captures for verification and prohibit computer-control sessions whose pointer/blue effects can contaminate recognition. Preserve the existing Items references; a clean hover still matches at 1.0.
+- Defer modifier configuration and four-modifier win/reward validation pending challenge unlocks. Retain the existing nine-Scout, 44-action strategy and v4 profile.
+- Verify a clean 7m39s / 450-coin, 44-action win and normal Play Again. A manual foreground interruption returned to the same client in 1.51 seconds, then recovered through a new verified lobby, full setup and 19 confirmed actions before native F2 stopped the trial. Native F2 and app close also cancel startup without game input. Full local suite: 301 passing tests.
+
 ## 0.2.2 — Voting walkway margin and post-vote title
 
 - Verify the packaged candidate's 7m43s / 450-coin win, all 44 actions and zero recoveries; leave its continuous Play Again run active.

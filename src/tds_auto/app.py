@@ -130,6 +130,8 @@ def status_text(data, running, stopping=False):
         return 'Ready — open the TDS lobby, then press F1.'
     phase = data.get('phase', 'starting')
     if phase=='recovering':
+        if data.get('stage')=='awaiting_foreground':
+            return 'Input stopped · waiting up to 5 seconds for Roblox to return naturally · F2 cancels.'
         stages={'cooldown':'restarting shortly','closing':'leaving the failed game',
                 'settling_launcher':'waiting 60 seconds for the Roblox launcher',
                 'launching':'opening Roblox','waiting_lobby':'waiting for the lobby'}

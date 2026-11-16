@@ -14,8 +14,13 @@ Recover game failures automatically is checked by default. A failed game
 is closed and TDS reopens into a fresh lobby session. Login Rewards is
 checked when present: Claim once if available, or dismiss grey Close.
 F2 cancels recovery as well as normal play.
-Manual stop, focus/geometry changes, setup/storage errors and three
-relaunches without a win stop the run. No automatic refocus or force kill.
+Lost foreground releases input immediately. With recovery enabled, the same
+client must return naturally within five seconds (two verified observations)
+before a fresh-session recovery. The interrupted strategy never resumes.
+Manual stop, persistent focus loss, identity/geometry changes, setup/storage
+errors and three relaunches without a win stop the run. No automatic refocus
+or force kill. Modifier selection is deferred pending challenge unlocks;
+this app does not configure modifiers or claim four-modifier wins.
 F8/Escape remain additional emergency stops inside the game worker.
 
 The app runs continuously until stopped. Local progress and results are

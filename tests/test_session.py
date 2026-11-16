@@ -311,6 +311,21 @@ class SessionTests(unittest.TestCase):
         with self.assertRaises(StopRun):self.driver.key('W',.95)
         self.assertEqual(self.platform.events,[('key_down','W'),('key_up','W')])
 
+    def test_navigation_diagnostic_write_failure_is_a_storage_stop(self):
+        with patch.object(Image.Image,'save',side_effect=PermissionError('Evidence is not writable')):
+            with self.assertRaises(StopRun) as caught:self.session.frame()
+        self.assertEqual(caught.exception.kind,'storage')
+        self.assertEqual(self.platform.events,[])
+
+    def test_unverified_loadout_is_a_setup_stop_after_bounded_observation(self):
+        self.session.lobby=lambda:None
+        self.session.transition=lambda name:'inventory_scout'
+        with patch('tds_auto.session.verify_inventory',return_value='Golden Scout is not equipped'):
+            with self.assertRaises(StopRun) as caught:self.session.preflight()
+        self.assertEqual(caught.exception.kind,'setup')
+        self.assertGreaterEqual(self.platform.now(),5)
+        self.assertEqual(self.platform.events,[])
+
     def test_pause_sends_no_input_and_focus_loss_stops_it(self):
         from dataclasses import replace
         (self.path/'pause').touch()

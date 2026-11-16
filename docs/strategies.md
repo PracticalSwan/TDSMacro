@@ -2,6 +2,8 @@
 
 The release selects `GOLDIE SCOUTO.vertical-nine-slot1.strat`, bound to `dead_ahead_vertical_nine_v4.json`.
 
+Modifier configuration is deferred pending challenge unlocks. Version 0.2.3 retains this same strategy/profile and does not apply modifier toggles. The future Committed + Limitation + Hidden Enemies + Glass target has no accepted full-combination win or reward measurements.
+
 | Property | Value |
 |---|---|
 | Map / mode | Dead Ahead / Survival Easy / Solo |

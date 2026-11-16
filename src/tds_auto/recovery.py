@@ -2,6 +2,7 @@
 from __future__ import annotations
 import ctypes
 from ctypes import wintypes
+from dataclasses import replace
 import json
 import os
 from pathlib import Path
@@ -14,7 +15,8 @@ from .resources import LocalOCR
 
 ROBLOX_URI='roblox://experiences/start?placeId=3260590327'
 LAUNCHER_SETTLE_SECONDS=60
-NO_RECOVERY={'user_stop','focus_lost','window_changed','setup','storage'}
+FOCUS_RETURN_SECONDS=5
+NO_RECOVERY={'user_stop','focus_lost','focus_interrupted','window_changed','setup','storage'}
 
 
 def locate_client():
@@ -45,6 +47,29 @@ def wait(control,platform,seconds):
         check_cancel(control,platform)
         platform.sleep(min(.05,remaining))
     check_cancel(control,platform)
+
+
+def await_foreground(control,platform,expected,*,locate=locate_client,report=lambda **detail:None):
+    """Observe natural focus return only; the interrupted strategy never resumes."""
+    if expected is None or not expected.foreground or (expected.width,expected.height,expected.dpi)!=(1920,991,120):
+        raise StopRun('No verified foreground client before interruption; recovery cancelled.',kind='focus_interrupted')
+    report(stage='awaiting_foreground',seconds=FOCUS_RETURN_SECONDS,client_pid=expected.pid,client_hwnd=expected.hwnd)
+    deadline=platform.now()+FOCUS_RETURN_SECONDS
+    stable=0
+    while platform.now()<deadline:
+        check_cancel(control,platform)
+        try:current=locate()
+        except StopRun:raise
+        except (RuntimeError,OSError) as exc:
+            raise StopRun('Interrupted Roblox client could not be verified; no relaunch.',kind='focus_interrupted') from exc
+        if replace(current,foreground=True)!=expected:
+            raise StopRun('Roblox identity, position, size or DPI changed during focus interruption; no relaunch.',kind='window_changed')
+        stable=stable+1 if current.foreground else 0
+        if stable>=2:
+            report(stage='foreground_restored',client_pid=current.pid,client_hwnd=current.hwnd)
+            return
+        wait(control,platform,min(.2,max(0,deadline-platform.now())))
+    raise StopRun('Roblox did not regain foreground naturally within five seconds; no relaunch.',kind='focus_interrupted')
 
 
 def close_client(window):
@@ -102,7 +127,7 @@ def close_prompt(frame):
 def confirm_close(window,control,platform):
     if not client_exists(window):return True
     driver=GuardedInput(window,platform)
-    driver.external_stop=control.stopped
+    driver.external_stop=lambda:control.stopped() or control.paused()
     driver.check()
     if not close_prompt(capture(window)):return False
     def verify():
@@ -118,10 +143,12 @@ def confirm_close(window,control,platform):
 
 
 def restart_client(control,platform,report,*,locate=locate_client,close=close_client,
-                   exists=client_running,launch=launch_client,observe=lobby_state,confirm=confirm_close,timeout=180):
+                   exists=client_running,launch=launch_client,observe=lobby_state,confirm=confirm_close,timeout=180,expected=None):
     report(stage='cooldown')
     wait(control,platform,5)
     window=optional_window(locate)
+    if expected is not None and window is not None and window!=expected:
+        raise StopRun('Roblox changed during recovery cooldown; no close or relaunch.',kind='window_changed')
     if window is not None:
         if not window.foreground:
             raise StopRun('Roblox lost foreground; recovery cancelled.',kind='focus_lost')
@@ -153,25 +180,26 @@ def restart_client(control,platform,report,*,locate=locate_client,close=close_cl
             window=locate()
             state=observe(window) if window.foreground and (window.width,window.height,window.dpi)==(1920,991,120) else None
         except (RuntimeError,OSError):state=None
-        if state in {'lobby','login_rewards'}:
-            stable=stable+1 if state==previous else 1
+        observed=(state,window) if state in {'lobby','login_rewards'} else None
+        if observed is not None:
+            stable=stable+1 if observed==previous else 1
             if stable>=2:
                 report(stage='lobby_ready',client_pid=window.pid,client_hwnd=window.hwnd,lobby_state=state)
                 return
         else:stable=0
-        previous=state
+        previous=observed
         wait(control,platform,.2)
     raise StopRun('Recovery did not reach a foreground supported lobby or Login Rewards screen.',kind='setup')
 
 
-def supervise(output,platform,profile,*,attempt=None,restart=restart_client,locate=locate_client,max_recoveries=3):
+def supervise(output,platform,profile,*,attempt=None,restart=None,locate=locate_client,max_recoveries=3):
     output=Path(output)
     context={'recoveries':0,'max_recoveries':max_recoveries}
     control=SessionControl(output,context=context)
     totals={'attempts':0,'matches_completed':0,'wins':0,'coins_total':0}
     consecutive=0;number=0
     def run_attempt(path,control,totals):
-        driver=GuardedInput(locate(),platform);driver.check()
+        driver=GuardedInput(expected or locate(),platform);driver.check()
         if (driver.expected.width,driver.expected.height,driver.expected.dpi)!=(1920,991,120):
             raise StopRun('This profile requires a 1920x991 client at 120 DPI.',kind='setup')
         session=Session(driver,path,profile,control=control,totals=totals)
@@ -189,7 +217,10 @@ def supervise(output,platform,profile,*,attempt=None,restart=restart_client,loca
         path=output/f'attempt_{number:03}';path.mkdir()
         context['attempt_folder']=path.name
         wins_before=totals['wins']
-        try:result=attempt(path,control,totals)
+        expected=None
+        try:
+            expected=optional_window(locate)
+            result=attempt(path,control,totals)
         except (RuntimeError,ValueError,OSError,KeyError,TypeError) as exc:
             kind=getattr(exc,'kind','setup' if isinstance(exc,(ValueError,KeyError,TypeError)) else 'failure')
             result={'status':'stopped','reason':str(exc),'stop_kind':kind}
@@ -199,23 +230,31 @@ def supervise(output,platform,profile,*,attempt=None,restart=restart_client,loca
         if result['status'] in {'victory','prepared'}:return finish(result)
         last=result.get('matches',[{}])[-1] if result.get('matches') else {}
         kind=result.get('stop_kind') or last.get('stop_kind','failure')
-        if kind in NO_RECOVERY:return finish({**result,'stop_kind':kind})
+        focus_return=kind=='focus_lost' and expected is not None and expected.foreground and (expected.width,expected.height,expected.dpi)==(1920,991,120)
+        if kind in NO_RECOVERY and not focus_return:return finish({**result,'stop_kind':kind})
+        def report(**detail):
+            event={'phase':'recovering','runner_pid':os.getpid(),'elapsed_seconds':platform.now(),**totals,
+                   'reason':result.get('reason') or last.get('reason'),'stop_kind':kind,
+                   'recovery_attempt':consecutive,**detail}
+            control.write(event)
+            with (output/'recovery.jsonl').open('a',encoding='utf-8') as ledger:
+                ledger.write(json.dumps(event)+'\n')
         try:
             check_cancel(control,platform)
-            current=optional_window(locate)
-            if current is not None and not current.foreground:
-                raise StopRun('Roblox lost foreground; recovery cancelled.',kind='focus_lost')
             if totals['wins']>wins_before:consecutive=0
             if consecutive>=max_recoveries:
                 return finish({**result,'status':'stopped','reason':f'Automatic recovery limit reached after {max_recoveries} relaunches without a win.'})
+            if focus_return:
+                kind='focus_interrupted'
+                await_foreground(control,platform,expected,locate=locate,report=report)
+            current=optional_window(locate)
+            if current is not None and not current.foreground:
+                raise StopRun('Roblox lost foreground; recovery cancelled.',kind='focus_lost')
+            if current is not None and current!=expected:
+                raise StopRun('Roblox changed after the failed attempt; recovery cancelled.',kind='window_changed')
             consecutive+=1;context['recoveries']+=1
             context['recovery_attempt']=consecutive
-            def report(**detail):
-                event={'phase':'recovering','runner_pid':os.getpid(),'elapsed_seconds':platform.now(),**totals,
-                       'reason':result.get('reason') or last.get('reason'),'recovery_attempt':consecutive,**detail}
-                control.write(event)
-                with (output/'recovery.jsonl').open('a',encoding='utf-8') as ledger:
-                    ledger.write(json.dumps(event)+'\n')
-            restart(control,platform,report)
+            if restart is None:restart_client(control,platform,report,locate=locate,expected=expected)
+            else:restart(control,platform,report)
         except (RuntimeError,OSError) as exc:
             return finish({'status':'stopped','reason':str(exc),'stop_kind':getattr(exc,'kind','setup')})

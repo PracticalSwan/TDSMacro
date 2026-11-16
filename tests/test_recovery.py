@@ -40,9 +40,9 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual(json.loads((calls[0]/'result.json').read_text())['status'],'stopped')
         self.assertEqual(json.loads((calls[1]/'result.json').read_text())['status'],'victory')
 
-    def test_manual_stop_or_focus_loss_never_relaunches(self):
+    def test_protected_stops_never_relaunch(self):
         recovery=self.module()
-        for kind in ('user_stop','focus_lost','window_changed','setup','storage'):
+        for kind in ('user_stop','focus_interrupted','window_changed','setup','storage'):
             with self.subTest(kind=kind):
                 root=self.path/kind;root.mkdir()
                 launches=[]
@@ -51,6 +51,139 @@ class RecoveryTests(unittest.TestCase):
                     restart=lambda *args:launches.append(1),locate=lambda:self.platform.window)
                 self.assertEqual(result['status'],'stopped')
                 self.assertEqual(launches,[])
+
+    def test_natural_focus_return_requires_two_stable_reads_without_input(self):
+        recovery=self.module();expected=self.platform.window;seen=[]
+        states=iter([False,True,False,True,True])
+        recovery.await_foreground(SessionControl(self.path),self.platform,expected,
+            locate=lambda:replace(expected,foreground=next(states)),report=lambda **row:seen.append(row))
+        self.assertAlmostEqual(self.platform.now(),.8)
+        self.assertEqual([row['stage'] for row in seen],['awaiting_foreground','foreground_restored'])
+        self.assertEqual(self.platform.events,[])
+
+    def test_passive_focus_wait_cancels_for_stop_pause_and_emergency(self):
+        recovery=self.module()
+        for stop in ('stop','pause','emergency'):
+            with self.subTest(stop=stop):
+                root=self.path/stop;root.mkdir();platform=FakeOS();expected=platform.window
+                def cancel(os):
+                    if stop=='emergency':os.stopped=True
+                    else:(root/stop).touch()
+                platform.on_sleep=cancel
+                with self.assertRaises(StopRun) as caught:
+                    recovery.await_foreground(SessionControl(root),platform,expected,
+                        locate=lambda:replace(expected,foreground=False))
+                self.assertEqual(caught.exception.kind,'user_stop')
+                self.assertLess(platform.now(),.2)
+                self.assertEqual(platform.events,[])
+
+    def test_focus_wait_rejects_changed_identity_or_geometry_even_in_background(self):
+        recovery=self.module();expected=self.platform.window
+        for changed in ({'hwnd':3},{'pid':4},{'x':2},{'y':30},{'width':1800},{'height':992},{'dpi':96}):
+            with self.subTest(changed=changed),self.assertRaises(StopRun) as caught:
+                recovery.await_foreground(SessionControl(self.path),self.platform,expected,
+                    locate=lambda:replace(expected,foreground=False,**changed))
+            self.assertEqual(caught.exception.kind,'window_changed')
+        self.assertEqual(self.platform.events,[])
+
+    def test_unverifiable_interrupted_client_stops_without_input(self):
+        recovery=self.module()
+        def missing():raise RuntimeError('No visible client')
+        with self.assertRaises(StopRun) as caught:
+            recovery.await_foreground(SessionControl(self.path),self.platform,self.platform.window,locate=missing)
+        self.assertEqual(caught.exception.kind,'focus_interrupted')
+        self.assertEqual(self.platform.events,[])
+
+    def test_brief_focus_loss_restarts_once_in_a_fresh_attempt(self):
+        recovery=self.module();calls=[];restarts=[];expected=self.platform.window
+        def attempt(path,control,totals):
+            calls.append(path)
+            if len(calls)==1:
+                self.platform.window=replace(expected,foreground=False)
+                return {'status':'stopped','matches':[{'stop_kind':'focus_lost','reason':'Interrupted purchase'}]}
+            return {'status':'victory'}
+        def natural_return(os):
+            if os.now()>=.3:os.window=expected
+        self.platform.on_sleep=natural_return
+        result=recovery.supervise(self.path,self.platform,None,attempt=attempt,
+            restart=lambda *args:restarts.append(self.platform.window),locate=lambda:self.platform.window)
+        self.assertEqual((result['status'],result['recoveries']),('victory',1))
+        self.assertEqual(restarts,[expected])
+        self.assertNotEqual(calls[0],calls[1])
+        self.assertEqual(self.platform.events,[])
+        rows=[json.loads(line) for line in (self.path/'recovery.jsonl').read_text().splitlines()]
+        self.assertEqual(rows[0]['stop_kind'],'focus_interrupted')
+        self.assertEqual(rows[0]['stage'],'awaiting_foreground')
+
+    def test_persistent_focus_loss_stops_in_five_seconds_without_restart(self):
+        recovery=self.module();restarts=[]
+        def attempt(*args):
+            self.platform.window=replace(self.platform.window,foreground=False)
+            raise StopRun('Not foreground',kind='focus_lost')
+        result=recovery.supervise(self.path,self.platform,None,attempt=attempt,
+            restart=lambda *args:restarts.append(1),locate=lambda:self.platform.window)
+        self.assertEqual((result['stop_kind'],result['recoveries']),('focus_interrupted',0))
+        self.assertAlmostEqual(self.platform.now(),5)
+        self.assertEqual(restarts,[])
+        self.assertEqual(self.platform.events,[])
+
+    def test_start_without_foreground_cannot_enter_passive_recovery(self):
+        recovery=self.module();restarts=[]
+        self.platform.window=replace(self.platform.window,foreground=False)
+        result=recovery.supervise(self.path,self.platform,None,
+            attempt=lambda *args:{'status':'stopped','stop_kind':'focus_lost'},
+            restart=lambda *args:restarts.append(1),locate=lambda:self.platform.window)
+        self.assertEqual(result['stop_kind'],'focus_lost')
+        self.assertEqual(self.platform.now(),0)
+        self.assertEqual(restarts,[])
+
+    def test_focus_recovery_uses_the_existing_relaunch_budget(self):
+        recovery=self.module();restarts=[];attempts=[]
+        def attempt(*args):
+            attempts.append(1)
+            return {'status':'stopped','stop_kind':'focus_lost'}
+        result=recovery.supervise(self.path,self.platform,None,attempt=attempt,
+            restart=lambda *args:restarts.append(1),locate=lambda:self.platform.window)
+        self.assertEqual((len(attempts),len(restarts),result['recoveries']),(4,3,3))
+        self.assertIn('recovery limit',result['reason'].lower())
+
+    def test_changed_client_during_cooldown_is_never_closed_or_relaunched(self):
+        recovery=self.module();actions=[];expected=self.platform.window
+        self.platform.on_sleep=lambda os:setattr(os,'window',replace(expected,pid=99))
+        with self.assertRaises(StopRun) as caught:
+            recovery.restart_client(SessionControl(self.path),self.platform,lambda **row:None,
+                locate=lambda:self.platform.window,expected=expected,
+                close=lambda w:actions.append('close'),launch=lambda:actions.append('launch'))
+        self.assertEqual(caught.exception.kind,'window_changed')
+        self.assertEqual(actions,[])
+
+    def test_original_missing_then_replaced_during_cooldown_never_closes_replacement(self):
+        recovery=self.module();expected=self.platform.window;replacement=replace(expected,pid=99,hwnd=100)
+        seen=[];actions=[];original_restart=recovery.restart_client
+        def locate():
+            seen.append(1)
+            if len(seen)==1:return expected
+            if len(seen)==2:raise RuntimeError('Original client disappeared')
+            return replacement
+        def restart(control,platform,report,**kwargs):
+            return original_restart(control,platform,report,**kwargs,
+                close=lambda w:actions.append(('close',w.pid)),exists=lambda w:False,
+                launch=lambda:actions.append(('launch',)),observe=lambda w:'lobby')
+        with patch.object(recovery,'restart_client',side_effect=restart):
+            result=recovery.supervise(self.path,self.platform,None,
+                attempt=lambda *args:{'status':'stopped','reason':'Game failed'},locate=locate,max_recoveries=1)
+        self.assertEqual(actions,[])
+        self.assertEqual(result['stop_kind'],'window_changed')
+
+    def test_anchored_client_crash_can_relaunch_when_it_stays_absent_until_launch(self):
+        recovery=self.module();expected=self.platform.window;launched=[]
+        def locate():
+            if not launched:raise RuntimeError('Original client exited')
+            return replace(expected,pid=99,hwnd=100)
+        recovery.restart_client(SessionControl(self.path),self.platform,lambda **row:None,
+            locate=locate,expected=expected,close=lambda w:self.fail('No client to close'),
+            launch=lambda:launched.append(1),observe=lambda w:'lobby')
+        self.assertEqual(launched,[1])
 
     def test_relaunch_budget_is_bounded_without_a_confirmed_win(self):
         recovery=self.module();launches=[];attempts=[]

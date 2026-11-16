@@ -68,6 +68,13 @@ class AppTests(unittest.TestCase):
         self.assertEqual(status_text({'phase':'stopped','matches':[{'reason':'Focus changed.'}]},False),'Stopped: Focus changed.')
         self.assertIn('Stopped.',status_text(data,False,True))
 
+    def test_passive_focus_wait_explains_natural_return_and_stop(self):
+        text=status_text({'phase':'recovering','stage':'awaiting_foreground','recoveries':0},True)
+        self.assertIn('5 seconds',text)
+        self.assertIn('naturally',text)
+        self.assertIn('F2',text)
+        self.assertNotIn('Recovery 1/',text)
+
     def test_native_f1_f2_queue_and_release_without_keyboard_input(self):
         keys=Hotkeys()
         try:

@@ -116,6 +116,23 @@ class ControlTests(unittest.TestCase):
             self.driver.click(960, 780)
         self.assertEqual(self.os.events, [("move", 960, 809)])
 
+    def test_focus_loss_during_key_or_mouse_hold_releases_immediately(self):
+        for kind in ('key','mouse'):
+            with self.subTest(kind=kind):
+                platform=FakeOS();driver=GuardedInput(platform.window,platform)
+                held=('key_down','W') if kind=='key' else ('left_down',)
+                released=('key_up','W') if kind=='key' else ('left_up',)
+                def lose_focus(os):
+                    if held in os.events:os.window=replace(os.window,foreground=False)
+                platform.on_sleep=lose_focus
+                with self.assertRaises(StopRun) as caught:
+                    driver.key('W',.95) if kind=='key' else driver.click(960,780)
+                self.assertEqual(caught.exception.kind,'focus_lost')
+                self.assertEqual(platform.events[-2:],[held,released])
+                before=list(platform.events)
+                with self.assertRaises(StopRun):driver.click(960,780)
+                self.assertEqual(platform.events,before)
+
     def test_key_is_released_on_stop(self):
         self.os.on_sleep = lambda os: setattr(os, "stopped", True)
         with self.assertRaises(StopRun):
