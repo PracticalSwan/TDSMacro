@@ -49,3 +49,9 @@ docs/*
 !docs/strategies.md
 !docs/images/
 !docs/strategies/
+# Publish only the reviewed v0.3.0 implementation handoff; retain historical plans private.
+!docs/plans/
+docs/plans/*
+!docs/plans/2026-11-18-v0.3.0-hardcore-gem-grind-implementation.md
+!docs/plans/2026-11-18-v0.3.0-hardcore-gem-grind-references.md
+!docs/plans/2026-11-18-v0.3.0-hardcore-gem-grind-live-trials.md

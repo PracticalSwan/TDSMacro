@@ -4,6 +4,8 @@ A Windows app for **Golden Scout · Dead Ahead · Survival / Easy / Solo** in Ro
 
 **[Download the Windows app](https://github.com/PracticalSwan/tds-macro/releases/latest)** · [Setup](docs/setup.md) · [Troubleshooting](docs/troubleshooting.md) · [Verification](docs/verification.md)
 
+**Planning only — v0.3.0:** A proposed [Hardcore Gem Grind / Wretched Front implementation plan](docs/plans/2026-11-18-v0.3.0-hardcore-gem-grind-implementation.md), [reference notes](docs/plans/2026-11-18-v0.3.0-hardcore-gem-grind-references.md), and [real-game acceptance checklist](docs/plans/2026-11-18-v0.3.0-hardcore-gem-grind-live-trials.md) are available for the implementing agent. Hardcore is **not available in the currently released v0.2.4 app**.
+
 ![Strategy selector with F1 Start and F2 Stop](docs/images/app.png)
 
 ## Start playing
