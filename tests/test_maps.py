@@ -57,6 +57,44 @@ class MapTests(unittest.TestCase):
         with Image.open(ROOT/'tests/fixtures/vote_prompt.png') as frame:
             self.assertFalse(maps.vip_prompt(frame))
 
+    def test_recorded_vip_failure_roi_keeps_both_exact_prompt_cues_required(self):
+        from tds_auto.maps import vip_prompt
+        with Image.open(ROOT/'tests/fixtures/vip_override_b_roi.png') as source:
+            frame=source.copy()
+        self.assertTrue(vip_prompt(frame),'The recorded final approach frame contains a complete E keycap and Override Map label.')
+        frame.paste('black',(1117,717,1290,752))
+        self.assertFalse(vip_prompt(frame),'A detected E keycap without its literal caption cannot authorize VIP interaction.')
+        with Image.open(ROOT/'tests/fixtures/vip_override_b_roi.png') as source:
+            clipped=source.copy()
+        clipped.paste('black',(1182,700,1237,713))
+        self.assertFalse(vip_prompt(clipped),'A clipped E keycap is not a proximity confirmation.')
+        with Image.open(ROOT/'tests/fixtures/vote_prompt.png') as frame:
+            self.assertFalse(vip_prompt(frame),'A generic Vote E prompt is not Override Map.')
+        self.assertFalse(vip_prompt(Image.new('RGB',(1000,750))))
+
+    def test_recorded_post_vote_a_and_c_rois_recover_only_the_complete_title(self):
+        from tds_auto.maps import read_headers,visible_target
+        for name in ('post_vote_header_a_roi.png','post_vote_header_c_roi.png'):
+            with self.subTest(name=name),Image.open(ROOT/'tests/fixtures'/name) as source:
+                frame=source.copy()
+                headers=read_headers(frame,after_vote=True)
+                self.assertEqual(len(headers),1)
+                self.assertEqual(headers[0].title,'Dead Ahead')
+                target=visible_target(frame,after_vote=True)
+                self.assertIsNotNone(target)
+                self.assertEqual(target.title,'Dead Ahead')
+                frame.paste('black',target.box)
+                self.assertIsNone(visible_target(frame,after_vote=True),'A partial or removed title must remain unreadable.')
+
+    def test_post_vote_diagnostics_keep_only_whitelisted_title_tokens(self):
+        from tds_auto.maps import visible_target
+        with Image.open(ROOT/'tests/fixtures/post_vote_header_a_roi.png') as source:
+            frame=source.copy()
+        diagnostics={}
+        target=visible_target(frame,after_vote=True,diagnostics=diagnostics)
+        self.assertEqual(target.title,'Dead Ahead')
+        self.assertEqual(diagnostics,{'header_count':1,'title_tokens':['dead','ahead']})
+
     def test_voting_floor_requires_stone_on_both_sides_of_the_avatar(self):
         from tds_auto import maps
         self.assertTrue(callable(getattr(maps,'voting_floor',None)),'Voting approach has no floor checkpoint.')

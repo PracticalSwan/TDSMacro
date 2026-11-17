@@ -16,12 +16,13 @@ from .calibration import CameraGate,load_profile
 from .control import GuardedInput,StopRun,WindowsOS
 from .hotbar import read_hotbar
 from .loadout import verify_inventory
-from .maps import read_boards,find_target,read_headers,visible_target,vip_target_matches,vote_prompt,badge_is_one,spawn_board_row,voting_floor,vip_prompt
+from .maps import read_boards,find_target,read_headers,visible_target,vip_target_matches,vote_prompt,badge_is_one,spawn_board_row,voting_floor,_vip_prompt_evidence
 from .navigation import Navigator,MENU_ROUTE
 from .observer import Observer
 from .phase1 import capture,locate_roblox,BlankCapture
 from .resources import LocalOCR,HudReader,parse_cash
 from .run import Playback,ROOT
+from .recording import append_jsonl,write_json
 from .timing import READ_SECONDS, TELEPORT_SECONDS
 
 
@@ -36,17 +37,20 @@ class SessionControl:
     def write(self,data):
         # Atomic replace so status readers never consume partially written JSON.
         temporary=self.path/'status.tmp'
-        temporary.write_text(json.dumps({**data,**self.context},indent=2),encoding='utf-8')
-        for attempt in range(5):
-            try:
-                temporary.replace(self.path/'status.json')
-                return
-            except PermissionError as exc:
-                # Windows readers can briefly deny delete sharing. Retry only
-                # the atomic file replacement, never a confirmed game action.
-                if getattr(exc,'winerror',None) not in {5,32} or attempt==4:
-                    raise
-                time.sleep(.025)
+        try:
+            temporary.write_text(json.dumps({**data,**self.context},indent=2),encoding='utf-8')
+            for attempt in range(5):
+                try:
+                    temporary.replace(self.path/'status.json')
+                    return
+                except PermissionError as exc:
+                    # Windows readers can briefly deny delete sharing. Retry only
+                    # the atomic file replacement, never a confirmed game action.
+                    if getattr(exc,'winerror',None) not in {5,32} or attempt==4:
+                        raise
+                    time.sleep(.025)
+        except OSError as exc:
+            raise StopRun(f'Cannot write status file ({type(exc).__name__}).',kind='storage') from exc
 
 
 class Session:
@@ -73,10 +77,11 @@ class Session:
         self.board_index=None
         self.totals=totals if totals is not None else {"attempts":0,"matches_completed":0,"wins":0,"coins_total":0}
 
-    def frame(self):
+    def frame(self,*,record_latest=True):
         self.driver.check()
         frame=self.capture()
-        self.save_frame(frame,'latest.png')
+        if record_latest:
+            self.save_frame(frame,'latest.png')
         return frame
 
     def save_frame(self,frame,name):
@@ -295,14 +300,17 @@ class Session:
         raise StopRun('Distant board row was not verified; no walking or vote sent.')
 
     def approach_vip(self):
-        steps=stable=0
+        steps=stable=observations=0
+        evidence={'confirmed':False,'keycap_score':None,'literal_caption':False}
         for index in range(16):
             self.pause()
             frame=self.frame()
             self.save_frame(frame,f'vip_step_{index:02}.png')
             if self.observer.observe(frame).state!='map_vote':
                 raise StopRun('Map-vote state changed while approaching VIP.')
-            if vip_prompt(frame):
+            evidence=_vip_prompt_evidence(frame)
+            observations+=1
+            if evidence['confirmed']:
                 stable+=1
                 if stable>=2:
                     return steps*.15
@@ -313,7 +321,15 @@ class Session:
                 self.driver.key('D',.15)
                 steps+=1
             self.driver.wait(.2)
-        raise StopRun('VIP proximity prompt was not confirmed; no E or further walking sent.')
+        self.status('vip_prompt_unconfirmed',physical_board=self.board_index,target_recognized=None,
+                    badge_read=False,badge_count=None,keycap_score=evidence['keycap_score'],
+                    literal_caption=evidence['literal_caption'],observation_count=observations,
+                    steps=steps,stable_reads=stable)
+        score='unknown' if evidence['keycap_score'] is None else f"{evidence['keycap_score']:.5f}"
+        caption='yes' if evidence['literal_caption'] else 'no'
+        raise StopRun(f'VIP proximity prompt was not confirmed (stage=vip_prompt, physical_board={self.board_index}, '
+                      f'keycap_score={score}, literal_caption={caption}, observations={observations}, '
+                      f'D_steps={steps}, stable_reads={stable}); no E or further walking sent.')
 
     def choose_map(self):
         self.allowed={'map_vote'}
@@ -374,28 +390,98 @@ class Session:
         frame,current=self.approach_target()
         self.save_frame(frame,'before_vote.png')
         self.driver.key('E',.8)
-        self.driver.key('S',.5)  # Clear the proximity prompt from the numeric vote badge.
+        self.driver.key('S',.15)  # Turn clear of the avatar occlusion without leaving the verified floor.
         self.driver.wait(.3)
         frame=self.frame()
         self.save_frame(frame,'after_vote.png')
-        current=visible_target(frame,after_vote=True)
+        deadline=self.now()+2
+        reread=False
+        observations=0
+        title_diagnostics={}
+        while True:
+            title_diagnostics={}
+            if self.observer.observe(frame).state!='map_vote':
+                if reread:self.save_frame(frame,'latest.png')
+                self.status('post_vote_state_changed',physical_board=self.board_index,target_recognized=None,
+                            badge_read=False,badge_count=None,title_observations=observations,view_clear_steps=0,
+                            title_header_count=0,title_tokens=[])
+                raise StopRun(f'Map-vote state changed after voting (stage=post_vote_title, physical_board={self.board_index}, '
+                              f'title=unverified, badge=not_read, observations={observations}); Ready was not clicked.')
+            current=visible_target(frame,after_vote=True,diagnostics=title_diagnostics)
+            observations+=1
+            if current is not None:
+                break
+            if self.now()>=deadline:
+                break
+            self.pause()
+            self.driver.wait(.2)
+            frame=self.frame(record_latest=False)
+            reread=True
+        if reread:self.save_frame(frame,'latest.png')
         if current is None:
-            raise StopRun('Target identity was lost after voting; Ready was not clicked.')
+            self.status('post_vote_title_unconfirmed',physical_board=self.board_index,target_recognized=False,
+                        badge_read=False,badge_count=None,title_observations=observations,view_clear_steps=0,
+                        title_header_count=title_diagnostics.get('header_count',0),
+                        title_tokens=title_diagnostics.get('title_tokens',[]))
+            tokens=','.join(title_diagnostics.get('title_tokens',[])) or 'none'
+            raise StopRun(f'Target identity was lost after voting (stage=post_vote_title, physical_board={self.board_index}, '
+                          f'title=unreadable, title_tokens={tokens}, headers={title_diagnostics.get("header_count",0)}, '
+                          f'badge=not_read, observations={observations}); Ready was not clicked.')
         # The target's red vote badge sits beneath the header. Read the badge
         # nearest this verified title; thumbnails/reward numbers are excluded.
         count=self.vote_count(frame,current)
-        if count is None and self.observer.observe(frame).state=='map_vote':
+        view_clear_steps=0
+        if count is None:
             # The fixed avatar/head can hide a world-space badge after backing
-            # away. Clear that occlusion once; never repeat the vote action.
-            self.status('vote_badge_view_adjustment',physical_board=self.board_index)
+            # away. Clear that occlusion once, only on the verified voting floor.
+            if self.observer.observe(frame).state!='map_vote':
+                self.status('post_vote_state_changed',physical_board=self.board_index,target_recognized=True,
+                            badge_read=False,badge_count=None,title_observations=observations,view_clear_steps=0,
+                            title_header_count=title_diagnostics.get('header_count',0),
+                            title_tokens=title_diagnostics.get('title_tokens',[]))
+                raise StopRun(f'Map-vote state changed before checking the vote badge (stage=post_vote_badge, '
+                              f'physical_board={self.board_index}, title=confirmed, badge=not_read); Ready was not clicked.')
+            if not voting_floor(frame,for_strafe=True):
+                self.status('post_vote_view_clear_blocked',physical_board=self.board_index,target_recognized=True,
+                            badge_read=False,badge_count=None,title_observations=observations,view_clear_steps=0,
+                            title_header_count=title_diagnostics.get('header_count',0),
+                            title_tokens=title_diagnostics.get('title_tokens',[]))
+                raise StopRun(f'Vote badge is unreadable and the voting-floor margin was not confirmed '
+                              f'(stage=post_vote_badge, physical_board={self.board_index}, '
+                              f'title_tokens={",".join(title_diagnostics.get("title_tokens",[])) or "none"}, badge=unknown); '
+                              'no view adjustment or Ready click.')
+            self.status('vote_badge_view_adjustment',physical_board=self.board_index,target_recognized=True,
+                        badge_read=False,badge_count=None,title_observations=observations,view_clear_steps=0,
+                        view_clear_planned_steps=1,title_header_count=title_diagnostics.get('header_count',0),
+                        title_tokens=title_diagnostics.get('title_tokens',[]))
             self.driver.key('D',.35)  # Open floor; left can climb the board-1 bench.
+            view_clear_steps=1
             self.driver.wait(.2)
             frame=self.frame()
+            if self.observer.observe(frame).state!='map_vote':
+                self.status('post_vote_state_changed',physical_board=self.board_index,target_recognized=None,
+                            badge_read=False,badge_count=None,title_observations=observations,view_clear_steps=1,
+                            title_header_count=title_diagnostics.get('header_count',0),
+                            title_tokens=title_diagnostics.get('title_tokens',[]))
+                raise StopRun(f'Map-vote state changed while clearing the vote badge (stage=post_vote_badge, '
+                              f'physical_board={self.board_index}, badge=not_read, view_clear_steps=1); '
+                              'Ready was not clicked.')
             self.save_frame(frame,'after_vote_clear.png')
-            current=visible_target(frame,after_vote=True)
+            title_diagnostics={}
+            current=visible_target(frame,after_vote=True,diagnostics=title_diagnostics)
+            observations+=1
             count=self.vote_count(frame,current) if current is not None else None
         if count!=1:
-            raise StopRun('The verified target does not show one solo vote; Ready was not clicked.')
+            badge='unknown' if count is None else str(count)
+            self.status('post_vote_badge_unconfirmed',physical_board=self.board_index,target_recognized=current is not None,
+                        badge_read=count is not None,badge_count=count,title_observations=observations,view_clear_steps=view_clear_steps,
+                        title_header_count=title_diagnostics.get('header_count',0),
+                        title_tokens=title_diagnostics.get('title_tokens',[]))
+            raise StopRun(f'The verified target does not show one solo vote (stage=post_vote_badge, '
+                          f'physical_board={self.board_index}, title={"confirmed" if current is not None else "unreadable"}, '
+                          f'title_tokens={",".join(title_diagnostics.get("title_tokens",[])) or "none"}, '
+                          f'badge={badge}, observations={observations}, view_clear_steps={view_clear_steps}); '
+                          'Ready was not clicked.')
         self.status('target_voted',physical_board=self.board_index)
         self.driver.click(960,778)
         self.wait_state('match_ready',TELEPORT_SECONDS,{'map_vote','loading','in_match'})
@@ -550,22 +636,22 @@ class Session:
             self.totals['wins']+=int(result['status']=='victory')
             self.totals['coins_total']+=result.get('coins') or 0
             row={'match':match_number,'elapsed_seconds':round(self.now()-self.started,1),'result':result}
-            with (self.output/'matches.jsonl').open('a',encoding='utf-8') as ledger:
-                ledger.write(json.dumps(row)+'\n')
+            append_jsonl(self.output/'matches.jsonl',row)
             results.append(result)
             results=results[-20:]
             summary={'status':result['status'],**self.totals,'matches':results,
                 'continuous':continuous,'all_requested_matches_won':not continuous and index==matches and self.totals['wins']==matches}
             if result.get('diagnostic_error'):
-                summary.update(status='stopped',stop_kind='storage',reason='Diagnostic PNG write failed: '+result['diagnostic_error'])
-                (self.output/'result.json').write_text(json.dumps(summary,indent=2),encoding='utf-8')
-                self.status('stopped',reason=summary['reason'],stop_kind='storage',last_result=result)
+                stop_kind=result.get('diagnostic_error_kind','storage')
+                summary.update(status='stopped',stop_kind=stop_kind,reason='Final result confirmed; evidence recording failed: '+result['diagnostic_error'])
+                write_json(self.output/'result.json',summary)
+                self.status('stopped',reason=summary['reason'],stop_kind=stop_kind,last_result=result)
                 return summary
-            (self.output/'result.json').write_text(json.dumps(summary,indent=2),encoding='utf-8')
+            write_json(self.output/'result.json',summary)
             self.status('match_complete' if result['status'] in {'victory','defeat'} else 'stopped',match=match_number,last_result=result,continuous=continuous)
             if result['status']=='victory' and (type(result.get('coins')) is not int or result['coins']<0):
                 summary.update(status='stopped',reason='Victory observed but coin reward is unreadable; no repeat started.',all_requested_matches_won=False)
-                (self.output/'result.json').write_text(json.dumps(summary,indent=2),encoding='utf-8')
+                write_json(self.output/'result.json',summary)
                 return summary
             if result['status']!='victory' or (not continuous and index>=matches):
                 return summary

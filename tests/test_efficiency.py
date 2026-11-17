@@ -8,7 +8,7 @@ from PIL import Image
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'src'))
 from test_control import FakeOS
-from tds_auto.control import GuardedInput
+from tds_auto.control import GuardedInput,StopRun
 from tds_auto.observer import Observer
 from tds_auto.resources import Hud
 from tds_auto.match import Snapshot
@@ -102,3 +102,42 @@ class EfficiencyTests(unittest.TestCase):
         self.assertEqual(result['diagnostic_error'],'latest PNG is locked')
         self.assertEqual(json.loads((self.path/'result.json').read_text())['status'],'victory')
         self.assertEqual(notifications[-1]['status'],'victory')
+
+    def test_latest_png_write_failure_is_a_protected_storage_stop(self):
+        platform=FakeOS();playback=Playback.__new__(Playback)
+        playback.driver=GuardedInput(platform.window,platform);playback.window=platform.window
+        playback.recording=SimpleNamespace(write=lambda *args,**kwargs:(_ for _ in ()).throw(OSError('latest PNG is locked')))
+        with patch('tds_auto.run.capture',return_value=Image.new('RGB',(1920,991))):
+            with self.assertRaises(StopRun) as caught:playback.frame()
+        self.assertEqual(caught.exception.kind,'storage')
+
+    def test_final_evidence_failure_keeps_confirmed_win_and_stops_for_storage(self):
+        platform=FakeOS();playback=Playback.__new__(Playback)
+        frame=Image.new('RGB',(1920,991));confirmed=GameResult('victory','Dead Ahead','Easy',20,464,450)
+        playback.driver=GuardedInput(platform.window,platform)
+        playback.observer=SimpleNamespace(observe=lambda image:SimpleNamespace(state='victory'))
+        playback.results=SimpleNamespace(read=lambda image:confirmed)
+        playback.frame=lambda:frame
+        playback.save_evidence=lambda image,name:(_ for _ in ()).throw(OSError('final PNG is locked'))
+        with patch('tds_auto.run.time.monotonic',side_effect=[0,.1,.2]):
+            with self.assertRaises(MatchFinished) as caught:playback.finish_if_result(frame)
+        self.assertEqual(caught.exception.result.status,'victory')
+        self.assertEqual(caught.exception.diagnostic_error_kind,'storage')
+
+    def test_progress_checkpoint_write_failure_is_a_protected_storage_stop(self):
+        platform=FakeOS();playback=Playback.__new__(Playback)
+        playback.driver=GuardedInput(platform.window,platform);playback.window=platform.window
+        playback.profile={'slot':1,'dpi':120,'strategy_sha256':'test'}
+        playback.strategy=SimpleNamespace(steps=());playback.output=self.path;playback.full_evidence=False
+        playback.recording=SimpleNamespace(write=lambda *args,**kwargs:None,flush=lambda:None)
+        playback.observer=SimpleNamespace(observe=lambda image:SimpleNamespace(state='match_ready'))
+        playback.camera=SimpleNamespace(bind=lambda image:True)
+        playback.hud=SimpleNamespace(read=lambda image:SimpleNamespace(tower_count=0))
+        def fail_progress(path,*args,**kwargs):
+            if path.name=='progress.json':raise PermissionError('progress is read-only')
+            return original_write_text(path,*args,**kwargs)
+        original_write_text=Path.write_text
+        with patch('tds_auto.run.capture',return_value=Image.new('RGB',(1920,991))), \
+             patch.object(Path,'write_text',fail_progress):
+            with self.assertRaises(StopRun) as caught:playback.play(progress=Progress())
+        self.assertEqual(caught.exception.kind,'storage')

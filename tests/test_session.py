@@ -1,5 +1,5 @@
 """Controller boundary tests: fake OS and state frames, no live game input."""
-import sys,unittest,tempfile,contextlib,io
+import sys,unittest,tempfile,contextlib,io,json
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -11,6 +11,9 @@ from tds_auto.session import Session,SessionControl
 from tds_auto.run import Playback,MatchFinished
 from tds_auto.results import GameResult
 from test_control import FakeOS
+
+def vip_evidence(confirmed,score=None):
+    return {'confirmed':confirmed,'keycap_score':score,'literal_caption':confirmed}
 
 class SessionTests(unittest.TestCase):
     def test_normal_lobby_skips_the_login_rewards_click(self):
@@ -175,11 +178,183 @@ class SessionTests(unittest.TestCase):
         frame.info['state']='map_vote';self.session.capture=lambda:frame
         original=Board(4,(780,237,1042,277),'Dead Ahead')
         with patch.object(self.session,'approach_target',return_value=(frame,original)), \
-             patch.object(self.session,'vote_count',return_value=1),patch.object(self.session,'wait_state'):
+             patch.object(self.session,'vote_count',return_value=1),patch.object(self.session,'wait_state'), \
+             patch.object(self.session.driver,'key',wraps=self.session.driver.key) as key_press:
             self.session.vote_target(original)
         self.assertEqual(self.session.board_index,4)
         self.assertEqual(self.platform.events.count(('key_down','E')),1)
+        self.assertEqual([entry.args for entry in key_press.call_args_list],[('E',.8),('S',.15)])
         self.assertEqual(self.platform.events.count(('left_down',)),1)
+
+    def test_recorded_a_and_c_badges_stay_distinct_from_recovered_titles(self):
+        from tds_auto.maps import visible_target
+        for name,expected in (('post_vote_header_a_roi.png',None),('post_vote_header_c_roi.png',1)):
+            with self.subTest(name=name),Image.open(ROOT/'tests/fixtures'/name) as source:
+                frame=source.copy()
+                target=visible_target(frame,after_vote=True)
+                self.assertIsNotNone(target)
+                self.assertEqual(self.session.vote_count(frame,target),expected)
+
+    def test_recorded_a_unknown_badge_stops_without_ready_after_one_safe_view_clear(self):
+        from tds_auto.maps import Board,visible_target
+        self.state='map_vote';self.session.allowed={'map_vote'}
+        with Image.open(ROOT/'tests/fixtures/post_vote_header_a_roi.png') as source:
+            frame=source.copy();frame.info['state']='map_vote'
+        visible=visible_target(frame,after_vote=True)
+        original=Board(4,visible.box,visible.title)
+        self.session.capture=lambda:frame.copy()
+        with patch.object(self.session,'approach_target',return_value=(frame,original)), \
+             patch('tds_auto.session.voting_floor',return_value=True):
+            with self.assertRaisesRegex(StopRun,'does not show one solo vote') as caught:
+                self.session.vote_target(original)
+        self.assertEqual(self.session.board_index,4)
+        self.assertEqual(self.platform.events.count(('key_down','E')),1)
+        self.assertEqual(self.platform.events.count(('key_down','D')),1)
+        self.assertNotIn(('left_down',),self.platform.events)
+        self.assertIn('title_tokens=dead,ahead',str(caught.exception))
+        status=json.loads((self.path/'status.json').read_text())
+        self.assertEqual(status['title_header_count'],1)
+        self.assertEqual(status['title_tokens'],['dead','ahead'])
+
+    def test_recorded_c_exact_badge_one_allows_ready_for_original_board(self):
+        from tds_auto.maps import Board,visible_target
+        self.state='map_vote';self.session.allowed={'map_vote'}
+        with Image.open(ROOT/'tests/fixtures/post_vote_header_c_roi.png') as source:
+            frame=source.copy();frame.info['state']='map_vote'
+        visible=visible_target(frame,after_vote=True)
+        original=Board(3,visible.box,visible.title)
+        self.session.capture=lambda:frame.copy()
+        with patch.object(self.session,'approach_target',return_value=(frame,original)), \
+             patch.object(self.session,'wait_state'):
+            self.session.vote_target(original)
+        self.assertEqual(self.session.board_index,3)
+        self.assertEqual(self.platform.events.count(('key_down','E')),1)
+        self.assertEqual(self.platform.events.count(('left_down',)),1)
+
+    def test_post_vote_stationary_reread_recovers_title_without_repeating_vote(self):
+        from tds_auto.maps import Board
+        self.state='map_vote';self.session.allowed={'map_vote'}
+        frame=Image.new('RGB',(1920,991));frame.info['state']='map_vote'
+        original=Board(4,(780,237,1042,277),'Dead Ahead')
+        current=Board(1,(780,237,1042,277),'Dead Ahead')
+        saved=[];save_frame=self.session.save_frame
+        def save(image,name):
+            saved.append(name);save_frame(image,name)
+        self.session.save_frame=save
+        with patch.object(self.session,'approach_target',return_value=(frame,original)), \
+             patch('tds_auto.session.visible_target',side_effect=[None,None,None,current]), \
+             patch.object(self.session,'vote_count',return_value=1),patch.object(self.session,'wait_state'):
+            self.session.vote_target(original)
+        self.assertEqual(self.session.board_index,4,'Post-vote view-relative numbering cannot replace the original physical board.')
+        self.assertEqual(self.platform.events.count(('key_down','E')),1)
+        self.assertEqual(self.platform.events.count(('key_down','S')),1)
+        self.assertEqual(self.platform.events.count(('left_down',)),1)
+        self.assertEqual(saved.count('latest.png'),4,'Repeated reads coalesce to one final latest-frame write.')
+
+    def test_post_vote_title_timeout_never_repeats_vote_or_clicks_ready(self):
+        from tds_auto.maps import Board
+        self.state='map_vote';self.session.allowed={'map_vote'}
+        frame=Image.new('RGB',(1920,991));frame.info['state']='map_vote'
+        original=Board(2,(780,237,1042,277),'Dead Ahead')
+        self.session.frame=lambda **kwargs:frame.copy()
+        with patch.object(self.session,'approach_target',return_value=(frame,original)), \
+             patch('tds_auto.session.visible_target',return_value=None):
+            with self.assertRaisesRegex(StopRun,'Target identity was lost after voting'):
+                self.session.vote_target(original)
+        self.assertEqual(self.platform.events.count(('key_down','E')),1)
+        self.assertNotIn(('left_down',),self.platform.events)
+        self.assertGreaterEqual(self.platform.clock,3.2)
+        self.assertLessEqual(self.platform.clock,3.5)
+        status=json.loads((self.path/'status.json').read_text())
+        self.assertEqual(status['phase'],'post_vote_title_unconfirmed')
+        self.assertEqual(status['physical_board'],2)
+        self.assertIs(status['target_recognized'],False)
+        self.assertIs(status['badge_read'],False)
+        self.assertGreater(status['title_observations'],1)
+        self.assertNotIn('ocr_text',status)
+
+    def test_f2_interrupts_post_vote_stationary_reread_before_ready(self):
+        from tds_auto.maps import Board
+        self.state='map_vote';self.session.allowed={'map_vote'}
+        frame=Image.new('RGB',(1920,991));frame.info['state']='map_vote'
+        original=Board(3,(780,237,1042,277),'Dead Ahead')
+        self.platform.on_sleep=lambda os:(self.path/'stop').touch() if os.clock>1.7 else None
+        with patch.object(self.session,'approach_target',return_value=(frame,original)), \
+             patch('tds_auto.session.visible_target',return_value=None):
+            with self.assertRaises(StopRun) as caught:self.session.vote_target(original)
+        self.assertEqual(caught.exception.kind,'user_stop')
+        self.assertEqual(self.platform.events.count(('key_down','E')),1)
+        self.assertNotIn(('left_down',),self.platform.events)
+
+    def test_post_vote_unknown_badge_needs_safe_floor_for_its_single_view_clear(self):
+        from tds_auto.maps import Board
+        self.state='map_vote';self.session.allowed={'map_vote'}
+        frame=Image.new('RGB',(1920,991));frame.info['state']='map_vote'
+        target=Board(2,(780,237,1042,277),'Dead Ahead')
+        with patch.object(self.session,'approach_target',return_value=(frame,target)), \
+             patch('tds_auto.session.visible_target',return_value=target), \
+             patch.object(self.session,'vote_count',return_value=None), \
+             patch('tds_auto.session.voting_floor',return_value=False):
+            with self.assertRaisesRegex(StopRun,'floor margin'):
+                self.session.vote_target(target)
+        self.assertEqual(self.platform.events.count(('key_down','E')),1)
+        self.assertEqual([event for event in self.platform.events if event[0]=='key_down' and event[1]=='D'],[])
+        self.assertNotIn(('left_down',),self.platform.events)
+
+    def test_unknown_vote_badge_uses_at_most_one_clear_step_then_stops(self):
+        from tds_auto.maps import Board
+        self.state='map_vote';self.session.allowed={'map_vote'}
+        frame=Image.new('RGB',(1920,991));frame.info['state']='map_vote'
+        target=Board(1,(780,237,1042,277),'Dead Ahead')
+        with patch.object(self.session,'approach_target',return_value=(frame,target)), \
+             patch('tds_auto.session.visible_target',return_value=target), \
+             patch.object(self.session,'vote_count',side_effect=[None,None]), \
+             patch('tds_auto.session.voting_floor',return_value=True):
+            with self.assertRaisesRegex(StopRun,'does not show one solo vote'):
+                self.session.vote_target(target)
+        self.assertEqual(self.platform.events.count(('key_down','E')),1)
+        self.assertEqual(self.platform.events.count(('key_down','D')),1)
+        self.assertNotIn(('left_down',),self.platform.events)
+        status=json.loads((self.path/'status.json').read_text())
+        self.assertEqual(status['phase'],'post_vote_badge_unconfirmed')
+        self.assertEqual(status['physical_board'],1)
+        self.assertIs(status['target_recognized'],True)
+        self.assertIs(status['badge_read'],False,'Unknown is not a recognized numeric badge value.')
+        self.assertIsNone(status['badge_count'])
+        self.assertEqual(status['view_clear_steps'],1)
+
+    def test_post_vote_state_change_during_stationary_read_stops_before_ready(self):
+        from tds_auto.maps import Board
+        self.state='map_vote';self.session.allowed={'map_vote'}
+        frames=[]
+        for state in ('map_vote','map_vote','in_match'):
+            frame=Image.new('RGB',(1920,991));frame.info['state']=state;frames.append(frame)
+        target=Board(3,(780,237,1042,277),'Dead Ahead')
+        self.session.frame=lambda **kwargs:frames.pop(0)
+        with patch.object(self.session,'approach_target',return_value=(frames[0],target)), \
+             patch('tds_auto.session.visible_target',return_value=None):
+            with self.assertRaisesRegex(StopRun,'Map-vote state changed after voting'):
+                self.session.vote_target(target)
+        self.assertEqual(self.platform.events.count(('key_down','E')),1)
+        self.assertNotIn(('left_down',),self.platform.events)
+
+    def test_zero_vote_badge_stops_without_view_clear_or_ready(self):
+        from tds_auto.maps import Board
+        self.state='map_vote';self.session.allowed={'map_vote'}
+        frame=Image.new('RGB',(1920,991));frame.info['state']='map_vote'
+        target=Board(1,(780,237,1042,277),'Dead Ahead')
+        with patch.object(self.session,'approach_target',return_value=(frame,target)), \
+             patch('tds_auto.session.visible_target',return_value=target), \
+             patch.object(self.session,'vote_count',return_value=0), \
+             patch('tds_auto.session.voting_floor',side_effect=AssertionError('A zero badge must not cause movement')):
+            with self.assertRaisesRegex(StopRun,'does not show one solo vote'):
+                self.session.vote_target(target)
+        self.assertEqual(self.platform.events.count(('key_down','E')),1)
+        self.assertNotIn(('key_down','D'),self.platform.events)
+        self.assertNotIn(('left_down',),self.platform.events)
+        status=json.loads((self.path/'status.json').read_text())
+        self.assertIs(status['badge_read'],True)
+        self.assertEqual(status['badge_count'],0)
 
     def test_persistent_missing_title_remains_a_bounded_no_movement_stop(self):
         self.state='map_vote'
@@ -192,7 +367,7 @@ class SessionTests(unittest.TestCase):
     def test_vip_walk_stops_on_confirmed_prompt_and_measures_the_return(self):
         self.state='map_vote'
         self.assertTrue(callable(getattr(self.session,'approach_vip',None)))
-        with patch('tds_auto.session.vip_prompt',side_effect=[False,False,True,True],create=True):
+        with patch('tds_auto.session._vip_prompt_evidence',side_effect=[vip_evidence(False,.12),vip_evidence(False,.13),vip_evidence(True,.996),vip_evidence(True,.995)]):
             duration=self.session.approach_vip()
         self.assertAlmostEqual(duration,.30)
         self.assertEqual([e for e in self.platform.events if e[0]=='key_down'],[('key_down','D')]*2)
@@ -200,10 +375,47 @@ class SessionTests(unittest.TestCase):
     def test_missing_vip_prompt_never_sends_e_or_walks_past_the_budget(self):
         self.state='map_vote'
         self.assertTrue(callable(getattr(self.session,'approach_vip',None)))
-        with patch('tds_auto.session.vip_prompt',return_value=False,create=True):
+        with patch('tds_auto.session._vip_prompt_evidence',return_value=vip_evidence(False,0.0)):
             with self.assertRaisesRegex(StopRun,'VIP proximity'):
                 self.session.approach_vip()
         self.assertEqual([e for e in self.platform.events if e[0]=='key_down'],[('key_down','D')]*12)
+        status=json.loads((self.path/'status.json').read_text())
+        self.assertEqual(status['phase'],'vip_prompt_unconfirmed')
+        self.assertEqual(status['steps'],12)
+        self.assertEqual(status['observation_count'],13)
+        self.assertEqual(status['keycap_score'],0.0)
+        self.assertIs(status['literal_caption'],False)
+        self.assertNotIn('ocr_text',status)
+
+    def test_recorded_vip_failure_frame_confirms_only_after_two_stationary_reads(self):
+        self.state='map_vote'
+        frames=[]
+        for _ in range(12):
+            frame=Image.new('RGB',(1920,991));frame.info['state']='map_vote';frames.append(frame)
+        with Image.open(ROOT/'tests/fixtures/vip_override_b_roi.png') as source:
+            for _ in range(2):
+                frame=source.copy();frame.info['state']='map_vote';frames.append(frame)
+        self.session.capture=lambda:frames.pop(0)
+        self.assertAlmostEqual(self.session.approach_vip(),1.8)
+        self.assertEqual(self.platform.events.count(('key_down','D')),12)
+        self.assertNotIn(('key_down','E'),self.platform.events)
+        self.assertEqual(len(list(self.path.glob('vip_step_*.png'))),14)
+
+    def test_vip_prompt_at_final_position_confirms_without_a_thirteenth_step(self):
+        self.state='map_vote'
+        prompts=[vip_evidence(False,0.0)]*12+[vip_evidence(True,.996),vip_evidence(True,.995)]
+        with patch('tds_auto.session._vip_prompt_evidence',side_effect=prompts):
+            self.assertAlmostEqual(self.session.approach_vip(),1.8)
+        self.assertEqual([e for e in self.platform.events if e[0]=='key_down'],[('key_down','D')]*12)
+
+    def test_f2_during_last_vip_approach_hold_never_sends_an_extra_step(self):
+        self.state='map_vote'
+        self.platform.on_sleep=lambda os:(self.path/'stop').touch() if os.events.count(('key_down','D'))>=12 else None
+        with patch('tds_auto.session._vip_prompt_evidence',return_value=vip_evidence(False,0.0)):
+            with self.assertRaises(StopRun) as caught:self.session.approach_vip()
+        self.assertEqual(caught.exception.kind,'user_stop')
+        self.assertEqual(self.platform.events.count(('key_down','D')),12)
+        self.assertNotIn(('key_down','E'),self.platform.events)
 
     def test_approach_reaches_voting_floor_before_strafing_toward_outer_board(self):
         from tds_auto.maps import Board
@@ -392,6 +604,16 @@ class SessionTests(unittest.TestCase):
             self.assertIsNone(self.session.vote_count(frame,Board(2,(1110,245,1350,282),'Other')))
         with Image.open(ROOT/'tests/fixtures/vote_board4_badges.png') as frame:
             self.assertEqual(self.session.vote_count(frame,Board(4,(901,253,1126,286),'Dead Ahead')),1)
+
+    def test_view_clear_badge_one_survives_bounded_registration_without_accepting_neighbor_zeros(self):
+        from tds_auto.maps import visible_target,badge_is_one
+        with Image.open(ROOT/'tests/fixtures/post_vote_badge_view_clear_d.png') as frame:
+            target=visible_target(frame,after_vote=True)
+            self.assertIsNotNone(target,'The sanitized view-clear frame has one complete Dead Ahead header.')
+            self.assertEqual(self.session.vote_count(frame,target),1)
+            self.assertTrue(badge_is_one(frame,(809,408,860,457)))
+            self.assertFalse(badge_is_one(frame,(1115,404,1167,452)))
+            self.assertFalse(badge_is_one(frame,(1422,408,1487,459)))
 
     def test_replay_vote_one_is_read_at_the_cleared_camera_angle(self):
         from tds_auto.maps import visible_target,badge_is_one
@@ -696,6 +918,7 @@ class SessionTests(unittest.TestCase):
                 with patch.object(self.session,'approach_target',return_value=(frame,target)), \
                      patch('tds_auto.session.visible_target',return_value=target), \
                      patch.object(self.session,'vote_count',side_effect=[None,final_count]), \
+                     patch('tds_auto.session.voting_floor',return_value=True), \
                      patch.object(self.session,'wait_state'):
                     if final_count==1:self.session.vote_target(target)
                     else:

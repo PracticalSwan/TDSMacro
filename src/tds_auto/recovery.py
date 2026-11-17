@@ -6,16 +6,19 @@ from dataclasses import replace
 import json
 import os
 from pathlib import Path
+from datetime import datetime,timezone
 
 from .control import GuardedInput,StopRun
 from .phase1 import locate_roblox,capture,USER
 from .observer import Observer
 from .session import Session,SessionControl
 from .resources import LocalOCR
+from .recording import append_jsonl,write_json
 
 ROBLOX_URI='roblox://experiences/start?placeId=3260590327'
 LAUNCHER_SETTLE_SECONDS=60
 FOCUS_RETURN_SECONDS=5
+DISCONNECT_HOME_SECONDS=5
 NO_RECOVERY={'user_stop','focus_lost','focus_interrupted','window_changed','setup','storage'}
 
 
@@ -124,22 +127,77 @@ def close_prompt(frame):
     return True
 
 
-def confirm_close(window,control,platform):
-    if not client_exists(window):return True
+def disconnect_prompt(frame):
+    """Recognize only the calibrated disconnect dialog and both exact actions."""
+    if frame.size!=(1920,991) or Observer().observe(frame).state!='disconnect':return False
+    ocr=LocalOCR()
+    return (ocr.read(frame.crop((710,344,1215,398))).strip()=='Disconnected'
+            and ocr.read(frame.crop((735,582,954,628))).strip()=='Leave'
+            and ocr.read(frame.crop((967,582,1185,628))).strip()=='Reconnect')
+
+
+def roblox_home(frame):
+    """Recognize the intermediate Roblox Home view after a disconnect Leave."""
+    if frame.size!=(1920,991):return False
+    ocr=LocalOCR()
+    for box,expected in (((10,16,95,84),'home'),((735,8,1270,62),'search'),
+                         ((160,82,258,132),'for you'),((258,82,345,132),'charts')):
+        text=' '.join(ocr.read(frame.crop(box)).casefold().split())
+        if text!=expected:return False
+    return True
+
+
+def confirm_close(window,control,platform,allow_disconnect=True):
+    if not client_exists(window):return False
     driver=GuardedInput(window,platform)
     driver.external_stop=lambda:control.stopped() or control.paused()
     driver.check()
-    if not close_prompt(capture(window)):return False
+    frame=capture(window)
+    if close_prompt(frame):
+        kind='close';point=(680,715);confirm=lambda image:close_prompt(image)
+        changed='Roblox close confirmation changed; no click sent.'
+    elif allow_disconnect and disconnect_prompt(frame):
+        kind='disconnect';point=(845,605);confirm=lambda image:disconnect_prompt(image)
+        changed='Roblox disconnect dialog changed; no Leave click sent.'
+    else:return False
     def verify():
-        if not close_prompt(capture(window)):
-            raise StopRun('Roblox close confirmation changed; no click sent.',kind='setup')
+        if not confirm(capture(window)):
+            raise StopRun(changed,kind='setup')
     driver.before_click=verify
-    try:driver.click(680,715)  # Left padding keeps Close Roblox readable after hover.
+    try:driver.click(*point)
     except (RuntimeError,OSError) as exc:
         # This one click intentionally destroys the guarded window. Stop and
         # focus/geometry signals still cancel; only its absence is expected.
         if getattr(exc,'kind',None) in NO_RECOVERY or client_exists(window):raise
-    return True
+    return kind
+
+
+def await_disconnect_transition(window,control,platform,*,locate,exists,deadline):
+    """Wait for two exact Home reads or an exact close dialog; never click here."""
+    home_deadline=min(deadline,platform.now()+DISCONNECT_HOME_SECONDS)
+    stable_home=0
+    while exists(window):
+        check_cancel(control,platform)
+        if platform.now()>=home_deadline:
+            raise StopRun('Roblox did not reach a verified Home or close-confirmation screen after Leave; no relaunch.',kind='setup')
+        current=optional_window(locate)
+        if current is not None:
+            if not current.foreground:
+                raise StopRun('Roblox lost foreground after disconnect Leave; no further input or relaunch.',kind='focus_lost')
+            if current!=window:
+                raise StopRun('Roblox changed after disconnect Leave; no further close or relaunch.',kind='window_changed')
+            try:frame=capture(window)
+            except StopRun:raise
+            except (RuntimeError,OSError) as exc:
+                raise StopRun('Could not verify Roblox after disconnect Leave; no further close or relaunch.',kind='setup') from exc
+            if roblox_home(frame):
+                stable_home+=1
+                if stable_home>=2:return 'home'
+            else:
+                stable_home=0
+                if close_prompt(frame):return 'close_prompt'
+        wait(control,platform,.15)
+    return 'exited'
 
 
 def restart_client(control,platform,report,*,locate=locate_client,close=close_client,
@@ -156,12 +214,26 @@ def restart_client(control,platform,report,*,locate=locate_client,close=close_cl
         check_cancel(control,platform)
         close(window)
         deadline=platform.now()+30
-        confirmed=False
+        confirmed_close=False;disconnect_consumed=False
         while exists(window):
             if platform.now()>=deadline:
                 raise StopRun('Roblox did not close; no force termination was attempted.',kind='setup')
-            if not confirmed:
-                confirmed=confirm(window,control,platform)
+            if not confirmed_close:
+                dialog=confirm(window,control,platform,not disconnect_consumed)
+                if dialog=='close':
+                    confirmed_close=True
+                elif dialog=='disconnect' and not disconnect_consumed:
+                    disconnect_consumed=True
+                    transition=await_disconnect_transition(window,control,platform,
+                        locate=locate,exists=exists,deadline=deadline)
+                    if transition=='home' and exists(window):
+                        check_cancel(control,platform)
+                        try:close(window)
+                        except (RuntimeError,OSError) as exc:
+                            if getattr(exc,'kind',None) in NO_RECOVERY or exists(window):raise
+                        else:
+                            report(stage='closing',client_pid=window.pid,client_hwnd=window.hwnd,
+                                   close_reason='disconnect_leave_home')
             wait(control,platform,.05)
     # The Store broker can still own the old activation after process exit,
     # including a crash before recovery started. Three seconds reproduced
@@ -194,6 +266,7 @@ def restart_client(control,platform,report,*,locate=locate_client,close=close_cl
 
 def supervise(output,platform,profile,*,attempt=None,restart=None,locate=locate_client,max_recoveries=3):
     output=Path(output)
+    started=platform.now()
     context={'recoveries':0,'max_recoveries':max_recoveries}
     control=SessionControl(output,context=context)
     totals={'attempts':0,'matches_completed':0,'wins':0,'coins_total':0}
@@ -207,14 +280,17 @@ def supervise(output,platform,profile,*,attempt=None,restart=None,locate=locate_
     attempt=attempt or run_attempt
     def finish(result):
         result={**result,**totals,'recoveries':context['recoveries']}
-        (output/'result.json').write_text(json.dumps(result,indent=2),encoding='utf-8')
+        write_json(output/'result.json',result)
         control.write({'phase':result['status'],'runner_pid':os.getpid(),**result})
         return result
     while True:
         try:check_cancel(control,platform)
         except StopRun as exc:return finish({'status':'stopped','reason':str(exc),'stop_kind':exc.kind})
         number+=1
-        path=output/f'attempt_{number:03}';path.mkdir()
+        path=output/f'attempt_{number:03}'
+        try:path.mkdir()
+        except OSError as exc:
+            return finish({'status':'stopped','reason':f'Cannot create attempt evidence folder ({type(exc).__name__}).','stop_kind':'storage'})
         context['attempt_folder']=path.name
         wins_before=totals['wins']
         expected=None
@@ -224,21 +300,24 @@ def supervise(output,platform,profile,*,attempt=None,restart=None,locate=locate_
         except (RuntimeError,ValueError,OSError,KeyError,TypeError) as exc:
             kind=getattr(exc,'kind','setup' if isinstance(exc,(ValueError,KeyError,TypeError)) else 'failure')
             result={'status':'stopped','reason':str(exc),'stop_kind':kind}
-        (path/'result.json').write_text(json.dumps(result,indent=2),encoding='utf-8')
-        with (output/'sessions.jsonl').open('a',encoding='utf-8') as ledger:
-            ledger.write(json.dumps({'attempt_folder':path.name,'result':result,'totals':dict(totals)})+'\n')
+        try:
+            write_json(path/'result.json',result)
+            append_jsonl(output/'sessions.jsonl',{'attempt_folder':path.name,'result':result,'totals':dict(totals)})
+        except StopRun as exc:
+            return finish({'status':'stopped','reason':str(exc),'stop_kind':exc.kind})
         if result['status'] in {'victory','prepared'}:return finish(result)
         last=result.get('matches',[{}])[-1] if result.get('matches') else {}
         kind=result.get('stop_kind') or last.get('stop_kind','failure')
         focus_return=kind=='focus_lost' and expected is not None and expected.foreground and (expected.width,expected.height,expected.dpi)==(1920,991,120)
         if kind in NO_RECOVERY and not focus_return:return finish({**result,'stop_kind':kind})
         def report(**detail):
-            event={'phase':'recovering','runner_pid':os.getpid(),'elapsed_seconds':platform.now(),**totals,
+            event={'phase':'recovering','event_time_utc':datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00','Z'),
+                   'runner_pid':os.getpid(),'elapsed_seconds':round(platform.now()-started,1),**totals,
+                   'recoveries':context['recoveries'],'max_recoveries':max_recoveries,
                    'reason':result.get('reason') or last.get('reason'),'stop_kind':kind,
                    'recovery_attempt':consecutive,**detail}
             control.write(event)
-            with (output/'recovery.jsonl').open('a',encoding='utf-8') as ledger:
-                ledger.write(json.dumps(event)+'\n')
+            append_jsonl(output/'recovery.jsonl',event)
         try:
             check_cancel(control,platform)
             if totals['wins']>wins_before:consecutive=0

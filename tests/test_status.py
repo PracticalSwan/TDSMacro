@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
+from tds_auto.control import StopRun
 from tds_auto.session import SessionControl
 
 
@@ -50,6 +51,12 @@ class StatusTests(unittest.TestCase):
         old=self.path/'status.json';old.write_text('{"phase":"old"}')
         error=PermissionError('Persistent write denial');error.winerror=5
         with patch.object(Path,'replace',side_effect=error) as replace:
-            with self.assertRaises(PermissionError):self.control.write({'phase':'new'})
+            with self.assertRaises(StopRun) as caught:self.control.write({'phase':'new'})
+        self.assertEqual(caught.exception.kind,'storage')
         self.assertEqual(replace.call_count,5)
         self.assertEqual(old.read_text(),'{"phase":"old"}')
+
+    def test_status_temp_write_failure_is_a_protected_storage_stop(self):
+        with patch.object(Path,'write_text',side_effect=PermissionError('Status directory is read-only')):
+            with self.assertRaises(StopRun) as caught:self.control.write({'phase':'new'})
+        self.assertEqual(caught.exception.kind,'storage')

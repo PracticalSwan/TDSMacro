@@ -15,7 +15,7 @@ from .observer import Observer
 from .phase1 import capture, locate_roblox
 from .resources import HudReader, hovered_scout_at
 from .results import ResultReader
-from .recording import LatestFrame
+from .recording import LatestFrame,write_json
 from .timing import READ_SECONDS, MATCH_START_SECONDS, RESULT_CONFIRM_SECONDS
 
 ROOT=Path(__file__).resolve().parents[2]
@@ -78,8 +78,10 @@ def validate_progress(strategy,progress):
 
 
 class MatchFinished(Exception):
-    def __init__(self,result):
+    def __init__(self,result,diagnostic_error=None,diagnostic_error_kind=None):
         self.result=result
+        self.diagnostic_error=diagnostic_error
+        self.diagnostic_error_kind=diagnostic_error_kind
 
 
 class Playback:
@@ -103,14 +105,19 @@ class Playback:
     def frame(self):
         self.driver.check()
         image=capture(self.window)
-        self.recording.write(image)
+        try:self.recording.write(image)
+        except OSError as exc:
+            raise StopRun(f'Cannot write latest frame ({type(exc).__name__}).',kind='storage') from exc
         return image
 
     def save_evidence(self,image,name):
-        if self.full_evidence:
-            image.save(self.output/name)
-        elif name=='final.png':
-            image.crop((630,350,1290,805)).save(self.output/name)
+        try:
+            if self.full_evidence:
+                image.save(self.output/name)
+            elif name=='final.png':
+                image.crop((630,350,1290,805)).save(self.output/name)
+        except OSError as exc:
+            raise StopRun(f'Cannot save {name} ({type(exc).__name__}).',kind='storage') from exc
 
     def finish_if_result(self,frame):
         state=self.observer.observe(frame).state
@@ -123,16 +130,27 @@ class Playback:
             self.driver.check()
             result=self.results.read(frame)
             if result is not None and result==previous:
+                final_frame=frame
+                diagnostic_error=None;diagnostic_error_kind=None
                 if result.coins is None:
                     # Scroll only the verified reward pane, once; never zoom the map.
-                    self.driver.move(850,600)
-                    self.driver.zoom(-3)
-                    self.driver.wait(.3)
-                    scrolled=self.results.read(self.frame())
-                    if scrolled and (scrolled.status,scrolled.map_name,scrolled.difficulty,scrolled.wave,scrolled.duration_seconds)==(result.status,result.map_name,result.difficulty,result.wave,result.duration_seconds):
-                        result=scrolled
-                self.save_evidence(self.frame(),'final.png')
-                raise MatchFinished(result)
+                    try:
+                        self.driver.move(850,600)
+                        self.driver.zoom(-3)
+                        self.driver.wait(.3)
+                        final_frame=self.frame()
+                        scrolled=self.results.read(final_frame)
+                        if scrolled and (scrolled.status,scrolled.map_name,scrolled.difficulty,scrolled.wave,scrolled.duration_seconds)==(result.status,result.map_name,result.difficulty,result.wave,result.duration_seconds):
+                            result=scrolled
+                    except (RuntimeError,OSError) as exc:
+                        diagnostic_error=str(exc)
+                        diagnostic_error_kind=getattr(exc,'kind','setup')
+                try:self.save_evidence(final_frame,'final.png')
+                except (RuntimeError,OSError) as exc:
+                    if diagnostic_error is None:
+                        diagnostic_error=str(exc)
+                        diagnostic_error_kind=getattr(exc,'kind','storage' if isinstance(exc,OSError) else 'setup')
+                raise MatchFinished(result,diagnostic_error,diagnostic_error_kind)
             previous=result
             self.driver.wait(.2)
             frame=self.frame()
@@ -184,7 +202,7 @@ class Playback:
         self.driver.before_click=self.click_gate
         def save(current):
             data={'strategy_sha256':self.profile['strategy_sha256'],'pid':self.window.pid,'progress':asdict(current)}
-            (self.output/'progress.json').write_text(json.dumps(data,indent=2),encoding='utf-8')
+            write_json(self.output/'progress.json',data)
             if self.full_evidence:
                 self.save_evidence(self.frame(),f'step_{current.next_step:03}.png')
             self.notify({'confirmed_step':current.next_step,'count':current.count,'levels':current.levels})
@@ -207,7 +225,7 @@ class Playback:
                     self.driver.wait(.2)
                 raise StopRun('Active-match HUD not confirmed after Ready.')
         save(progress)
-        diagnostic_error=None
+        diagnostic_error=None;diagnostic_error_kind=None
         try:
             run_sequence(self.strategy,runner,progress,self.camera.map_point,operations,before,save)
             if wait_result and progress.next_step==len(self.strategy.steps):
@@ -223,18 +241,23 @@ class Playback:
         except MatchFinished as finished:
             result=asdict(finished.result)
             result['full_strategy_verified']=finished.result.status=='victory' and progress.next_step==len(self.strategy.steps)
+            diagnostic_error=finished.diagnostic_error
+            diagnostic_error_kind=finished.diagnostic_error_kind
         except (RuntimeError,ValueError,OSError) as exc:
             result={'status':'stopped','reason':str(exc),'stop_kind':getattr(exc,'kind','failure'),'full_strategy_verified':False}
         finally:
             self.driver.before_click=old_gate
             try:self.recording.flush()
-            except OSError as exc:diagnostic_error=str(exc)
+            except OSError as exc:
+                diagnostic_error=diagnostic_error or str(exc)
+                diagnostic_error_kind=diagnostic_error_kind or 'storage'
         if diagnostic_error is not None:
             result['diagnostic_error']=diagnostic_error
+            result['diagnostic_error_kind']=diagnostic_error_kind or 'storage'
         result['progress']=asdict(progress)
         result['strategy_sha256']=self.profile['strategy_sha256']
         result['modifier_scope']='Observed current account only; active modifiers may change income and win timing.'
-        (self.output/'result.json').write_text(json.dumps(result,indent=2),encoding='utf-8')
+        write_json(self.output/'result.json',result)
         self.notify(result)
         return result
 

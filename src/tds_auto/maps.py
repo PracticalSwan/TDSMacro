@@ -103,6 +103,13 @@ def read_headers(frame,after_vote=False):
                 candidate=' '.join(ocr.read(sample.crop((max(0,x-2),max(0,y-2),min(sample.width,x+w+2),min(sample.height,y+h+2)))) for x,y,w,h in words)
                 if title_matches(candidate):
                     return candidate
+            # A brief vote-countdown overlap can split the stylized title.
+            # Binarize and enlarge only this bounded header crop as a last read.
+            enlarged=sample.convert('L').point(lambda value:255 if value>80 else 0)
+            enlarged=enlarged.resize((sample.width*2,sample.height*2),Image.Resampling.NEAREST)
+            candidate=ocr.read(enlarged)
+            if title_matches(candidate):
+                return candidate
         return text
     return tuple(Board(index,box,read_title(box))
                  for index,box in enumerate(sorted(boxes),1))
@@ -114,8 +121,14 @@ def read_boards(frame):
     return boards if len(boards)==4 else ()
 
 
-def visible_target(frame,name='Dead Ahead',after_vote=False):
-    targets=[b for b in read_headers(frame,after_vote=after_vote) if title_matches(b.title,name)]
+def visible_target(frame,name='Dead Ahead',after_vote=False,diagnostics=None):
+    boards=read_headers(frame,after_vote=after_vote)
+    if diagnostics is not None:
+        # Persist only expected map-name tokens, never arbitrary OCR text.
+        tokens={token for board in boards for token in re.findall(r'[a-z]+',board.title.casefold())
+                if token in {'dead','ahead'}}
+        diagnostics.update(header_count=len(boards),title_tokens=[token for token in ('dead','ahead') if token in tokens])
+    targets=[b for b in boards if title_matches(b.title,name)]
     return targets[0] if len(targets)==1 else None
 
 
@@ -151,21 +164,38 @@ def vote_prompt(frame,target=None):
     return any('vote' in re.findall(r'[a-z]+',ocr.read(sample).casefold()) for sample in (label,ink(label)))
 
 
-def vip_prompt(frame):
-    """Require the actual Override Map proximity prompt before pressing E."""
+def _vip_prompt_evidence(frame):
+    """Return the decision plus non-identifying template/caption scalars."""
     if frame.size!=(1920,991):
-        return False
+        return {'confirmed':False,'keycap_score':None,'literal_caption':False}
     with Image.open(Path(__file__).resolve().parents[2]/'assets/ui_2191/interaction_e.png') as source:
         template=np.asarray(source.convert('L'))
-    crop=frame.crop((900,340,1500,700))
+    # The native E keycap sits just below y=700 at the last safe VIP step.
+    crop=frame.crop((900,340,1500,720))
     scores=cv2.matchTemplate(np.asarray(crop.convert('L')),template,cv2.TM_CCOEFF_NORMED)
     _,score,_,(x,y)=cv2.minMaxLoc(scores)
+    score=round(float(score),5)
     if score<.93:
-        return False
+        return {'confirmed':False,'keycap_score':score,'literal_caption':False}
     x+=900;y+=340
     label=frame.crop((x-80,y+55,x+180,y+105))
     ocr=LocalOCR()
-    return any(''.join(ocr.read(sample).casefold().split())=='overridemap' for sample in (label,ink(label)))
+    if any(''.join(ocr.read(sample).casefold().split())=='overridemap' for sample in (label,ink(label))):
+        return {'confirmed':True,'keycap_score':score,'literal_caption':True}
+    # On the late-step layout, nearby prompt text distorts whole-line OCR.
+    # Keep both words literal and anchored to the detected E keycap.
+    override=frame.crop((x-65,y+55,x+45,y+90))
+    map_word=frame.crop((x+45,y+58,x+105,y+90))
+    caption_exact=(
+        any(''.join(ocr.read(sample).casefold().split())=='override' for sample in (override,ink(override)))
+        and any(''.join(ocr.read(sample).casefold().split())=='map' for sample in (map_word,ink(map_word)))
+    )
+    return {'confirmed':caption_exact,'keycap_score':score,'literal_caption':bool(caption_exact)}
+
+
+def vip_prompt(frame):
+    """Require the actual Override Map proximity prompt before pressing E."""
+    return _vip_prompt_evidence(frame)['confirmed']
 
 
 def badge_is_one(frame,box):
@@ -181,8 +211,18 @@ def badge_is_one(frame,box):
     folder=Path(__file__).resolve().parents[2]/'assets/ui_2191'
     for name in ('vote_one.png','vote_one_board4.png','vote_one_replay.png'):
         with Image.open(folder/name) as reference:
-            if overlap(glyph,reference.convert('L').point(lambda p:255 if p>127 else 0))>=.90:
-                return True
+            reference=reference.convert('L').point(lambda p:255 if p>127 else 0)
+            # A slightly different view angle can shift the normalized digit
+            # by one pixel. Compare on padded canvases so no glyph pixels are
+            # clipped while allowing only that small registration drift.
+            registered_reference=Image.new('L',(28,36))
+            registered_reference.paste(reference,(2,2))
+            for dx in (-2,-1,0,1,2):
+                for dy in (-2,-1,0,1,2):
+                    registered=Image.new('L',(28,36))
+                    registered.paste(glyph,(2+dx,2+dy))
+                    if overlap(registered,registered_reference)>=.90:
+                        return True
     return False
 
 

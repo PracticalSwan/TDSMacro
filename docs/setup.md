@@ -36,7 +36,7 @@ The project maintainer's local checkout had an older `dist/TDSMacro` copy after 
 2. Join the TDS lobby. Complete one-time Easy tutorials/dialogues manually before repeated games. The macro checks Login Rewards, claims an available reward once and closes an already-claimed popup when needed.
 3. Equip Golden Scout in slot 1 and empty the other slots. The macro confirms Scout/Golden labels in Items. The tested skin is Intern; portrait changes have automated coverage, but other skins need live trials.
 4. Use default camera/keyboard controls, English UI and the TDS settings below. Keep normal HUD and tower prices/levels visible. Do not change camera/UI scale during play.
-5. Open TDSMacro.exe, choose Golden Scout and press F1. Put Roblox in front during the five-second countdown. Do not move the mouse, character or camera while it plays.
+5. Before live macro testing, close every computer-use session/surface and overlay. Open TDSMacro.exe, choose Golden Scout and press F1. Put Roblox in front during the five-second countdown. Do not use computer-use tools, move the mouse, character or camera while the worker runs.
 6. Observe a full match and replay on your account. Stop if settings, modifiers or network conditions produce a defeat or unexplained behavior.
 
 The macro selects an existing Dead Ahead board or uses VIP, then confirms its title and solo vote. It prepares an overhead view before every new match. No character movement is needed during tower placement.

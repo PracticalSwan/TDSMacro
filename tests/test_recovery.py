@@ -4,6 +4,7 @@ import os
 import sys
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 from dataclasses import replace
 from unittest.mock import patch
@@ -39,6 +40,58 @@ class RecoveryTests(unittest.TestCase):
         self.assertNotEqual(calls[0],calls[1])
         self.assertEqual(json.loads((calls[0]/'result.json').read_text())['status'],'stopped')
         self.assertEqual(json.loads((calls[1]/'result.json').read_text())['status'],'victory')
+
+    def test_four_attempt_ledgers_preserve_63_wins_three_recoveries_and_one_user_stop(self):
+        recovery=self.module();deltas=[35,5,15,8];attempt_deltas=[35,5,15,9]
+        reasons=[
+            'Post-vote title unreadable; Ready was not clicked.',
+            'VIP prompt unconfirmed; no E was sent.',
+            'Vote badge remained unknown; Ready was not clicked.',
+            'F2 pressed after 44 confirmed actions; result not yet available.'
+        ]
+        calls=[]
+        def attempt(path,control,totals):
+            index=len(calls);calls.append(path)
+            wins=deltas[index]
+            totals['attempts']+=attempt_deltas[index]
+            totals['matches_completed']+=wins
+            totals['wins']+=wins
+            totals['coins_total']+=wins*450
+            kind='user_stop' if index==3 else 'failure'
+            matches=[{'status':'victory','coins':450} for _ in range(wins)]
+            if kind=='user_stop':
+                matches.append({'status':'stopped','stop_kind':'user_stop','reason':reasons[index]})
+            return {'status':'stopped','reason':reasons[index],'stop_kind':kind,'matches':matches}
+        def restart(control,platform,report):
+            platform.sleep(1)
+            report(stage='lobby_ready')
+
+        result=recovery.supervise(self.path,self.platform,None,attempt=attempt,
+            restart=restart,locate=lambda:self.platform.window)
+
+        sessions=[json.loads(line) for line in (self.path/'sessions.jsonl').read_text().splitlines()]
+        events=[json.loads(line) for line in (self.path/'recovery.jsonl').read_text().splitlines()]
+        self.assertEqual([row['attempt_folder'] for row in sessions],
+                         ['attempt_001','attempt_002','attempt_003','attempt_004'])
+        self.assertEqual([row['totals']['wins'] for row in sessions],[35,40,55,63])
+        self.assertEqual([row['totals']['coins_total'] for row in sessions],[15750,18000,24750,28350])
+        self.assertTrue(all(row['totals']['coins_total']==row['totals']['wins']*450 for row in sessions))
+        self.assertEqual([row['recovery_attempt'] for row in events],[1,1,1],
+                         'A win resets the consecutive-failure recovery counter.')
+        self.assertEqual([row['recoveries'] for row in events],[1,2,3])
+        self.assertEqual([row['elapsed_seconds'] for row in events],[1,2,3],
+                         'Recovery elapsed time uses one app-run origin.')
+        for row in events:
+            self.assertTrue(row['event_time_utc'].endswith('Z'))
+            datetime.fromisoformat(row['event_time_utc'].replace('Z','+00:00'))
+        self.assertEqual([row['reason'] for row in events],reasons[:3])
+        self.assertEqual((result['status'],result['stop_kind'],result['recoveries']),
+                         ('stopped','user_stop',3))
+        self.assertEqual((result['attempts'],result['matches_completed'],result['wins'],result['coins_total']),
+                         (64,63,63,28350))
+        self.assertEqual(result['coins_total'],sessions[-1]['totals']['coins_total'],
+                         'Lifetime totals are cumulative, not the sum of cumulative ledger snapshots.')
+        self.assertEqual(sessions[-1]['result']['reason'],reasons[-1])
 
     def test_protected_stops_never_relaunch(self):
         recovery=self.module()
@@ -344,12 +397,259 @@ class RecoveryTests(unittest.TestCase):
                 ocr.return_value.read.side_effect=captions
                 self.assertEqual(recovery.close_prompt(frame),expected)
 
+    def test_disconnect_prompt_requires_observed_dialog_and_exact_actions(self):
+        recovery=self.module()
+        path=Path(__file__).resolve().parent/'fixtures'/'disconnect_leave_prompt.png'
+        with Image.open(path) as source:frame=source.copy()
+        self.assertEqual(recovery.Observer().observe(frame).state,'disconnect')
+        self.assertTrue(recovery.disconnect_prompt(frame))
+        with patch.object(recovery,'LocalOCR') as ocr:
+            ocr.return_value.read.side_effect=['Disconnected','Leave','Try Again']
+            self.assertFalse(recovery.disconnect_prompt(frame))
+        self.assertFalse(recovery.disconnect_prompt(Image.new('RGB',(100,100))))
+
+    def test_roblox_home_transition_requires_all_four_exact_anchors(self):
+        recovery=self.module()
+        path=Path(__file__).resolve().parent/'fixtures'/'roblox_home_controls.png'
+        with Image.open(path) as source:frame=source.copy()
+        self.assertTrue(recovery.roblox_home(frame))
+        self.assertFalse(recovery.roblox_home(Image.new('RGB',(100,100))))
+        with patch.object(recovery,'LocalOCR') as ocr:
+            ocr.return_value.read.side_effect=['Home','Search','For you','Discover']
+            self.assertFalse(recovery.roblox_home(frame))
+
+    def test_home_screen_is_not_a_confirmable_close_or_disconnect_dialog(self):
+        recovery=self.module();control=SessionControl(self.path)
+        path=Path(__file__).resolve().parent/'fixtures'/'roblox_home_controls.png'
+        with Image.open(path) as source:frame=source.copy()
+        with patch.object(recovery,'client_exists',return_value=True), \
+             patch.object(recovery,'capture',return_value=frame):
+            self.assertFalse(recovery.close_prompt(frame))
+            self.assertFalse(recovery.disconnect_prompt(frame))
+            self.assertFalse(recovery.confirm_close(self.platform.window,control,self.platform))
+        self.assertFalse(any(event[0]=='left_down' for event in self.platform.events))
+
+    def test_disconnect_leave_confirmation_is_guarded_and_rechecks_before_click(self):
+        recovery=self.module();control=SessionControl(self.path)
+        frame=Image.new('RGB',(1920,991))
+        with patch.object(recovery,'client_exists',return_value=True), \
+             patch.object(recovery,'capture',return_value=frame), \
+             patch.object(recovery,'close_prompt',return_value=False), \
+             patch.object(recovery,'disconnect_prompt',side_effect=[True,True]):
+            self.assertEqual(recovery.confirm_close(self.platform.window,control,self.platform),'disconnect')
+        self.assertIn(('move',845,634),self.platform.events)
+        self.assertEqual(self.platform.events.count(('left_down',)),1)
+        self.assertEqual(self.platform.events[-1],('left_up',))
+
+        self.platform.events.clear()
+        with patch.object(recovery,'client_exists',return_value=True), \
+             patch.object(recovery,'capture',return_value=frame), \
+             patch.object(recovery,'close_prompt',return_value=False), \
+             patch.object(recovery,'disconnect_prompt',side_effect=[True,False]):
+            with self.assertRaisesRegex(StopRun,'disconnect dialog changed'):
+                recovery.confirm_close(self.platform.window,control,self.platform)
+        self.assertNotIn(('left_down',),self.platform.events)
+
+    def test_consumed_disconnect_dialog_cannot_click_leave_again(self):
+        recovery=self.module();control=SessionControl(self.path);frame=Image.new('RGB',(1920,991))
+        with patch.object(recovery,'client_exists',return_value=True), \
+             patch.object(recovery,'capture',return_value=frame), \
+             patch.object(recovery,'close_prompt',return_value=False), \
+             patch.object(recovery,'disconnect_prompt') as disconnect:
+            self.assertFalse(recovery.confirm_close(self.platform.window,control,self.platform,allow_disconnect=False))
+        disconnect.assert_not_called()
+        self.assertFalse(any(event[0]=='left_down' for event in self.platform.events))
+
+    def test_leave_home_reposts_one_close_then_confirms_close_dialog(self):
+        recovery=self.module();control=SessionControl(self.path);posts=[];confirms=[];launched=[];running=[True]
+        home=Image.new('RGB',(1920,991))
+        with patch.object(recovery,'capture',return_value=home), \
+             patch.object(recovery,'roblox_home',side_effect=[True,True],create=True) as home_check:
+            def close(window):posts.append(window)
+            def confirm(window,control,platform,allow_disconnect=True):
+                confirms.append(allow_disconnect)
+                if len(confirms)==1:return 'disconnect'
+                running[0]=False
+                return 'close'
+            recovery.restart_client(control,self.platform,lambda **row:None,
+                locate=lambda:self.platform.window,close=close,exists=lambda window:running[0],
+                launch=lambda:launched.append(self.platform.now()),observe=lambda window:'lobby',confirm=confirm)
+        self.assertEqual(len(posts),2)
+        self.assertEqual(confirms,[True,False])
+        self.assertEqual(home_check.call_count,2)
+        self.assertEqual(len(launched),1)
+        self.assertGreaterEqual(launched[0],recovery.LAUNCHER_SETTLE_SECONDS+5)
+
+    def test_leave_that_exits_client_does_not_repost_close(self):
+        recovery=self.module();posts=[];launched=[];checks=iter([True,False])
+        recovery.restart_client(SessionControl(self.path),self.platform,lambda **row:None,
+            locate=lambda:self.platform.window,close=lambda window:posts.append(window),
+            exists=lambda window:next(checks,False),launch=lambda:launched.append(True),observe=lambda window:'lobby',
+            confirm=lambda *args:'disconnect')
+        self.assertEqual(len(posts),1)
+        self.assertEqual(launched,[True])
+
+    def test_leave_requires_two_home_reads_before_reposting_close(self):
+        recovery=self.module();posts=[];launched=[];running=[True]
+        with patch.object(recovery,'capture',return_value=Image.new('RGB',(1920,991))), \
+             patch.object(recovery,'roblox_home',return_value=False,create=True), \
+             patch.object(recovery,'close_prompt',return_value=False):
+            with self.assertRaisesRegex(StopRun,'verified Home') as caught:
+                recovery.restart_client(SessionControl(self.path),self.platform,lambda **row:None,
+                    locate=lambda:self.platform.window,close=lambda window:posts.append(window),
+                    exists=lambda window:running[0],launch=lambda:launched.append(True),
+                    observe=lambda window:'lobby',confirm=lambda *args:'disconnect')
+        self.assertEqual(caught.exception.kind,'setup')
+        self.assertEqual(len(posts),1)
+        self.assertEqual(launched,[])
+
+    def test_one_transient_home_read_does_not_repost_close(self):
+        recovery=self.module();posts=[];launched=[];reads=iter([True,False])
+        def home(frame):return next(reads,False)
+        with patch.object(recovery,'capture',return_value=Image.new('RGB',(1920,991))), \
+             patch.object(recovery,'roblox_home',side_effect=home,create=True), \
+             patch.object(recovery,'close_prompt',return_value=False):
+            with self.assertRaisesRegex(StopRun,'verified Home'):
+                recovery.restart_client(SessionControl(self.path),self.platform,lambda **row:None,
+                    locate=lambda:self.platform.window,close=lambda window:posts.append(window),
+                    exists=lambda window:True,launch=lambda:launched.append(True),observe=lambda window:'lobby',
+                    confirm=lambda *args:'disconnect')
+        self.assertEqual(len(posts),1)
+        self.assertEqual(launched,[])
+
+    def test_exact_close_prompt_after_leave_uses_close_only_confirmation(self):
+        recovery=self.module();posts=[];confirms=[];launched=[];running=[True]
+        with patch.object(recovery,'capture',return_value=Image.new('RGB',(1920,991))), \
+             patch.object(recovery,'roblox_home',return_value=False,create=True), \
+             patch.object(recovery,'close_prompt',return_value=True):
+            def confirm(window,control,platform,allow_disconnect=True):
+                confirms.append(allow_disconnect)
+                if len(confirms)==1:return 'disconnect'
+                running[0]=False
+                return 'close'
+            recovery.restart_client(SessionControl(self.path),self.platform,lambda **row:None,
+                locate=lambda:self.platform.window,close=lambda window:posts.append(window),
+                exists=lambda window:running[0],launch=lambda:launched.append(True),observe=lambda window:'lobby',confirm=confirm)
+        self.assertEqual(len(posts),1)
+        self.assertEqual(confirms,[True,False])
+        self.assertEqual(launched,[True])
+
+    def test_process_exit_between_home_gate_and_second_close_is_expected(self):
+        recovery=self.module();posts=[];launched=[];running=[True]
+        def close(window):
+            posts.append(window)
+            if len(posts)==2:
+                running[0]=False
+                raise RuntimeError('Window closed during WM_CLOSE')
+        with patch.object(recovery,'capture',return_value=Image.new('RGB',(1920,991))), \
+             patch.object(recovery,'roblox_home',side_effect=[True,True],create=True):
+            recovery.restart_client(SessionControl(self.path),self.platform,lambda **row:None,
+                locate=lambda:self.platform.window,close=close,exists=lambda window:running[0],
+                launch=lambda:launched.append(True),observe=lambda window:'lobby',confirm=lambda *args:'disconnect')
+        self.assertEqual(len(posts),2)
+        self.assertEqual(launched,[True])
+
+    def test_f2_during_second_home_sample_prevents_reposted_close(self):
+        recovery=self.module();posts=[];launched=[];reads=[0]
+        def home(frame):
+            reads[0]+=1
+            if reads[0]==1:(self.path/'stop').write_text('F2')
+            return True
+        with patch.object(recovery,'capture',return_value=Image.new('RGB',(1920,991))), \
+             patch.object(recovery,'roblox_home',side_effect=home,create=True):
+            with self.assertRaises(StopRun) as caught:
+                recovery.restart_client(SessionControl(self.path),self.platform,lambda **row:None,
+                    locate=lambda:self.platform.window,close=lambda window:posts.append(window),
+                    exists=lambda window:True,launch=lambda:launched.append(True),observe=lambda window:'lobby',
+                    confirm=lambda *args:'disconnect')
+        self.assertEqual(caught.exception.kind,'user_stop')
+        self.assertEqual(reads[0],1)
+        self.assertEqual(len(posts),1)
+        self.assertEqual(launched,[])
+
+    def test_stop_after_leave_cancels_before_second_close(self):
+        recovery=self.module();posts=[];launched=[];control=SessionControl(self.path)
+        def confirm(*args):
+            (self.path/'stop').write_text('F2')
+            return 'disconnect'
+        with self.assertRaises(StopRun) as caught:
+            recovery.restart_client(control,self.platform,lambda **row:None,
+                locate=lambda:self.platform.window,close=lambda window:posts.append(window),
+                exists=lambda window:True,launch=lambda:launched.append(True),observe=lambda window:'lobby',confirm=confirm)
+        self.assertEqual(caught.exception.kind,'user_stop')
+        self.assertEqual(len(posts),1)
+        self.assertEqual(launched,[])
+
+    def test_changed_client_after_leave_is_not_closed_or_relaunched(self):
+        recovery=self.module();posts=[];launched=[];locations=iter([self.platform.window,replace(self.platform.window,pid=99)])
+        with self.assertRaises(StopRun) as caught:
+            recovery.restart_client(SessionControl(self.path),self.platform,lambda **row:None,
+                locate=lambda:next(locations),close=lambda window:posts.append(window),
+                exists=lambda window:True,launch=lambda:launched.append(True),observe=lambda window:'lobby',
+                confirm=lambda *args:'disconnect')
+        self.assertEqual(caught.exception.kind,'window_changed')
+        self.assertEqual(len(posts),1)
+        self.assertEqual(launched,[])
+
+    def test_lost_foreground_after_leave_is_not_closed_or_relaunched(self):
+        recovery=self.module();posts=[];launched=[]
+        locations=iter([self.platform.window,replace(self.platform.window,foreground=False)])
+        with self.assertRaises(StopRun) as caught:
+            recovery.restart_client(SessionControl(self.path),self.platform,lambda **row:None,
+                locate=lambda:next(locations),close=lambda window:posts.append(window),
+                exists=lambda window:True,launch=lambda:launched.append(True),observe=lambda window:'lobby',
+                confirm=lambda *args:'disconnect')
+        self.assertEqual(caught.exception.kind,'focus_lost')
+        self.assertEqual(len(posts),1)
+        self.assertEqual(launched,[])
+
+    def test_missing_window_after_leave_stops_while_original_process_lives(self):
+        recovery=self.module();posts=[];launched=[];locations=iter([self.platform.window,None])
+        with self.assertRaisesRegex(StopRun,'verified Home') as caught:
+            recovery.restart_client(SessionControl(self.path),self.platform,lambda **row:None,
+                locate=lambda:next(locations,None),close=lambda window:posts.append(window),
+                exists=lambda window:True,launch=lambda:launched.append(True),observe=lambda window:'lobby',
+                confirm=lambda *args:'disconnect')
+        self.assertEqual(caught.exception.kind,'setup')
+        self.assertEqual(len(posts),1)
+        self.assertEqual(launched,[])
+
+    def test_reappearing_disconnect_after_home_never_reposts_or_repeats_leave(self):
+        recovery=self.module();posts=[];allowed=[];launched=[]
+        with patch.object(recovery,'capture',return_value=Image.new('RGB',(1920,991))), \
+             patch.object(recovery,'roblox_home',side_effect=[True,True],create=True):
+            def confirm(window,control,platform,allow_disconnect=True):
+                if len(allowed)<2:allowed.append(allow_disconnect)
+                return 'disconnect'
+            with self.assertRaisesRegex(StopRun,'did not close') as caught:
+                recovery.restart_client(SessionControl(self.path),self.platform,lambda **row:None,
+                    locate=lambda:self.platform.window,close=lambda window:posts.append(window),
+                    exists=lambda window:True,launch=lambda:launched.append(True),observe=lambda window:'lobby',confirm=confirm)
+        self.assertEqual(caught.exception.kind,'setup')
+        self.assertEqual(allowed,[True,False])
+        self.assertEqual(len(posts),2)
+        self.assertEqual(launched,[])
+
+    def test_recovery_ledger_append_failure_is_a_protected_storage_stop(self):
+        recovery=self.module();original_open=Path.open
+        def deny_recovery_ledger(path,*args,**kwargs):
+            if path.name=='recovery.jsonl':raise PermissionError('recovery ledger is unavailable')
+            return original_open(path,*args,**kwargs)
+        def restart(control,platform,report):report(stage='closing')
+        with patch.object(Path,'open',deny_recovery_ledger):
+            result=recovery.supervise(self.path,self.platform,{},
+                attempt=lambda path,control,totals:{'status':'stopped','reason':'recoverable failure','stop_kind':'failure'},
+                restart=restart,locate=lambda:self.platform.window)
+        self.assertEqual(result['status'],'stopped')
+        self.assertEqual(result['stop_kind'],'storage')
+        self.assertIn('recovery.jsonl',result['reason'])
+
     def test_known_close_confirmation_is_attempted_once_before_relaunch(self):
         recovery=self.module();actions=[];checks=iter([True,True,False])
         recovery.restart_client(SessionControl(self.path),self.platform,lambda **data:None,
             locate=lambda:self.platform.window,close=lambda w:actions.append('close'),
             exists=lambda w:next(checks,False),launch=lambda:actions.append('launch'),observe=lambda w:'lobby',
-            confirm=lambda *args:actions.append('confirm') or True)
+            confirm=lambda *args:actions.append('confirm') or 'close')
         self.assertEqual(actions,['close','confirm','launch'])
         self.assertGreaterEqual(self.platform.now(),8)
 
@@ -377,7 +677,7 @@ class RecoveryTests(unittest.TestCase):
         with patch.object(recovery,'client_exists',return_value=True), \
              patch.object(recovery,'capture',return_value=Image.new('RGB',(1920,991))), \
              patch.object(recovery,'close_prompt',side_effect=readable):
-            self.assertTrue(recovery.confirm_close(self.platform.window,control,self.platform))
+            self.assertEqual(recovery.confirm_close(self.platform.window,control,self.platform),'close')
         self.assertEqual(self.platform.events.count(('left_down',)),1)
 
     def test_expected_client_disappearance_after_close_click_allows_relaunch(self):
@@ -386,7 +686,7 @@ class RecoveryTests(unittest.TestCase):
             with patch.object(recovery,'GuardedInput') as driver,patch.object(recovery,'capture'), \
                  patch.object(recovery,'close_prompt',return_value=True),patch.object(recovery,'client_exists',side_effect=[True,False]):
                 driver.return_value.click.side_effect=error
-                if expected:self.assertTrue(recovery.confirm_close(self.platform.window,control,self.platform))
+                if expected:self.assertEqual(recovery.confirm_close(self.platform.window,control,self.platform),'close')
                 else:
                     with self.assertRaises(StopRun):recovery.confirm_close(self.platform.window,control,self.platform)
 
