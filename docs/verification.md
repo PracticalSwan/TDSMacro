@@ -1,6 +1,30 @@
 # Verification
 
-## 2026-11-17 — Independent code review and bounded vote-badge optimization (not yet packaged/live)
+## Final v0.2.4 live acceptance and release evidence — 2026-11-18
+
+The fresh r4 executable completed the required natural disconnect recovery and gameplay on the optimized vote-reader build. Following a verified stable TDS lobby and no-input observation, Roblox showed a natural Error 278. Two exact disconnect-dialog reads authorized one guarded Leave. The same foreground client reached Roblox Home in two reads, received one ordinary close request, exited, waited the 60-second Store activation cooldown, and relaunched through the official Roblox URI. The new client reached two stable foreground lobby reads. The subsequent Dead Ahead/Easy run used physical board 1, made one guarded D view-clear after an unreadable badge, confirmed exactly one target vote, then completed all 44 actions with nine Scouts, wave 20, 459 seconds and 450 coins.
+
+The AFK monitor was requested for 1,500 seconds. Roblox disconnected after **1,193.7 seconds** of active monitor time; the stable-lobby event-to-disconnect interval was **1,196.9 seconds**, 3.1 seconds short of 1,200, and official-URI-launch-to-disconnect time was **1,213.7 seconds**. This genuine disconnect and complete recovery sequence passed. The 3.1-second interval difference is recorded and is not a release blocker.
+
+A later separate match showed Roblox **Error 277** in a retained native frame. That Roblox-issued network disconnect stopped the match safely. The recovery ledger records the guarded disconnect/Home close path, original-client exit cooldown, official URI launch and entry into waiting_lobby; no lobby_ready event appeared during the 180-second bound. A passive native probe after the worker stopped found a visible client at the calibrated geometry but not foreground. The recovery code only accepts two stable foreground lobby/Login Rewards reads and never activates a window. The trigger is an external Roblox Error 277; the reason the subsequent client did not become verifiably foreground/lobby is **not conclusively identifiable** because the ledger has no per-poll foreground/state values. No product defect or unsafe recovery action is evidenced, and no safe code change can treat that background window as a verified lobby. Error 277 recovery remains unverified; the worker stopped fail-closed and the client was not refocused.
+
+### Fresh executable and public artifact
+
+The release build and live-tested r4 executable are byte-identical. Frozen self-check passed with 44 operations, 16 observer states, local OCR reading Play Again, Tcl 8.6.15, and calibrated strategy SHA-256 59548c3cf386f63eb0ae9f820ec165747c600706bbb59c7ce6acbd4da133eafb. The EXE SHA-256 is 51edd086a7208cd698c72ff59d94813b9a6feb17459c573851718aa3f065c482.
+
+The packaged app contains 1,277 files (178,032,520 bytes), one calibrated nine-Scout strategy, and 58 license notices; it excludes captures and the private original imported strategy. The release ZIP has 1,277 entries, is 72,888,839 bytes, and passes a full ZIP CRC/read check. ZIP SHA-256: 249ae12f33fe2896e411bce83060427b36c3c60b6a2f443a8a8769853856a5a5; the adjacent SHA256SUMS.txt contains that digest. A byte-level scan of the release package found none of the checked local identity/path strings, the private r4 evidence path, or the private original strategy name.
+
+### Source checks and release boundary
+
+Fresh focused checks on 2026-11-18 passed: test_recovery.py 55/55, test_session.py 78/78 and test_maps.py 30/30. The freshly rerun complete local suite passed **348/348 tests in 36.564 seconds**; compileall, the 18-package compatibility check and git diff --check passed. The Windows workflow now also runs the maps and session suites. At this dated validation checkpoint, v0.2.3 remained the published release; v0.2.4 publication was gated on the exact pushed commit's Windows CI and final remote asset verification.
+
+## Historical 2026-11-17 — Vote-floor recovery and natural AFK monitor (fresh source checks at that time)
+
+The post-vote unknown-badge path now allows one guarded 0.10-second forward correction when the non-strafe floor check still sees support, followed by fresh map-vote, unique-title and badge reads. Lateral D view clearing remains behind the stricter two-sided margin. The recovery runner also accepts a one-time 1200–1800 second no-input lobby monitor on the first attempt only; it requires two stable lobby reads, then checks the guarded client continuously and requires two exact `Disconnected` / `Leave` / `Reconnect` reads before handing control to the existing recovery sequence. The monitor sends no game input and stops on pause, stop, focus/identity/geometry change, a persistent unreadable view or an unsupported state.
+
+The five focused regressions passed, then the complete local suite passed **344/344 tests in 56.403 seconds** with no GUI or worker active. `compileall`, `uv pip check` for all 18 installed packages, and `git diff --check` passed. This verifies source and offline guards only. A fresh frozen build, natural 25-minute AFK outcome, live Home recovery, live vote flow and post-recovery win remain unverified; v0.2.3 remains published until those gates and Windows CI pass.
+
+## Historical 2026-11-17 — Independent code review and bounded vote-badge optimization (before r4 live trial)
 
 The reviewed Codex thread and actual v0.2.4 candidate confirm the owner-revised **ten-win** acceptance and real F2 stop: ten 44/44 Dead Ahead/Easy wins, 4,500 coins, zero navigation recoveries (physical board 1 only). The corrected disconnect-to-Roblox-Home relaunch is **not** proven live. The code changes below are not in the existing candidate ZIPs; v0.2.3 remains the published release.
 
@@ -8,7 +32,7 @@ A read-only benchmark on the real sanitized `post_vote_badge_view_clear_d.png` i
 
 **Post-change results:** focused `test_session.py` **72/72 passed**. Direct saved-frame comparisons matched all seven cases: board-1 badge one and neighboring unknown, board-4 one, A unknown, C one, post-vote D-view-clear one, and the replay badge-one frame. Median end-to-end badge readings on these frames ranged roughly 1.3–13.7 ms depending on OCR/template usage. The full **341/341-test suite**, Python compilation, the 18-package compatibility check and diff whitespace checks passed after this source change. No new live Roblox run, bundled application, in-game performance, or corrected Home recovery has been verified after it. The next agent must rebuild the candidate and prioritize **real guarded Roblox trials**, especially the Home path, before releasing v0.2.4.
 
-## v0.2.4 candidate verification — live recovery gate pending (2026-11-17)
+## Historical v0.2.4 candidate verification before final live acceptance (2026-11-17)
 
 The published release remains v0.2.3. Offline regression and packaging evidence is recorded below, and the owner-revised ten-win live gate plus native F2 stop are now observed. A fresh packaged live run through the corrected disconnect-to-Roblox-Home recovery path has not been completed. Do not tag or publish v0.2.4 until that critical live proof and all remaining release checks pass.
 

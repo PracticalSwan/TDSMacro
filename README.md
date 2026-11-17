@@ -14,7 +14,7 @@ A Windows app for **Golden Scout · Dead Ahead · Survival / Easy / Solo** in Ro
 4. Press **F1**, then put Roblox in front during the five-second countdown.
 5. Keep Roblox focused. **F2 stops**; closing the app also stops its worker. F8/Escape are additional emergency stops.
 
-**Launch note (v0.2.3):** Run `TDSMacro.exe` **inside the fully extracted `TDSMacro` folder**, alongside `_internal`, `assets`, `calibrations`, and `strategies`. The `.exe` by itself is not a standalone app. If it appears not to open, check **Alt+Tab** or the taskbar; a working GUI can start behind another window. Multiple locally built versions can have the same filename, so prefer the current [release ZIP](https://github.com/PracticalSwan/tds-macro/releases/tag/v0.2.3) rather than an older `dist` copy. [Troubleshooting](docs/troubleshooting.md) covers further checks.
+**Launch note:** Run `TDSMacro.exe` **inside the fully extracted `TDSMacro` folder**, alongside `_internal`, `assets`, `calibrations`, and `strategies`. The `.exe` by itself is not a standalone app. If it appears not to open, check **Alt+Tab** or the taskbar; a working GUI can start behind another window. Multiple locally built versions can have the same filename, so prefer the current [release ZIP](https://github.com/PracticalSwan/tds-macro/releases/latest) rather than an older `dist` copy. [Troubleshooting](docs/troubleshooting.md) covers further checks.
 
 The app repeats successful matches and displays confirmed progress, wins and coins. **Recover game failures automatically** is enabled by default: a failed game is closed, TDS is reopened and the strategy starts fresh from the lobby. F2 cancels both play and recovery. No separate Python installation is needed.
 
@@ -33,7 +33,7 @@ The client area excludes title bar/borders. A 1920×1080 display is tested; a �
 
 ## Verified behavior and limits
 
-Version 0.2.3 completed a live **7m39s / 450-coin win with all 44 actions confirmed and zero recoveries**, then continued through Play Again. A subsequent supervised foreground interruption recovered through a fresh lobby, full preflight and new placements. It preserves the existing strategy and navigation guards while adding passive focus recovery and protected setup/storage stops. See [verification](docs/verification.md) for actual trials and finite test scope.
+The app reads live cash, prices, tower state and results before sending each guarded action. It stops on unknown states, lost foreground, changed identity, unsupported geometry or unconfirmed purchases. Recovery never refocuses Roblox or repeats an uncertain action. See [verification](docs/verification.md) for current live trials, release status and unverified boundaries.
 
 Cash/prices are read from the game; starting cash is not fixed. Tower identity uses labels and levels rather than skin portraits. **Modifier selection is deferred pending challenge unlocks.** Committed + Limitation + Hidden Enemies + Glass remains a future target requiring separate win/reward validation. This release retains the existing profile and does not configure modifiers or claim a reward boost. Other modifier combinations and skins still need live trials. UI changes may require recalibration.
 

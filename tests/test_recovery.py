@@ -41,6 +41,25 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual(json.loads((calls[0]/'result.json').read_text())['status'],'stopped')
         self.assertEqual(json.loads((calls[1]/'result.json').read_text())['status'],'victory')
 
+    def test_idle_lobby_request_stays_pending_until_monitor_completes_or_confirms_disconnect(self):
+        recovery=self.module();idle_values=[];restarts=[]
+        class SessionStub:
+            def __init__(self,*args,**kwargs):self.control=kwargs['control']
+            def run(self,*,continuous=False,idle_lobby_seconds=0):
+                idle_values.append(idle_lobby_seconds)
+                if len(idle_values)==1:
+                    return {'status':'stopped','reason':'unsupported startup screen','stop_kind':'failure'}
+                if len(idle_values)==2:
+                    self.control.context['idle_lobby_disconnect_confirmed']=True
+                    return {'status':'stopped','reason':'natural Roblox disconnect','stop_kind':'failure'}
+                return {'status':'victory'}
+        with patch('tds_auto.recovery.Session',SessionStub):
+            result=recovery.supervise(self.path,self.platform,None,idle_lobby_seconds=1500,
+                restart=lambda *args:restarts.append(1),locate=lambda:self.platform.window)
+        self.assertEqual(idle_values,[1500,1500,0])
+        self.assertEqual(restarts,[1,1])
+        self.assertEqual((result['status'],result['recoveries']),('victory',2))
+
     def test_four_attempt_ledgers_preserve_63_wins_three_recoveries_and_one_user_stop(self):
         recovery=self.module();deltas=[35,5,15,8];attempt_deltas=[35,5,15,9]
         reasons=[

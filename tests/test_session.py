@@ -301,6 +301,24 @@ class SessionTests(unittest.TestCase):
         self.assertEqual([event for event in self.platform.events if event[0]=='key_down' and event[1]=='D'],[])
         self.assertNotIn(('left_down',),self.platform.events)
 
+    def test_unknown_vote_badge_uses_one_guarded_forward_correction_before_ready(self):
+        from tds_auto.maps import Board
+        self.state='map_vote';self.session.allowed={'map_vote'}
+        frame=Image.new('RGB',(1920,991));frame.info['state']='map_vote'
+        target=Board(2,(780,237,1042,277),'Dead Ahead')
+        with patch.object(self.session,'approach_target',return_value=(frame,target)), \
+             patch('tds_auto.session.visible_target',return_value=target) as reread, \
+             patch.object(self.session,'vote_count',side_effect=[None,1]), \
+             patch('tds_auto.session.voting_floor',side_effect=[False,True]), \
+             patch.object(self.session,'wait_state'):
+            self.session.vote_target(target)
+        keys=[event for event in self.platform.events if event[0]=='key_down']
+        self.assertEqual(keys,[('key_down','E'),('key_down','S'),('key_down','W')])
+        self.assertEqual(self.platform.events.count(('key_down','E')),1)
+        self.assertNotIn(('key_down','D'),self.platform.events)
+        self.assertEqual(reread.call_count,2)
+        self.assertEqual(json.loads((self.path/'status.json').read_text())['phase'],'target_voted')
+
     def test_unknown_vote_badge_uses_at_most_one_clear_step_then_stops(self):
         from tds_auto.maps import Board
         self.state='map_vote';self.session.allowed={'map_vote'}
@@ -498,6 +516,92 @@ class SessionTests(unittest.TestCase):
         self.session=Session(self.driver,self.path,read_frame=frame,now=self.platform.now)
         self.session.observer=SimpleNamespace(observe=lambda frame:SimpleNamespace(state=frame.info['state']))
         self.session.navigator.observer=self.session.observer
+
+    def test_idle_lobby_monitor_confirms_exact_disconnect_without_sending_input(self):
+        self.platform.on_sleep=lambda os:setattr(self,'state','disconnect') if os.now()>=.6 else None
+        original_wait=self.driver.wait
+        wait_count=[0]
+        def advance(seconds):
+            wait_count[0]+=1
+            if wait_count[0]==1:
+                return original_wait(seconds)
+            self.driver.check()
+            self.platform.clock+=seconds*400
+            if self.platform.on_sleep:self.platform.on_sleep(self.platform)
+            self.driver.check()
+        self.driver.wait=advance
+        with patch('tds_auto.recovery.disconnect_prompt',side_effect=[False,True,True]) as exact_prompt:
+            with self.assertRaisesRegex(StopRun,'natural Roblox disconnect') as caught:
+                self.session.wait_for_afk_disconnect(1200)
+        self.assertEqual(caught.exception.kind,'failure')
+        self.assertEqual(exact_prompt.call_count,3)
+        self.assertEqual(self.platform.events,[])
+        self.assertEqual(json.loads((self.path/'status.json').read_text())['phase'],'idle_disconnect_confirmed')
+        self.assertTrue(self.session.control.context['idle_lobby_disconnect_confirmed'])
+
+    def test_idle_lobby_monitor_resolves_pending_disconnect_after_its_deadline(self):
+        self.platform.on_sleep=lambda os:setattr(self,'state','disconnect') if os.now()>=.6 else None
+        original_wait=self.driver.wait
+        wait_count=[0]
+        def advance(seconds):
+            wait_count[0]+=1
+            if wait_count[0]==1:
+                return original_wait(seconds)
+            self.driver.check()
+            self.platform.clock+=seconds*1200
+            if self.platform.on_sleep:self.platform.on_sleep(self.platform)
+            self.driver.check()
+        self.driver.wait=advance
+        with patch('tds_auto.recovery.disconnect_prompt',return_value=True) as exact_prompt:
+            with self.assertRaisesRegex(StopRun,'natural Roblox disconnect'):
+                self.session.wait_for_afk_disconnect(1200)
+        self.assertEqual(exact_prompt.call_count,2)
+        self.assertEqual(self.platform.events,[])
+        self.assertTrue(self.session.control.context['idle_lobby_disconnect_confirmed'])
+
+    def test_idle_lobby_monitor_marks_completed_interval_without_input(self):
+        original_wait=self.driver.wait
+        wait_count=[0]
+        def advance(seconds):
+            wait_count[0]+=1
+            if wait_count[0]==1:
+                return original_wait(seconds)
+            self.driver.check()
+            self.platform.clock+=seconds*1200
+            self.driver.check()
+        self.driver.wait=advance
+        self.session.wait_for_afk_disconnect(1200)
+        self.assertTrue(self.session.control.context['idle_lobby_monitor_completed'])
+        self.assertFalse(self.session.control.context.get('idle_lobby_disconnect_confirmed',False))
+        self.assertEqual(self.platform.events,[])
+        self.assertEqual(json.loads((self.path/'status.json').read_text())['phase'],'idle_lobby_monitor_complete')
+
+    def test_pause_on_final_idle_lobby_read_stops_before_monitor_start(self):
+        original=self.session.observer.observe
+        lobby_reads=[0]
+        def observe(frame):
+            result=original(frame)
+            if result.state=='lobby':
+                lobby_reads[0]+=1
+                if lobby_reads[0]==2:(self.path/'pause').touch()
+            return result
+        self.session.observer=SimpleNamespace(observe=observe)
+        with self.assertRaises(StopRun) as caught:self.session.wait_for_afk_disconnect(1200)
+        self.assertEqual(caught.exception.kind,'user_stop')
+        self.assertFalse((self.path/'status.json').exists())
+        self.assertEqual(self.platform.events,[])
+
+    def test_idle_request_settles_login_rewards_before_no_input_monitor(self):
+        calls=[]
+        self.session.lobby=lambda:calls.append('settle_lobby')
+        self.session.wait_for_afk_disconnect=lambda seconds:calls.append(('idle',seconds))
+        self.session.preflight=lambda:calls.append('preflight')
+        self.session.choose_map=lambda:calls.append('choose_map')
+        self.session.prepare_camera=lambda retained=False:calls.append(('camera',retained))
+        self.session.play_matches=lambda *args:{'status':'victory'}
+        result=self.session.run(continuous=True,idle_lobby_seconds=1200)
+        self.assertEqual(calls[:3],['settle_lobby',('idle',1200),'preflight'])
+        self.assertEqual(result['status'],'victory')
 
     def test_login_overlay_is_dismissed_once_then_lobby_is_confirmed(self):
         self.state='login_rewards'

@@ -26,7 +26,7 @@ The worker reports actual versus required geometry if they differ. Other monitor
 
 ## Opening the installed Windows app
 
-Use the complete [v0.2.3 Windows release](https://github.com/PracticalSwan/tds-macro/releases/tag/v0.2.3), not a lone executable from an older build. Extract the ZIP to a writable local folder; `TDSMacro.exe`, `_internal/`, `assets/`, `calibrations/`, and `strategies/` must stay together. A desktop shortcut must point to that executable **and** use its containing folder as the working directory. If no GUI appears, inspect Alt+Tab/taskbar first: the app may have opened behind another window. See [troubleshooting](troubleshooting.md#application-does-not-open-or-appear).
+Use the complete [current Windows release](https://github.com/PracticalSwan/tds-macro/releases/latest), not a lone executable from an older build. Extract the ZIP to a writable local folder; `TDSMacro.exe`, `_internal/`, `assets/`, `calibrations/`, and `strategies/` must stay together. A desktop shortcut must point to that executable **and** use its containing folder as the working directory. If no GUI appears, inspect Alt+Tab/taskbar first: the app may have opened behind another window. See [troubleshooting](troubleshooting.md#application-does-not-open-or-appear).
 
 The project maintainer's local checkout had an older `dist/TDSMacro` copy after v0.2.3 was released. On 2026-11-16, the current release-matching binary was restored to that standard local directory, the older copy was archived, and a desktop shortcut was validated. These local paths and shortcuts are **not part of the release ZIP**. No Windows display scaling adjustment is required to open the GUI; game playback still requires the separately specified physical client geometry.
 

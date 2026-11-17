@@ -264,7 +264,9 @@ def restart_client(control,platform,report,*,locate=locate_client,close=close_cl
     raise StopRun('Recovery did not reach a foreground supported lobby or Login Rewards screen.',kind='setup')
 
 
-def supervise(output,platform,profile,*,attempt=None,restart=None,locate=locate_client,max_recoveries=3):
+def supervise(output,platform,profile,*,attempt=None,restart=None,locate=locate_client,max_recoveries=3,idle_lobby_seconds=0):
+    if type(idle_lobby_seconds) is not int or (idle_lobby_seconds and not 1200<=idle_lobby_seconds<=1800):
+        raise StopRun('AFK lobby monitoring is bounded to 1200..1800 seconds.',kind='setup')
     output=Path(output)
     started=platform.now()
     context={'recoveries':0,'max_recoveries':max_recoveries}
@@ -276,7 +278,9 @@ def supervise(output,platform,profile,*,attempt=None,restart=None,locate=locate_
         if (driver.expected.width,driver.expected.height,driver.expected.dpi)!=(1920,991,120):
             raise StopRun('This profile requires a 1920x991 client at 120 DPI.',kind='setup')
         session=Session(driver,path,profile,control=control,totals=totals)
-        return session.run(continuous=True)
+        idle_pending=(idle_lobby_seconds and not context.get('idle_lobby_monitor_completed')
+                      and not context.get('idle_lobby_disconnect_confirmed'))
+        return session.run(continuous=True,idle_lobby_seconds=idle_lobby_seconds if idle_pending else 0)
     attempt=attempt or run_attempt
     def finish(result):
         result={**result,**totals,'recoveries':context['recoveries']}

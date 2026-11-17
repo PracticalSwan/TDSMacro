@@ -225,6 +225,94 @@ class Session:
             self.driver.wait(.2)
         raise StopRun('Lobby did not settle: the login reward action did not settle or its caption was unreadable.')
 
+    def wait_for_afk_disconnect(self,seconds):
+        """Passively watch a stable TDS lobby for Roblox's exact AFK disconnect dialog."""
+        if type(seconds) is not int or not 1200<=seconds<=1800:
+            raise StopRun('AFK lobby monitoring is bounded to 1200..1800 seconds.',kind='setup')
+        stable_lobby=0
+        lobby_deadline=self.now()+60
+        while self.now()<lobby_deadline:
+            if self.control.paused():
+                raise StopRun('Pause requested during the no-input AFK lobby check.',kind='user_stop')
+            frame=self.frame(record_latest=False)
+            state=self.observer.observe(frame).state
+            if state=='lobby':
+                stable_lobby+=1
+                if stable_lobby>=2:
+                    if self.control.paused():
+                        raise StopRun('Pause requested during the no-input AFK lobby check.',kind='user_stop')
+                    break
+            elif state in {'unknown','loading'}:
+                stable_lobby=0
+            else:
+                raise StopRun(f'AFK lobby check requires a stable TDS lobby; saw {state}.',kind='setup')
+            self.driver.wait(.2)
+        else:
+            raise StopRun('AFK lobby check could not confirm two stable TDS lobby reads.',kind='setup')
+
+        started=self.now()
+        deadline=started+seconds
+        next_heartbeat=started+30
+        stable_disconnect=0
+        uncertain_since=None
+        unverified_disconnect_since=None
+        self.status('idle_lobby_monitor_started',idle_requested_seconds=seconds,
+                    capture_interval_seconds=1,no_game_input=True,stable_lobby_reads=stable_lobby)
+        while self.now()<deadline or stable_disconnect>0 or unverified_disconnect_since is not None:
+            if self.control.paused():
+                raise StopRun('Pause requested during the no-input AFK lobby check.',kind='user_stop')
+            remaining=max(0.0,deadline-self.now())
+            self.driver.wait(min(1.0,remaining) if remaining>0 else .2)
+            if self.control.paused():
+                raise StopRun('Pause requested during the no-input AFK lobby check.',kind='user_stop')
+            frame=self.frame(record_latest=False)
+            state=self.observer.observe(frame).state
+            elapsed=round(self.now()-started,1)
+            if state=='disconnect':
+                from .recovery import disconnect_prompt
+                if not disconnect_prompt(frame):
+                    stable_disconnect=0
+                    if unverified_disconnect_since is None:
+                        unverified_disconnect_since=self.now()
+                    elif self.now()-unverified_disconnect_since>8:
+                        self.save_frame(frame,'idle_disconnect_unverified.png')
+                        self.status('idle_disconnect_unverified',idle_elapsed_seconds=elapsed,no_game_input=True)
+                        raise StopRun('Disconnect screen did not show the exact Disconnected, Leave and Reconnect labels; no recovery input sent.',kind='setup')
+                else:
+                    stable_disconnect+=1
+                    uncertain_since=None
+                    unverified_disconnect_since=None
+                    if stable_disconnect>=2:
+                        self.save_frame(frame,'idle_disconnect_confirmed.png')
+                        self.control.context['idle_lobby_disconnect_confirmed']=True
+                        self.status('idle_disconnect_confirmed',idle_elapsed_seconds=elapsed,
+                                    stable_disconnect_reads=stable_disconnect,no_game_input=True)
+                        raise StopRun('Stable natural Roblox disconnect observed during no-input TDS lobby idle.',kind='failure')
+            elif state=='lobby':
+                stable_disconnect=0
+                uncertain_since=None
+                unverified_disconnect_since=None
+            elif state in {'unknown','loading'}:
+                stable_disconnect=0
+                unverified_disconnect_since=None
+                if uncertain_since is None:
+                    uncertain_since=self.now()
+                elif self.now()-uncertain_since>15:
+                    self.save_frame(frame,'idle_lobby_state_unverified.png')
+                    self.status('idle_lobby_state_unverified',state=state,idle_elapsed_seconds=elapsed,no_game_input=True)
+                    raise StopRun('TDS lobby state remained unreadable for 15 seconds during AFK monitoring.',kind='setup')
+            else:
+                self.save_frame(frame,'idle_lobby_interrupted.png')
+                self.status('idle_lobby_interrupted',state=state,idle_elapsed_seconds=elapsed,no_game_input=True)
+                raise StopRun(f'TDS left the lobby during the no-input AFK check (state={state}); recovery was not started.',kind='setup')
+            if self.now()>=next_heartbeat:
+                self.status('idle_lobby_monitoring',idle_elapsed_seconds=elapsed,
+                            idle_remaining_seconds=max(0,round(deadline-self.now())),no_game_input=True)
+                next_heartbeat=self.now()+30
+        self.control.context['idle_lobby_monitor_completed']=True
+        self.status('idle_lobby_monitor_complete',idle_observed_seconds=round(self.now()-started,1),
+                    disconnect_observed=False,no_game_input=True)
+
     def preflight(self):
         self.lobby()
         inventory=self.transition('open_inventory')
@@ -431,9 +519,11 @@ class Session:
         # nearest this verified title; thumbnails/reward numbers are excluded.
         count=self.vote_count(frame,current)
         view_clear_steps=0
+        forward_correction_steps=0
         if count is None:
             # The fixed avatar/head can hide a world-space badge after backing
-            # away. Clear that occlusion once, only on the verified voting floor.
+            # away. Recover a marginal floor only by moving forward; lateral
+            # view clearing still requires the original two-sided margin.
             if self.observer.observe(frame).state!='map_vote':
                 self.status('post_vote_state_changed',physical_board=self.board_index,target_recognized=True,
                             badge_read=False,badge_count=None,title_observations=observations,view_clear_steps=0,
@@ -441,48 +531,90 @@ class Session:
                             title_tokens=title_diagnostics.get('title_tokens',[]))
                 raise StopRun(f'Map-vote state changed before checking the vote badge (stage=post_vote_badge, '
                               f'physical_board={self.board_index}, title=confirmed, badge=not_read); Ready was not clicked.')
-            if not voting_floor(frame,for_strafe=True):
+            can_strafe=voting_floor(frame,for_strafe=True)
+            if not can_strafe and voting_floor(frame,require_both=False):
+                self.status('vote_badge_forward_correction',physical_board=self.board_index,target_recognized=True,
+                            badge_read=False,badge_count=None,title_observations=observations,view_clear_steps=0,
+                            forward_correction_steps=1,title_header_count=title_diagnostics.get('header_count',0),
+                            title_tokens=title_diagnostics.get('title_tokens',[]))
+                self.driver.key('W',.10)
+                forward_correction_steps=1
+                self.driver.wait(.2)
+                frame=self.frame(record_latest=False)
+                if self.observer.observe(frame).state!='map_vote':
+                    self.status('post_vote_state_changed',physical_board=self.board_index,target_recognized=None,
+                                badge_read=False,badge_count=None,title_observations=observations,view_clear_steps=0,
+                                forward_correction_steps=forward_correction_steps,
+                                title_header_count=0,title_tokens=[])
+                    raise StopRun('Map-vote state changed during the guarded forward floor correction; '
+                                  'no view adjustment or Ready click.')
+                self.save_frame(frame,'after_vote_forward_correction.png')
+                title_diagnostics={}
+                current=visible_target(frame,after_vote=True,diagnostics=title_diagnostics)
+                observations+=1
+                if current is None:
+                    self.status('post_vote_title_unconfirmed',physical_board=self.board_index,target_recognized=False,
+                                badge_read=False,badge_count=None,title_observations=observations,view_clear_steps=0,
+                                forward_correction_steps=forward_correction_steps,
+                                title_header_count=title_diagnostics.get('header_count',0),
+                                title_tokens=title_diagnostics.get('title_tokens',[]))
+                    tokens=','.join(title_diagnostics.get('title_tokens',[])) or 'none'
+                    raise StopRun(f'Target identity was lost after the guarded forward correction '
+                                  f'(stage=post_vote_title, physical_board={self.board_index}, '
+                                  f'title_tokens={tokens}); Ready was not clicked.')
+                count=self.vote_count(frame,current)
+                if count is None:
+                    can_strafe=voting_floor(frame,for_strafe=True)
+            if count is None and not can_strafe:
                 self.status('post_vote_view_clear_blocked',physical_board=self.board_index,target_recognized=True,
                             badge_read=False,badge_count=None,title_observations=observations,view_clear_steps=0,
+                            forward_correction_steps=forward_correction_steps,
                             title_header_count=title_diagnostics.get('header_count',0),
                             title_tokens=title_diagnostics.get('title_tokens',[]))
-                raise StopRun(f'Vote badge is unreadable and the voting-floor margin was not confirmed '
+                raise StopRun(f'Vote badge is unreadable and the voting-floor margin was not confirmed after '
+                              f'{forward_correction_steps} forward correction steps '
                               f'(stage=post_vote_badge, physical_board={self.board_index}, '
                               f'title_tokens={",".join(title_diagnostics.get("title_tokens",[])) or "none"}, badge=unknown); '
                               'no view adjustment or Ready click.')
-            self.status('vote_badge_view_adjustment',physical_board=self.board_index,target_recognized=True,
-                        badge_read=False,badge_count=None,title_observations=observations,view_clear_steps=0,
-                        view_clear_planned_steps=1,title_header_count=title_diagnostics.get('header_count',0),
-                        title_tokens=title_diagnostics.get('title_tokens',[]))
-            self.driver.key('D',.35)  # Open floor; left can climb the board-1 bench.
-            view_clear_steps=1
-            self.driver.wait(.2)
-            frame=self.frame()
-            if self.observer.observe(frame).state!='map_vote':
-                self.status('post_vote_state_changed',physical_board=self.board_index,target_recognized=None,
-                            badge_read=False,badge_count=None,title_observations=observations,view_clear_steps=1,
+            if count is None:
+                self.status('vote_badge_view_adjustment',physical_board=self.board_index,target_recognized=True,
+                            badge_read=False,badge_count=None,title_observations=observations,view_clear_steps=0,
+                            forward_correction_steps=forward_correction_steps,view_clear_planned_steps=1,
                             title_header_count=title_diagnostics.get('header_count',0),
                             title_tokens=title_diagnostics.get('title_tokens',[]))
-                raise StopRun(f'Map-vote state changed while clearing the vote badge (stage=post_vote_badge, '
-                              f'physical_board={self.board_index}, badge=not_read, view_clear_steps=1); '
-                              'Ready was not clicked.')
-            self.save_frame(frame,'after_vote_clear.png')
-            title_diagnostics={}
-            current=visible_target(frame,after_vote=True,diagnostics=title_diagnostics)
-            observations+=1
-            count=self.vote_count(frame,current) if current is not None else None
+                self.driver.key('D',.35)  # Open floor; left can climb the board-1 bench.
+                view_clear_steps=1
+                self.driver.wait(.2)
+                frame=self.frame()
+                if self.observer.observe(frame).state!='map_vote':
+                    self.status('post_vote_state_changed',physical_board=self.board_index,target_recognized=None,
+                                badge_read=False,badge_count=None,title_observations=observations,view_clear_steps=1,
+                                forward_correction_steps=forward_correction_steps,
+                                title_header_count=title_diagnostics.get('header_count',0),
+                                title_tokens=title_diagnostics.get('title_tokens',[]))
+                    raise StopRun(f'Map-vote state changed while clearing the vote badge (stage=post_vote_badge, '
+                                  f'physical_board={self.board_index}, badge=not_read, view_clear_steps=1); '
+                                  'Ready was not clicked.')
+                self.save_frame(frame,'after_vote_clear.png')
+                title_diagnostics={}
+                current=visible_target(frame,after_vote=True,diagnostics=title_diagnostics)
+                observations+=1
+                count=self.vote_count(frame,current) if current is not None else None
         if count!=1:
             badge='unknown' if count is None else str(count)
             self.status('post_vote_badge_unconfirmed',physical_board=self.board_index,target_recognized=current is not None,
                         badge_read=count is not None,badge_count=count,title_observations=observations,view_clear_steps=view_clear_steps,
+                        forward_correction_steps=forward_correction_steps,
                         title_header_count=title_diagnostics.get('header_count',0),
                         title_tokens=title_diagnostics.get('title_tokens',[]))
             raise StopRun(f'The verified target does not show one solo vote (stage=post_vote_badge, '
                           f'physical_board={self.board_index}, title={"confirmed" if current is not None else "unreadable"}, '
                           f'title_tokens={",".join(title_diagnostics.get("title_tokens",[])) or "none"}, '
-                          f'badge={badge}, observations={observations}, view_clear_steps={view_clear_steps}); '
+                          f'badge={badge}, observations={observations}, view_clear_steps={view_clear_steps}, '
+                          f'forward_correction_steps={forward_correction_steps}); '
                           'Ready was not clicked.')
-        self.status('target_voted',physical_board=self.board_index)
+        self.status('target_voted',physical_board=self.board_index,view_clear_steps=view_clear_steps,
+                    forward_correction_steps=forward_correction_steps)
         self.driver.click(960,778)
         self.wait_state('match_ready',TELEPORT_SECONDS,{'map_vote','loading','in_match'})
 
@@ -608,11 +740,20 @@ class Session:
         self.save_frame(self.frame(),'prepared.png')
         self.status('prepared',physical_board=self.board_index,placement_price=bar.price)
 
-    def run(self,matches=1,repeat_route='play-again',prepare_only=False,continuous=False):
+    def run(self,matches=1,repeat_route='play-again',prepare_only=False,continuous=False,idle_lobby_seconds=0):
         if not 1<=matches<=10 or repeat_route not in {'play-again','lobby'} or (continuous and prepare_only):
             raise StopRun('Require 1..10 bounded matches or explicit continuous play, with a supported repeat route.')
+        if type(idle_lobby_seconds) is not int or (idle_lobby_seconds and
+                (not 1200<=idle_lobby_seconds<=1800 or not continuous or prepare_only)):
+            raise StopRun('AFK lobby monitoring requires 1200..1800 seconds of continuous play.',kind='setup')
         if shutil.disk_usage(self.output).free<2*1024**3:
             raise StopRun('Less than 2 GiB free on the evidence disk; no game input sent.',kind='storage')
+        if idle_lobby_seconds:
+            # Resolve a verified login-reward overlay before beginning the
+            # no-input interval. Once monitoring starts, every unexpected UI
+            # state is a stop rather than an opportunity to click.
+            self.lobby()
+            self.wait_for_afk_disconnect(idle_lobby_seconds)
         self.preflight()
         self.choose_map()
         self.prepare_camera()
@@ -692,6 +833,7 @@ def main(argv=None):
     parser.add_argument('--repeat-route',choices=['play-again','lobby'],default='play-again')
     parser.add_argument('--prepare-only',action='store_true')
     parser.add_argument('--startup-delay',type=int,default=0,choices=range(0,11),help='Seconds to switch focus to Roblox; no automatic refocus')
+    parser.add_argument('--idle-lobby-seconds',type=int,default=0,help='One-time, no-input AFK lobby observation (1200..1800 seconds); requires --continuous --auto-recover')
     args=parser.parse_args(argv)
     if args.action!='start':
         if not args.output.is_dir():
@@ -712,6 +854,8 @@ def main(argv=None):
         parser.error('Start requires --confirm-start and either 1..10 matches or --continuous; F8/Escape stops.')
     if args.auto_recover and not args.continuous:
         parser.error('--auto-recover requires an explicitly started continuous run.')
+    if args.idle_lobby_seconds and (not 1200<=args.idle_lobby_seconds<=1800 or not args.auto_recover or not args.continuous):
+        parser.error('--idle-lobby-seconds requires 1200..1800 seconds with --continuous --auto-recover.')
     session=None
     platform=None
     try:
@@ -728,7 +872,7 @@ def main(argv=None):
             pointer=ROOT/'captures/last_session.txt';pointer.parent.mkdir(parents=True,exist_ok=True)
             pointer.write_text(str(args.output.resolve()),encoding='utf-8')
             from .recovery import supervise
-            result=supervise(args.output,platform,args.profile)
+            result=supervise(args.output,platform,args.profile,idle_lobby_seconds=args.idle_lobby_seconds)
             return 0 if result['status'] in {'victory','prepared'} else 2
         driver=GuardedInput(locate_roblox(),platform)
         driver.check()
@@ -738,7 +882,7 @@ def main(argv=None):
         pointer=ROOT/'captures/last_session.txt'
         pointer.parent.mkdir(parents=True,exist_ok=True)
         pointer.write_text(str(args.output.resolve()),encoding='utf-8')
-        result=session.run(args.matches,args.repeat_route,args.prepare_only,args.continuous)
+        result=session.run(args.matches,args.repeat_route,args.prepare_only,args.continuous,args.idle_lobby_seconds)
         session.status(result['status'],result=result)
         (args.output/'result.json').write_text(json.dumps(result,indent=2),encoding='utf-8')
         return 0 if result['status'] in {'victory','prepared'} else 2

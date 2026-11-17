@@ -47,7 +47,7 @@ jobs:
         run: |
           .\.venv\Scripts\python.exe -m compileall -q src tests tds_launcher.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          foreach ($suite in @('strategy','phase1','control','navigation','match','run','app','status','recovery','vertical_profile')) {
+          foreach ($suite in @('strategy','phase1','control','navigation','maps','match','run','app','session','status','recovery','vertical_profile')) {
             .\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_$suite.py" -v
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
