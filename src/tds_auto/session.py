@@ -538,17 +538,26 @@ class Session:
     def vote_count(self,frame,target):
         import cv2
         import numpy as np
-        pixels=np.asarray(frame.convert('RGB')).astype(np.float32)
-        red,green,blue=(pixels[:,:,i] for i in range(3))
-        mask=np.uint8((red>180)&(green>65)&(green<200)&(blue>65)&(blue<200)&(red>green*1.2))*255
-        mask[:320]=0
-        mask[650:]=0
-        contours,_=cv2.findContours(mask,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
         center=(target.box[0]+target.box[2])/2
         expected_badge=center+(target.box[2]-target.box[0])*.35
+        # Only 25..120px badges within 100px of this target can qualify.
+        # The 190px margin retains the entire contour for every eligible badge.
+        x1=max(0,int(expected_badge)-190)
+        x2=min(frame.width,int(expected_badge)+191)
+        if x2<=x1 or frame.height<650:
+            return None
+        pixels=np.asarray(frame.crop((x1,320,x2,650)).convert('RGB'),dtype=np.uint16)
+        red,green,blue=(pixels[:,:,i] for i in range(3))
+        # red*5 > green*6 is the exact integer version of red>green*1.2.
+        mask=np.uint8((red>180)&(green>65)&(green<200)&(blue>65)&(blue<200)&(red*5>green*6))*255
+        contours,_=cv2.findContours(mask,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
         candidates=[]
         for contour in contours:
             x,y,w,h=cv2.boundingRect(contour)
+            # A clipped world/decoration contour must never become a fake badge.
+            if x==0 or x+w==x2-x1:
+                continue
+            x+=x1;y+=320
             if 25<=w<=120 and 25<=h<=120 and .65<w/h<1.5 and abs(x+w/2-expected_badge)<100:
                 value=parse_cash(self.ocr.read(frame.crop((x,y,x+w,y+h))))
                 if value is None and badge_is_one(frame,(x,y,x+w,y+h)):

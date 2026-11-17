@@ -1,5 +1,13 @@
 # Verification
 
+## 2026-11-17 — Independent code review and bounded vote-badge optimization (not yet packaged/live)
+
+The reviewed Codex thread and actual v0.2.4 candidate confirm the owner-revised **ten-win** acceptance and real F2 stop: ten 44/44 Dead Ahead/Easy wins, 4,500 coins, zero navigation recoveries (physical board 1 only). The corrected disconnect-to-Roblox-Home relaunch is **not** proven live. The code changes below are not in the existing candidate ZIPs; v0.2.3 remains the published release.
+
+A read-only benchmark on the real sanitized `post_vote_badge_view_clear_d.png` image measured median **28.28 ms** for the prior full-frame float32 badge mask/contour scan versus **1.15 ms** for a target-centered uint16 crop (12 iterations per version). The implementation now searches the y=320..649, x=predicted-badge±190 ROI, uses integer `red*5>green*6` (same color threshold), restores full-frame candidate coordinates and rejects horizontal-ROI-clipped contours before the same shape and ±100px checks. This addresses unnecessary array allocation, not a known failed vote.
+
+**Post-change results:** focused `test_session.py` **72/72 passed**. Direct saved-frame comparisons matched all seven cases: board-1 badge one and neighboring unknown, board-4 one, A unknown, C one, post-vote D-view-clear one, and the replay badge-one frame. Median end-to-end badge readings on these frames ranged roughly 1.3–13.7 ms depending on OCR/template usage. The full **341/341-test suite**, Python compilation, the 18-package compatibility check and diff whitespace checks passed after this source change. No new live Roblox run, bundled application, in-game performance, or corrected Home recovery has been verified after it. The next agent must rebuild the candidate and prioritize **real guarded Roblox trials**, especially the Home path, before releasing v0.2.4.
+
 ## v0.2.4 candidate verification — live recovery gate pending (2026-11-17)
 
 The published release remains v0.2.3. Offline regression and packaging evidence is recorded below, and the owner-revised ten-win live gate plus native F2 stop are now observed. A fresh packaged live run through the corrected disconnect-to-Roblox-Home recovery path has not been completed. Do not tag or publish v0.2.4 until that critical live proof and all remaining release checks pass.

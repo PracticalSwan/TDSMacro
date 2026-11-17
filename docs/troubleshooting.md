@@ -35,6 +35,10 @@ Read the last reason in the app. Use F2 before adjusting the game. With recovery
 | Vote badge unreadable after voting | The macro never repeats E or clicks Ready. It may clear the view once with D only after confirming the two-sided voting-floor margin. If that margin is absent, the attempt stops and retains `before_vote.png`, `after_vote.png`, and the status/recovery records. |
 | Roblox launch error 0x800705b4 / already running | Recovery waits for process exit and then 60 seconds before one launch. F2 cancels that wait. If it still fails, stop and open Roblox normally; do not repeatedly launch over a stuck instance. |
 
+## Candidate follow-up: disconnect-to-Home still requires live acceptance
+
+The 2026-11-17 candidate's first live Error 278 recovery reached Roblox Home after one verified Leave click but initially failed to close the client. The revised state reader permits a second ordinary close only after **two exact Home observations on the same verified foreground Roblox process** and then handles a recognized close confirmation without repeating Leave. This path has focused synthetic/real-frame checks but **has not yet completed a fresh live Home→process-exit→lobby trial**. Treat any stop here as evidence to inspect, not permission for force termination, background input, repeated Leave or uncontrolled relaunch. Live-test it on the rebuilt candidate using clean native captures after the app/worker is uniquely started.
+
 ## Slow connections and animation
 
 | Boundary | Maximum observation window |
