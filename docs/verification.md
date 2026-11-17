@@ -16,7 +16,9 @@ The packaged app contains 1,277 files (178,032,520 bytes), one calibrated nine-S
 
 ### Source checks and release boundary
 
-Fresh focused checks on 2026-11-18 passed: test_recovery.py 55/55, test_session.py 78/78 and test_maps.py 30/30. The freshly rerun complete local suite passed **348/348 tests in 36.564 seconds**; compileall, the 18-package compatibility check and git diff --check passed. The Windows workflow now also runs the maps and session suites. At this dated validation checkpoint, v0.2.3 remained the published release; v0.2.4 publication was gated on the exact pushed commit's Windows CI and final remote asset verification.
+Fresh focused checks on 2026-11-18 passed: test_recovery.py 55/55, test_session.py 78/78 and test_maps.py 30/30. The freshly rerun complete local suite passed **348/348 tests in 36.564 seconds**; compileall, the 18-package compatibility check and git diff --check passed. The Windows workflow now also runs the maps and session suites. At the prepublication validation checkpoint, v0.2.3 remained the published release and v0.2.4 awaited exact-commit Windows CI and remote asset verification. The gate then passed: Windows CI run 44139911249 succeeded on c36ccb4c76e8ff42a204bb64a521da81e3754cc3, and v0.2.4 was published at that tag target. The downloaded remote ZIP matched the local 72,888,839-byte asset and SHA-256 above; its checksum sidecar matched and the full ZIP read/CRC check passed. The v0.2.3 release remains published and unchanged.
+
+After publication, a native probe found the Roblox client at 1920×991/120 DPI but not in the foreground. The native capture guard therefore declined capture. No worker was started, and the client was not activated; the post-release macro session was left stopped because the required foreground and clean-capture conditions were not met.
 
 ## Historical 2026-11-17 — Vote-floor recovery and natural AFK monitor (fresh source checks at that time)
 
