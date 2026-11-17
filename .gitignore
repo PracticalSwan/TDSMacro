@@ -43,6 +43,7 @@ scripts/menu_probe.ahk
 docs/*
 !docs/setup.md
 !docs/troubleshooting.md
+!docs/diagnostic-data.md
 !docs/development.md
 !docs/verification.md
 !docs/strategies.md

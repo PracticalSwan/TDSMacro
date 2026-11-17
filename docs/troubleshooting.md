@@ -66,6 +66,8 @@ Reports should include release, measured geometry/DPI, language, phase, modifier
 
 ### Local run data: purpose, store and retention
 
+See the [field-level local diagnostic data map](diagnostic-data.md) for the source-derived writer inventory and synthetic records.
+
 The GUI writes one local run directory under `captures/runs/app_<timestamp>/`; recovery attempts use child `attempt_<number>/` folders. Its worker log is the sibling `captures/runs/app_<timestamp>.log`. The app uses local Windows OCR and has no upload or cloud OCR path. The `captures/` tree is ignored by Git. Full-screen PNGs can contain player/account UI, so keep them local and share only a redacted stop reason.
 
 | Fields or record | Purpose and store | Update and retention |
@@ -79,7 +81,7 @@ The GUI writes one local run directory under `captures/runs/app_<timestamp>/`; r
 | `latest.png` and named PNG checkpoints | Visual evidence in the run/attempt folder for navigation and match diagnosis | Some paths are overwritten as the run progresses; named snapshots and match evidence remain with the folder. Screenshots are not automatically uploaded or deleted. |
 | `captures/last_session.txt` | Pointer to the most recent run directory | Replaced when a new run starts; the stored path is local metadata. |
 
-Navigation status snapshots also include bounded diagnostics: stage, physical board when known, whether the title/badge was recognized, badge value, keycap score, literal-caption result, header count, observation count and bounded movement count. `badge_read` is true only when a numeric badge value was recognized, including zero; an unknown `null` count keeps it false. OCR text is restricted to the two expected title tokens `dead` and `ahead`; arbitrary OCR output is not written to summaries. Inspect the local named PNG sequence when image-level diagnosis is needed:
+Navigation status snapshots also include bounded diagnostics: stage, physical board when known, whether the title/badge was recognized, badge value, keycap score, literal-caption result, header count, observation count and bounded movement count. `badge_read` is true only when a numeric badge value was recognized, including zero; an unknown `null` count keeps it false. The `title` status value comes from OCR on the board-header crop and can include recognized words around the expected Dead Ahead phrase. Review status and worker logs before sharing them; `title_tokens` diagnostics are normalized to the expected title tokens. Inspect the local named PNG sequence when image-level diagnosis is needed:
 
 - Post-vote title/badge: `before_vote.png`, `after_vote.png`, `after_vote_clear.png` when used, and the final `latest.png`.
 - VIP approach: `vip_step_00.png` through the last observed step, with no more than the existing 12 D movements.
