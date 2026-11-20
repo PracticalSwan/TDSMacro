@@ -2,6 +2,8 @@
 
 ## v0.3.0 — Hardcore Wretched Front Gem Grind
 
+Released November 21, 2026 (Bangkok), at commit f9fb225; successful Windows CI and independently checked published archive.
+
 - Add a separate 14-phase Solo Hardcore Wretched Front strategy using 10 Farms level 3, 3 Boomerangs level 4 and 5 regular Crook Bosses level 3. The original nine-Golden-Scout strategy and its 44 actions remain unchanged; the tenth-Scout revamp is reserved for v0.3.1.
 - Use real-time bottom-HUD-only digit-filtered cash OCR, verified tower identities/levels/quotes, protected camera registration, bounded selection-only retry, guarded setup and direct Restart Match after qualifying results. No per-cycle lobby wallet polling.
 - Native acceptance on November 20: ten consecutive result-verified wave30 natural Defeat screens, 75/75 guarded purchase actions per match and 137 Gems displayed per match (1,370 total). Displayed rewards are not independent wallet-credit audits.
