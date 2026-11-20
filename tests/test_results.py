@@ -49,3 +49,15 @@ class ResultTests(unittest.TestCase):
             result=ResultReader().read(frame)
             self.assertIsNotNone(result)
             self.assertEqual((result.map_name,result.difficulty,result.wave,result.duration_seconds,result.coins),('Dead Ahead','Easy',20,464,450))
+
+    def test_current_hardcore_defeat_reads_the_wave_and_displayed_gems(self):
+        from tds_auto.observer import Observer
+        from tds_auto.resources import LocalOCR
+        from tds_auto.results import HardcoreResult, read_hardcore_result
+
+        for wave, duration, gems in ((12,134,4),(19,252,37)):
+            with self.subTest(wave=wave):
+                with Image.open(ROOT/'tests/fixtures'/f'hardcore_result_wave{wave}.png') as frame:
+                    self.assertEqual(read_hardcore_result(frame, Observer(), LocalOCR()),
+                                     HardcoreResult('defeat',wave,duration,gems))
+                    self.assertIsNone(ResultReader().read(frame))

@@ -2,6 +2,7 @@
 import sys
 import unittest
 import ctypes
+import os
 from ctypes import wintypes
 from dataclasses import replace
 from pathlib import Path
@@ -10,7 +11,8 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from tds_auto.phase1 import Window
 try:
-    from tds_auto.control import GuardedInput, StopRun, WindowsOS
+    from tds_auto.control import (GuardedInput, StopRun, WindowsOS, active_computer_use_controller_pids,
+                                  is_active_computer_use_window_title)
 except ImportError:
     GuardedInput = None
     StopRun = RuntimeError
@@ -43,6 +45,40 @@ class FakeOS:
 
 
 class ControlTests(unittest.TestCase):
+    def test_active_computer_use_overlay_titles_are_detected(self):
+        self.assertTrue(is_active_computer_use_window_title(
+            'ChatGPT is using your computer. Esc to cancel'))
+        self.assertTrue(is_active_computer_use_window_title(
+            'ChatGPT is using your screen'))
+        self.assertFalse(is_active_computer_use_window_title('ChatGPT'))
+
+    def test_startup_refuses_active_computer_use_controller(self):
+        with patch('tds_auto.control.active_computer_use_controller_pids',
+                   return_value=(2384,27936),create=True):
+            with self.assertRaisesRegex(StopRun,'computer-use controller'):
+                WindowsOS()
+
+    def test_hidden_overlay_does_not_block_but_visible_overlay_does(self):
+        user = ctypes.WinDLL('user32', use_last_error=True)
+        user.CreateWindowExW.argtypes = [
+            wintypes.DWORD, wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD,
+            wintypes.INT, wintypes.INT, wintypes.INT, wintypes.INT,
+            wintypes.HWND, wintypes.HMENU, wintypes.HINSTANCE, wintypes.LPVOID,
+        ]
+        user.CreateWindowExW.restype = wintypes.HWND
+        user.ShowWindow.argtypes = [wintypes.HWND, wintypes.INT]
+        user.DestroyWindow.argtypes = [wintypes.HWND]
+        hwnd = user.CreateWindowExW(
+            0x08000000, 'STATIC', 'ChatGPT is using your computer. Esc to cancel',
+            0x80000000, -32000, -32000, 1, 1, None, None, None, None,
+        )
+        self.assertTrue(hwnd, f'Could not create the test window ({ctypes.get_last_error()})')
+        self.addCleanup(user.DestroyWindow, hwnd)
+
+        self.assertNotIn(os.getpid(), active_computer_use_controller_pids())
+        user.ShowWindow(hwnd, 4)  # SW_SHOWNOACTIVATE keeps the current app focused.
+        self.assertIn(os.getpid(), active_computer_use_controller_pids())
+
     def test_explicit_stop_and_focus_loss_have_non_recoverable_kinds(self):
         self.os.stopped=True
         with self.assertRaises(StopRun) as caught:self.driver.check()
@@ -83,6 +119,10 @@ class ControlTests(unittest.TestCase):
         with self.assertRaises(StopRun):
             self.driver.select_all()
         self.assertEqual(self.os.events[-2:], [('key_up','A'), ('key_up','CTRL')])
+
+    def test_backspace_uses_the_guarded_key_path_and_releases(self):
+        self.driver.key('BACKSPACE',0)
+        self.assertEqual(self.os.events,[('key_down','BACKSPACE'),('key_up','BACKSPACE')])
 
     def test_resize_move_dpi_or_identity_change_aborts(self):
         for changed in (dict(width=1800), dict(height=1009), dict(x=5), dict(dpi=96), dict(pid=9), dict(hwnd=3)):
@@ -154,7 +194,8 @@ class ControlTests(unittest.TestCase):
             events.append((event.type, int.from_bytes(raw[:2], "little"),
                            int.from_bytes(raw[2:4], "little"), int.from_bytes(raw[4:8], "little")))
             return 1
-        with patch.object(phase1.USER, "SendInput", side_effect=record):
+        with patch('tds_auto.control.ensure_no_computer_use_controller'), \
+             patch.object(phase1.USER, "SendInput", side_effect=record):
             platform = WindowsOS()
             platform.emit("key_down", "W")
             platform.emit("key_up", "W")
@@ -210,7 +251,8 @@ class ControlTests(unittest.TestCase):
     def test_f8_message_survives_a_busy_interval_and_latches(self):
         # Exercise the actual native message queue without sending keyboard input.
         from tds_auto import phase1
-        platform = WindowsOS(stop_hotkey=True)
+        with patch('tds_auto.control.ensure_no_computer_use_controller'):
+            platform = WindowsOS(stop_hotkey=True)
         try:
             kernel = ctypes.WinDLL('kernel32')
             kernel.GetCurrentThreadId.restype = wintypes.DWORD
@@ -224,12 +266,14 @@ class ControlTests(unittest.TestCase):
                 self.assertTrue(platform.stop_requested())
         finally:
             platform.close()
-        again = WindowsOS(stop_hotkey=True)
+        with patch('tds_auto.control.ensure_no_computer_use_controller'):
+            again = WindowsOS(stop_hotkey=True)
         again.close()
 
     def test_failed_f8_registration_refuses_to_start(self):
         from tds_auto import phase1
-        with patch.object(phase1.USER, 'RegisterHotKey', return_value=0):
+        with patch('tds_auto.control.ensure_no_computer_use_controller'), \
+             patch.object(phase1.USER, 'RegisterHotKey', return_value=0):
             with self.assertRaisesRegex(StopRun, 'F8'):
                 WindowsOS(stop_hotkey=True)
 

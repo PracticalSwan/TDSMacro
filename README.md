@@ -1,24 +1,27 @@
 # TDS Macro
 
-A Windows app for **Golden Scout · Dead Ahead · Survival / Easy / Solo** in Roblox Tower Defense Simulator. It selects the map, prepares an overhead view, places nine Scouts vertically along the path, and repeats successful matches with Play Again.
+A Windows 11 macro for **Roblox Tower Defense Simulator**, using screenshot/OCR-verified actions, calibrated positions and strict foreground safeguards. **v0.3.0** supports two Solo strategies.
 
-**[Download the Windows app](https://github.com/PracticalSwan/tds-macro/releases/latest)** · [Setup](docs/setup.md) · [Troubleshooting](docs/troubleshooting.md) · [Verification](docs/verification.md)
+| Strategy | Mode and map | Required loadout | Actions / result |
+|---|---|---|---|
+| Golden Scout | Survival Easy · Dead Ahead | Golden Scout slot 1; slots 2–5 empty; VIP map selection | Nine Scouts, 44 actions (existing v0.2.4 behavior) |
+| Hardcore Gem Grind | Hardcore · Wretched Front | Boomerang slot 1, regular Crook Boss slot 2, Farm slot 3; slot 5 empty | 18 towers, 75 actions; natural wave 30, 137 Gems displayed |
 
-**Planning only — v0.3.0:** A proposed [Hardcore Gem Grind / Wretched Front implementation plan](docs/plans/2026-11-18-v0.3.0-hardcore-gem-grind-implementation.md), [reference notes](docs/plans/2026-11-18-v0.3.0-hardcore-gem-grind-references.md), and [real-game acceptance checklist](docs/plans/2026-11-18-v0.3.0-hardcore-gem-grind-live-trials.md) are available for the implementing agent. Hardcore is **not available in the currently released v0.2.4 app**.
+**Hardcore v0.3.0 live acceptance (November 20, 2026):** Ten consecutive native Solo Hardcore matches passed: **750/750 confirmed actions**, all 18 required towers at final levels in each match, ten natural wave-30 Defeat screens and **1,370 Gems displayed** (137 per match). The worker used the in-game **Restart Match** button between results. These values are confirmed **from result screens only**, not from account-wallet audits, and do not guarantee future matches against game updates or connectivity changes.
 
-![Strategy selector with F1 Start and F2 Stop](docs/images/app.png)
+The Golden Scout strategy remains unchanged from v0.2.4. The requested tenth Golden Scout and additional maximum upgrades are reserved for **v0.3.1**, not included in v0.3.0.
+
+**[Download Windows release](https://github.com/PracticalSwan/tds-macro/releases/latest)** · [Setup](docs/setup.md) · [Troubleshooting](docs/troubleshooting.md) · [Verification evidence](docs/verification.md)
 
 ## Start playing
 
-1. Extract the release ZIP. Keep the entire `TDSMacro` folder together.
-2. Open `TDSMacro.exe` and choose Golden Scout.
-3. Open the TDS lobby with **Golden Scout in slot 1 and slots 2–5 empty**.
-4. Press **F1**, then put Roblox in front during the five-second countdown.
-5. Keep Roblox focused. **F2 stops**; closing the app also stops its worker. F8/Escape are additional emergency stops.
+1. Download and extract the full release ZIP to a writable folder. Keep the executable and its _internal, assets, calibrations, strategies and docs folders together; the executable cannot run alone.
+2. Launch the official Microsoft Store Roblox client and join the TDS lobby.
+3. Equip the desired strategy's loadout as specified above. Choose **Golden Scout** or **Hardcore Gem Grind** in TDSMacro.exe. The macro rechecks the configured towers before playing.
+4. Press **F1** to start. Keep Roblox visible and foreground with the calibrated geometry throughout play. **F2** stops; **F8/Escape** are emergency stops. Closing the app requests a safe stop.
+5. The macro chooses the corresponding map and starts an automatically verified match. Hardcore uses the game's **Restart Match** button after an exact qualifying result, without unnecessary lobby wallet polling. Any uncertain purchase, focus change, disconnect or result stops or invokes the bounded configured recovery policy.
 
-**Launch note:** Run `TDSMacro.exe` **inside the fully extracted `TDSMacro` folder**, alongside `_internal`, `assets`, `calibrations`, and `strategies`. The `.exe` by itself is not a standalone app. If it appears not to open, check **Alt+Tab** or the taskbar; a working GUI can start behind another window. Multiple locally built versions can have the same filename, so prefer the current [release ZIP](https://github.com/PracticalSwan/tds-macro/releases/latest) rather than an older `dist` copy. [Troubleshooting](docs/troubleshooting.md) covers further checks.
-
-The app repeats successful matches and displays confirmed progress, wins and coins. **Recover game failures automatically** is enabled by default: a failed game is closed, TDS is reopened and the strategy starts fresh from the lobby. F2 cancels both play and recovery. No separate Python installation is needed.
+For Hardcore, the displayed Gems counter is **not** a wallet balance. Game updates, unusual settings, network interruptions and different camera/display geometry may stop the macro safely. Read [setup](docs/setup.md) before the first run.
 
 ## Required setup
 
@@ -28,14 +31,14 @@ The app repeats successful matches and displays confirmed progress, wins and coi
 | Roblox client area | **1920 × 991 physical pixels, 120 DPI** (125% scaling) |
 | Window / language | Windowed, fully visible and foreground; English TDS and local English Windows OCR |
 | TDS settings | UI Scale **Large**, vertical upgrades; [full baseline](docs/setup.md#tds-settings-baseline) |
-| Game / account | Solo; VIP map selection; Golden Scout only in slot 1 |
-| Strategy | Dead Ahead, Survival / Easy; nine Scouts, 44 actions |
+| Game / account | Solo; VIP required for Golden Scout map selection; Hardcore uses its own Solo loadout |
+| Strategy | Golden Scout: Dead Ahead/Easy, 44 actions. Hardcore: Wretched Front/Hardcore, 75 actions |
 
 The client area excludes title bar/borders. A 1920×1080 display is tested; a “1920×992 window” is not an equivalent measurement. Fullscreen, other sizes/DPI, macOS and mobile are unsupported. Read [setup](docs/setup.md) first.
 
 ## Verified behavior and limits
 
-The app reads live cash, prices, tower state and results before sending each guarded action. It stops on unknown states, lost foreground, changed identity, unsupported geometry or unconfirmed purchases. Recovery never refocuses Roblox or repeats an uncertain action. **v0.2.4** verified a natural Error 278 disconnect, guarded Leave → Roblox Home → close → relaunch → stable lobby, and a subsequent 44/44-action win. A separate Error 277 recovery stopped because a foreground lobby could not be verified; automatic recovery from that case is **not** established. See [verification](docs/verification.md) for the exact evidence, release checks and unverified boundaries.
+The app reads live cash (only the bottom HUD for Hardcore), prices, tower state and results before sending each guarded action. It stops on unknown states, lost foreground, changed identity, unsupported geometry or unconfirmed purchases. Recovery never refocuses Roblox or repeats an uncertain action. **v0.2.4** verified a natural Error 278 disconnect, guarded Leave → Roblox Home → close → relaunch → stable lobby, and a subsequent 44/44-action win. A separate Error 277 recovery stopped because a foreground lobby could not be verified; automatic recovery from that case is **not** established. See [verification](docs/verification.md) for the exact evidence, release checks and unverified boundaries.
 
 Cash/prices are read from the game; starting cash is not fixed. Tower identity uses labels and levels rather than skin portraits. **Modifier selection is deferred pending challenge unlocks.** Committed + Limitation + Hidden Enemies + Glass remains a future target requiring separate win/reward validation. This release retains the existing profile and does not configure modifiers or claim a reward boost. Other modifier combinations and skins still need live trials. UI changes may require recalibration.
 

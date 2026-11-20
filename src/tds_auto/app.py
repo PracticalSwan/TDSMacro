@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+from dataclasses import asdict
 import json
 import queue
 import subprocess
@@ -11,9 +12,31 @@ import threading
 from datetime import datetime
 from pathlib import Path
 from ctypes import wintypes
+from .hardcore_plan_v2 import PLAN_ID as PLAN_V2_ID
 
 ROOT = Path(__file__).resolve().parents[2]
-STRATEGIES = {'Golden Scout — Dead Ahead / Easy / Solo': 'dead_ahead_vertical_nine_v4.json'}
+STRATEGIES = {
+    'Golden Scout — Dead Ahead / Easy / Solo': 'dead_ahead_vertical_nine_v4.json',
+    'Hardcore Gem Grind — Wretched Front / Solo': PLAN_V2_ID,
+}
+
+
+def preflight_roblox_start(cancelled=None, allow_recovery=False):
+    """Verify the client, or let the guarded recovery worker launch it."""
+    from .phase1 import RobloxWindowUnavailable, capture, focus_roblox
+
+    try:
+        window = focus_roblox(cancelled=cancelled)
+    except RobloxWindowUnavailable:
+        if not allow_recovery:
+            raise
+        if cancelled is not None and cancelled():
+            raise RuntimeError('Roblox start preflight cancelled.')
+        return None
+    capture(window)
+    if cancelled is not None and cancelled():
+        raise RuntimeError('Roblox start preflight cancelled.')
+    return window
 
 
 class Hotkeys:
@@ -22,6 +45,8 @@ class Hotkeys:
 
     def __init__(self):
         self.events = queue.Queue()
+        self._generation_lock = threading.Lock()
+        self._stop_generation = 0
         self.ready = threading.Event()
         self.error = None
         self.thread_id = None
@@ -49,13 +74,34 @@ class Hotkeys:
             message = wintypes.MSG()
             while user.GetMessageW(ctypes.byref(message), None, 0, 0) > 0:
                 if message.message == 0x0312 and message.wParam in self.ids:
-                    self.events.put(self.ids[message.wParam])
+                    self._queue_event(self.ids[message.wParam])
         except Exception as exc:
             self.error = str(exc)
         finally:
             for ident in registered:
                 user.UnregisterHotKey(None, ident)
             self.ready.set()
+
+    def _queue_event(self, event):
+        """Bind F1 to the stop generation at keypress time, before Tk drains it."""
+        with self._generation_lock:
+            if event == 'stop':
+                self._stop_generation += 1
+            generation = self._stop_generation
+        self.events.put((event, generation))
+        return generation
+
+    def current_generation(self):
+        with self._generation_lock:
+            return self._stop_generation
+
+    def cancelled_since(self, generation):
+        with self._generation_lock:
+            return self._stop_generation != generation
+
+    def cancel_start_requests(self):
+        with self._generation_lock:
+            self._stop_generation += 1
 
     def close(self):
         if self.thread_id and self.thread.is_alive():
@@ -66,35 +112,59 @@ class Hotkeys:
 
 
 class Controller:
-    def __init__(self, root=ROOT, launch=subprocess.Popen):
+    def __init__(self, root=ROOT, launch=subprocess.Popen, preflight=None):
         self.root, self.launch = Path(root), launch
+        self.preflight = preflight or preflight_roblox_start
         self.worker = None
         self.output = None
         self.stop_requested = False
+        self.startup_message = 'Starting in 5 seconds — Roblox client verified.'
 
     @property
     def running(self):
         return self.worker is not None and self.worker.poll() is None
 
-    def start(self, strategy, auto_recover=True):
+    def start(self, strategy, auto_recover=True, cancelled=None):
         if self.running:
             return False
         if strategy not in STRATEGIES:
-            raise ValueError('Choose the available Golden Scout strategy.')
+            raise ValueError('Choose an available strategy.')
+        selection = STRATEGIES[strategy]
+        hardcore = selection == PLAN_V2_ID
+        if cancelled is not None and cancelled():
+            raise RuntimeError('Roblox start preflight cancelled.')
+        preflight_window = self.preflight(cancelled=cancelled, allow_recovery=auto_recover)
+        if cancelled is not None and cancelled():
+            raise RuntimeError('Roblox start preflight cancelled.')
+        if preflight_window is None:
+            if not auto_recover:
+                raise RuntimeError('Roblox is not visible; enable guarded recovery to launch the official client.')
+            self.startup_message = 'Starting recovery in 5 seconds — official Roblox launch is armed.'
+        else:
+            self.startup_message = 'Starting in 5 seconds — Roblox identity verified.'
         stamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
         self.output = self.root/'captures'/'runs'/f'app_{stamp}'
         self.output.parent.mkdir(parents=True, exist_ok=True)
-        profile = self.root/'calibrations'/STRATEGIES[strategy]
         entry = [sys.executable] if getattr(sys, 'frozen', False) else [sys.executable, str(self.root/'tds_launcher.py')]
         command = [*entry, '--engine', 'start', '--confirm-start', '--continuous',
-                   '--startup-delay', '5', '--profile', str(profile), '--output', str(self.output)]
+                   '--startup-delay', '5', '--output', str(self.output)]
+        if hardcore:
+            command.extend(['--strategy', PLAN_V2_ID])
+        else:
+            command.extend(['--profile', str(self.root/'calibrations'/selection)])
+        if preflight_window is not None:
+            command.extend(['--expected-window', json.dumps(asdict(preflight_window), separators=(',', ':'))])
         if auto_recover:
             command.append('--auto-recover')
         # A windowed application has no inherited console streams.
         with (self.output.parent/f'{self.output.name}.log').open('wb') as log:
+            if cancelled is not None and cancelled():
+                raise RuntimeError('Roblox start preflight cancelled.')
             self.worker = self.launch(command, cwd=self.root, stdout=log, stderr=log,
                                       creationflags=subprocess.CREATE_NO_WINDOW)
         self.stop_requested = False
+        if cancelled is not None and cancelled():
+            self.stop()
         return True
 
     def stop(self):
@@ -114,9 +184,11 @@ class Controller:
             return {}
 
 
-def status_text(data, running, stopping=False):
+def status_text(data, running, stopping=False, start_error=None):
     if stopping and running:
         return 'Stopping… releasing controls safely.'
+    if not running and start_error:
+        return 'Start stopped: '+start_error
     if not running:
         if stopping:
             return 'Stopped. Return to the TDS lobby before starting again.'
@@ -127,6 +199,8 @@ def status_text(data, running, stopping=False):
             return 'Stopped: '+reason
         if data.get('phase') == 'defeat':
             return 'Defeat — stopped. Return to the TDS lobby before starting again.'
+        if data.get('phase') in {'early_result', 'late_result', 'unverified_reward'}:
+            return 'Hardcore stopped — the result did not qualify as a credited cycle.'
         return 'Ready — open the TDS lobby, then press F1.'
     phase = data.get('phase', 'starting')
     if phase=='recovering':
@@ -139,7 +213,11 @@ def status_text(data, running, stopping=False):
     progress = data.get('progress', {})
     if phase == 'playing' and 'confirmed_step' in progress:
         return f"Match {data.get('match', 1)} · {progress.get('count', 0)} Scouts · {progress['confirmed_step']}/44 actions"
-    names = {'starting': 'Starting in 5 seconds — switch to Roblox.',
+    if phase == 'hardcore_purchase_phase':
+        return f"Hardcore phase {data.get('step', 1)}/14"
+    if phase == 'hardcore_action':
+        return f"Wave {data.get('wave', 0)} · {data.get('tower_id', '')} level {data.get('level', 0)} · {data.get('tower_count', 0)} towers"
+    names = {'starting': 'Starting in 5 seconds — startup checks active.',
              'playing': 'Playing the Golden Scout strategy…', 'play_again': 'Play Again — waiting for the next match…',
              'vip_map_selection': 'Choosing Dead Ahead with VIP…', 'vote_badge_view_adjustment': 'Clearing the vote view…',
              'camera_check': 'Setting the overhead view…', 'prepared': 'Map and overhead view confirmed.',
@@ -159,6 +237,7 @@ class App:
         self.root.resizable(False, False)
         self.root.configure(bg='#101827')
         self.closing = False
+        self.start_error = None
         style = ttk.Style(self.root)
         style.theme_use('clam')
         style.configure('TCombobox', font=('Segoe UI', 11), padding=9)
@@ -190,22 +269,30 @@ class App:
                  bg='#101827', fg='#f2f5fa').pack(anchor='w', padx=30)
         tk.Label(self.root, textvariable=self.message, font=('Segoe UI', 10), justify='left',
                  wraplength=585, bg='#101827', fg='#c1cede').pack(anchor='w', padx=30, pady=(8, 6))
-        tk.Label(self.root, text='Choose a strategy, open Roblox at the TDS lobby, then press F1.\nF2 stops at any time. Keep Roblox in front while the macro plays.',
+        tk.Label(self.root, text='Choose a strategy and open Roblox at the TDS lobby, then press F1.\nF1 verifies Roblox focus before start. F2 stops at any time; keep Roblox in front while the macro plays.',
                  font=('Segoe UI', 9), justify='left', bg='#101827', fg='#92a3ba').pack(side='bottom', anchor='w', padx=30, pady=18)
         self.root.protocol('WM_DELETE_WINDOW', self.close)
         self.root.after(100, self.tick)
 
-    def start(self):
+    def start(self, generation=None):
         if self.closing:
             return
+        self.start_error = None
+        if generation is None:
+            generation = self.hotkeys.current_generation()
+        cancelled = lambda: self.hotkeys.cancelled_since(generation)
         try:
-            if self.controller.start(self.strategy.get(),auto_recover=self.auto_recover.get()):
-                self.message.set('Starting in 5 seconds — switch to Roblox.')
+            if self.controller.start(self.strategy.get(),auto_recover=self.auto_recover.get(),
+                                     cancelled=cancelled):
+                self.message.set(self.controller.startup_message)
                 self.root.iconify()
-        except (OSError, ValueError) as exc:
-            self.message.set(str(exc))
+        except (OSError, ValueError, RuntimeError) as exc:
+            self.start_error = str(exc)
+            self.message.set('Start stopped: '+self.start_error)
 
-    def stop(self):
+    def stop(self, *, cancel_pending=True):
+        if cancel_pending:
+            self.hotkeys.cancel_start_requests()
         try:
             self.controller.stop()
         except OSError as exc:
@@ -218,14 +305,19 @@ class App:
     def tick(self):
         while True:
             try:
-                action = self.hotkeys.events.get_nowait()
+                action, generation = self.hotkeys.events.get_nowait()
             except queue.Empty:
                 break
-            self.start() if action == 'start' else self.stop()
+            self.start(generation) if action == 'start' else self.stop(cancel_pending=False)
         running = self.controller.running
         data = self.controller.status()
-        self.message.set(status_text(data, running, self.controller.stop_requested))
-        self.stats.set(f"{data.get('wins', 0)} wins     ·     {data.get('coins_total', 0):,} coins")
+        self.message.set(status_text(data, running, self.controller.stop_requested, self.start_error))
+        selected_hardcore = STRATEGIES.get(self.strategy.get()) == PLAN_V2_ID
+        hardcore = data.get('strategy_id') == PLAN_V2_ID if data else selected_hardcore
+        if hardcore:
+            self.stats.set(f"{data.get('gem_cycles', 0)} verified results     ·     {data.get('gems_total', 0):,} gems displayed")
+        else:
+            self.stats.set(f"{data.get('wins', 0)} wins     ·     {data.get('coins_total', 0):,} coins")
         self.start_button.configure(state='disabled' if running else 'normal')
         self.stop_button.configure(state='normal' if running else 'disabled')
         self.selector.configure(state='disabled' if running else 'readonly')
@@ -239,11 +331,16 @@ class App:
 
 def self_check(path):
     from .calibration import load_profile
+    from .hardcore_plan_v2 import PLAN_SHA256, load_hardcore_plan_v2
+    from .hardcore_vision import WretchedCamera, WretchedRoute
     from .observer import Observer
     from .resources import LocalOCR
     import tkinter as tk
     from PIL import Image
     profile, strategy = load_profile(ROOT/'calibrations/dead_ahead_vertical_nine_v4.json')
+    hardcore = load_hardcore_plan_v2()
+    WretchedCamera(hardcore)
+    WretchedRoute(hardcore.profile_id)
     observer = Observer()
     ocr = LocalOCR()
     with Image.open(ROOT/'assets/ui_2191/victory_play_again_normal.png') as label:
@@ -251,7 +348,8 @@ def self_check(path):
     # Validate Tcl without creating a window or changing Roblox foreground.
     tcl_version = tk.Tcl().eval('info patchlevel')
     result = {'root': str(ROOT), 'frozen': bool(getattr(sys, 'frozen', False)), 'operations': len(strategy.steps),
-              'observer_states': len(observer.anchors), 'ocr_text': text, 'tcl': tcl_version, 'strategy_sha256': profile['strategy_sha256']}
+              'observer_states': len(observer.anchors), 'ocr_text': text, 'tcl': tcl_version, 'strategy_sha256': profile['strategy_sha256'],
+              'hardcore_phases': len(hardcore.phases), 'hardcore_plan_sha256': PLAN_SHA256}
     Path(path).write_text(json.dumps(result, indent=2), encoding='utf-8')
     return 0
 

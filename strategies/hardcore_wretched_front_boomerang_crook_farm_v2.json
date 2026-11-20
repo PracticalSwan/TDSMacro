@@ -1,0 +1,661 @@
+{
+  "schema_version": 2,
+  "strategy_id": "hardcore_gem_grind_wretched_front_v2",
+  "profile_id": "wretched_front_hardcore_v2",
+  "state": "implemented_candidate_live_acceptance_pending",
+  "map": "Wretched Front",
+  "mode": "Hardcore",
+  "squad_size": 1,
+  "required_loadout": [
+    {
+      "slot": 1,
+      "tower": "Boomerang"
+    },
+    {
+      "slot": 2,
+      "tower": "Crook Boss"
+    },
+    {
+      "slot": 3,
+      "tower": "Farm"
+    }
+  ],
+  "optional_slot": 4,
+  "slots_must_be_empty": [
+    5
+  ],
+  "required_counts": {
+    "Farm": 10,
+    "Boomerang": 3,
+    "Crook Boss": 5
+  },
+  "purchase_policy": {
+    "wave_windows": "defense_priority_targets_keep_working_after_a_miss",
+    "required_actions": "as_soon_as_eligible_and_affordable",
+    "farm_actions": "cheapest_eligible_first_except_listed_upgrades",
+    "highest_upgrade_first": ["F6", "F7", "F8", "F9", "F10"],
+    "crook_level_before_next_purchase": 2,
+    "farm_payout_by_level": [60, 100, 225, 500],
+    "farm_defense_switch": "profit_before_wave_30_without_delaying_next_protected_defense_payout",
+    "critical_defense": "protect_B1_L3_Lead_and_C1_L2_Hidden_prerequisites",
+    "verification": "live_cash_cost_identity_level_count_position_and_positive_postcondition",
+    "sequence": "ordered_defense_dependencies_with_flexible_farm_suborder",
+    "on_ambiguous_action": "stop_without_retry"
+  },
+  "skip_policy": {
+    "mode": "auto_then_one_per_wave",
+    "max_clicks_per_wave": 1,
+    "stop_at_target_wave": true
+  },
+  "finish_policy": {
+    "target_wave": 30,
+    "minimum_positive_wave_observations": 2,
+    "result": "natural_result",
+    "no_selling": true,
+    "expected_gems": 137,
+    "expected_gems_verified": false,
+    "replay_requires_independently_credited_gems": true,
+    "game_speed": "1x"
+  },
+  "towers": [
+    {
+      "id": "F1",
+      "type": "Farm",
+      "slot": 3,
+      "optional": false
+    },
+    {
+      "id": "F2",
+      "type": "Farm",
+      "slot": 3,
+      "optional": false
+    },
+    {
+      "id": "F3",
+      "type": "Farm",
+      "slot": 3,
+      "optional": false
+    },
+    {
+      "id": "F4",
+      "type": "Farm",
+      "slot": 3,
+      "optional": false
+    },
+    {
+      "id": "F5",
+      "type": "Farm",
+      "slot": 3,
+      "optional": false
+    },
+    {
+      "id": "F6",
+      "type": "Farm",
+      "slot": 3,
+      "optional": false
+    },
+    {
+      "id": "F7",
+      "type": "Farm",
+      "slot": 3,
+      "optional": false
+    },
+    {
+      "id": "F8",
+      "type": "Farm",
+      "slot": 3,
+      "optional": false
+    },
+    {
+      "id": "F9",
+      "type": "Farm",
+      "slot": 3,
+      "optional": false
+    },
+    {
+      "id": "F10",
+      "type": "Farm",
+      "slot": 3,
+      "optional": false
+    },
+    {
+      "id": "B1",
+      "type": "Boomerang",
+      "slot": 1,
+      "optional": false
+    },
+    {
+      "id": "B2",
+      "type": "Boomerang",
+      "slot": 1,
+      "optional": false
+    },
+    {
+      "id": "B3",
+      "type": "Boomerang",
+      "slot": 1,
+      "optional": false
+    },
+    {
+      "id": "C1",
+      "type": "Crook Boss",
+      "slot": 2,
+      "optional": false
+    },
+    {
+      "id": "C2",
+      "type": "Crook Boss",
+      "slot": 2,
+      "optional": false
+    },
+    {
+      "id": "C3",
+      "type": "Crook Boss",
+      "slot": 2,
+      "optional": false
+    },
+    {
+      "id": "C4",
+      "type": "Crook Boss",
+      "slot": 2,
+      "optional": false
+    },
+    {
+      "id": "C5",
+      "type": "Crook Boss",
+      "slot": 2,
+      "optional": false
+    },
+    {
+      "id": "X1",
+      "type": "EXP",
+      "slot": 4,
+      "optional": true
+    }
+  ],
+  "phases": [
+    {
+      "step": 1,
+      "label": "Four-Farm opening before Ready",
+      "before_ready": true,
+      "actions": [
+        {
+          "op": "place",
+          "tower_id": "F1"
+        },
+        {
+          "op": "place",
+          "tower_id": "F2"
+        },
+        {
+          "op": "place",
+          "tower_id": "F3"
+        },
+        {
+          "op": "place",
+          "tower_id": "F4"
+        }
+      ]
+    },
+    {
+      "step": 2,
+      "label": "Opening Farm upgrades, flexible affordable ordering",
+      "actions": [
+        {
+          "op": "upgrade",
+          "tower_id": "F1",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F2",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F3",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F1",
+          "level": 2
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F4",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F2",
+          "level": 2
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F3",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "step": 3,
+      "label": "First Boomerang and five Farms through L3",
+      "actions": [
+        {
+          "op": "place",
+          "tower_id": "B1"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B1",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F4",
+          "level": 2
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B1",
+          "level": 2
+        },
+        {
+          "op": "place",
+          "tower_id": "F5"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F5",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F5",
+          "level": 2
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F5",
+          "level": 3
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F1",
+          "level": 3
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F2",
+          "level": 3
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F3",
+          "level": 3
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F4",
+          "level": 3
+        }
+      ]
+    },
+    {
+      "step": 4,
+      "label": "First Crook Boss tightly left of B1; path coverage",
+      "actions": [
+        {
+          "op": "place",
+          "tower_id": "C1"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C1",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C1",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "step": 5,
+      "label": "B1 Lead defense L3",
+      "actions": [
+        {
+          "op": "upgrade",
+          "tower_id": "B1",
+          "level": 3
+        }
+      ]
+    },
+    {
+      "step": 6,
+      "label": "F6–F8 L3, most expensive affordable eligible upgrades first",
+      "actions": [
+        {
+          "op": "place",
+          "tower_id": "F6"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F6",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F6",
+          "level": 2
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F6",
+          "level": 3
+        },
+        {
+          "op": "place",
+          "tower_id": "F7"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F7",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F7",
+          "level": 2
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F7",
+          "level": 3
+        },
+        {
+          "op": "place",
+          "tower_id": "F8"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F8",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F8",
+          "level": 2
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F8",
+          "level": 3
+        }
+      ]
+    },
+    {
+      "step": 7,
+      "label": "Second Crook Boss L2 in the left cluster",
+      "actions": [
+        {
+          "op": "place",
+          "tower_id": "C2"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C2",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C2",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "step": 8,
+      "label": "F9–F10 L3, most expensive affordable eligible upgrades first",
+      "actions": [
+        {
+          "op": "place",
+          "tower_id": "F9"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F9",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F9",
+          "level": 2
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F9",
+          "level": 3
+        },
+        {
+          "op": "place",
+          "tower_id": "F10"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F10",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F10",
+          "level": 2
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F10",
+          "level": 3
+        }
+      ]
+    },
+    {
+      "step": 9,
+      "label": "B2–B3 L3 tightly around B1 on the right, not Crook points",
+      "actions": [
+        {
+          "op": "place",
+          "tower_id": "B2"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B2",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B2",
+          "level": 2
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B2",
+          "level": 3
+        },
+        {
+          "op": "place",
+          "tower_id": "B3"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B3",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B3",
+          "level": 2
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B3",
+          "level": 3
+        }
+      ]
+    },
+    {
+      "step": 10,
+      "label": "Place and upgrade each of C3–C5 to L2 before the next purchase",
+      "actions": [
+        {
+          "op": "place",
+          "tower_id": "C3"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C3",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C3",
+          "level": 2
+        },
+        {
+          "op": "place",
+          "tower_id": "C4"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C4",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C4",
+          "level": 2
+        },
+        {
+          "op": "place",
+          "tower_id": "C5"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C5",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C5",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "step": 11,
+      "label": "B1 maximum L4; C1–C2 L3",
+      "actions": [
+        {
+          "op": "upgrade",
+          "tower_id": "B1",
+          "level": 4
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C1",
+          "level": 3
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C2",
+          "level": 3
+        }
+      ]
+    },
+    {
+      "step": 12,
+      "label": "Optional slot-4 EXP placement only if equipped and calibrated",
+      "actions": [
+        {
+          "op": "place",
+          "tower_id": "X1",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "step": 13,
+      "label": "C3 L3; B2–B3 maximum L4",
+      "actions": [
+        {
+          "op": "upgrade",
+          "tower_id": "C3",
+          "level": 3
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B2",
+          "level": 4
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B3",
+          "level": 4
+        }
+      ]
+    },
+    {
+      "step": 14,
+      "label": "C4–C5 L3; then wait for natural match result",
+      "actions": [
+        {
+          "op": "upgrade",
+          "tower_id": "C4",
+          "level": 3
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C5",
+          "level": 3
+        }
+      ]
+    }
+  ],
+  "final_required_levels": {
+    "F1": 3,
+    "F2": 3,
+    "F3": 3,
+    "F4": 3,
+    "F5": 3,
+    "F6": 3,
+    "F7": 3,
+    "F8": 3,
+    "F9": 3,
+    "F10": 3,
+    "B1": 4,
+    "B2": 4,
+    "B3": 4,
+    "C1": 3,
+    "C2": 3,
+    "C3": 3,
+    "C4": 3,
+    "C5": 3
+  },
+  "calibration_required_before_execution": [
+    "F9",
+    "F10",
+    "C1",
+    "B2",
+    "B3",
+    "C2",
+    "C3",
+    "C4",
+    "C5"
+  ],
+  "notes": [
+    "No individual purchase-wave deadlines provided in the new owner sequence. Codex must derive and verify feasible defense deadlines in live trials rather than inventing a rigid schedule.",
+    "All combat points must be checked together for non-overlap and lane coverage. Optional X1 requires equipped slot 4 and independently accepted point.",
+    "Legacy v1 JSON is deliberately retained; the existing executor cannot parse this v2 schema until explicitly migrated."
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "profile_id": "wretched_front_hardcore_v2",
+  "map": "Wretched Front",
+  "mode": "Hardcore",
+  "size": [
+    1920,
+    991
+  ],
+  "dpi": 120,
+  "status": "native_individual_previews_verified",
+  "source_profile": "wretched_front_hardcore_v1",
+  "scene_sha256": "6d715941ab2cedbc4f7a06a56799ad84ab991ed8749630de4f9e170b834bb195",
+  "landmarks": [[521, 737, 616, 806], [1460, 560, 1570, 730], [1320, 740, 1460, 850]],
+  "coordinates": {
+    "F1": [
+      666,
+      400
+    ],
+    "F2": [
+      732,
+      400
+    ],
+    "F3": [
+      664,
+      460
+    ],
+    "F4": [
+      732,
+      460
+    ],
+    "F5": [
+      661,
+      520
+    ],
+    "F6": [
+      730,
+      520
+    ],
+    "F7": [
+      658,
+      580
+    ],
+    "F8": [
+      727,
+      580
+    ],
+    "F9": [655, 640],
+    "F10": [724, 640],
+    "B1": [
+      1106,
+      371
+    ],
+    "B2": [
+      1120,
+      320
+    ],
+    "B3": [
+      1134,
+      422
+    ],
+    "C1": [1044, 350],
+    "C2": [
+      990,
+      343
+    ],
+    "C3": [
+      939,
+      343
+    ],
+    "C4": [
+      1068,
+      304
+    ],
+    "C5": [
+      1018,
+      303
+    ],
+    "X1": null
+  },
+  "evidence": {
+    "B1": "placed on wave 3 at the revised point 11 client pixels right and 4 above the red path-edge preview",
+    "F1_F8": "prior individual previews and eight actual placements",
+    "B2_B3": "B2 moved below the rock and placed at wave 15, 60.4 client pixels from B1; B3 previously placed 61.1 pixels from B1",
+    "C2_C3": "placed with 54.5 and 51 client pixel gaps from the previous Crook",
+    "C4_C5": "C4 placed 51.9 client pixels from C1 toward the right bend and its L2 ring covered the bend; revised C5 placed 48.8 pixels from C2 in the occupied cluster",
+    "C1": "placed 56.8 client pixels from B1; live L2 coverage of the approach, right turn and inner bend",
+    "F9_F10": "both placed on the fifth Farm row and upgraded to L3 with all ten Farms present",
+    "X1": "optional_not_calibrated"
+  },
+  "camera": "same rear-side, clear-gate, straight-down overhead Wretched Front pose; independently verify current landmarks and capture before applying",
+  "must_verify": [
+    "Two additional Farms fit without obstruction or path collision",
+    "All 8 combat towers coexist in tight staggered Crook-left/Boomerang-right cluster",
+    "First Crook C1 is tight left of B1 and its upgraded range covers required lanes",
+    "B1,B2,B3 compact right-side group without occupying any Crook Boss coordinates",
+    "Exact tower name, preview, purchase price, count, level and lane coverage for every placement"
+  ]
+}

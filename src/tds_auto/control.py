@@ -10,6 +10,7 @@ import ctypes
 from ctypes import wintypes
 import json
 import math
+import os
 import re
 import time
 from dataclasses import asdict
@@ -25,8 +26,103 @@ class StopRun(RuntimeError):
         self.kind=kind
 
 
+def is_active_computer_use_window_title(title):
+    normalized=' '.join(title.casefold().split())
+    return any(marker in normalized for marker in (
+        'chatgpt is using your computer',
+        'chatgpt is using your screen',
+    ))
+
+
+def active_computer_use_controller_pids():
+    """Return active Computer Use controller PIDs, including newer overlay sessions."""
+    if os.name!='nt':
+        return ()
+
+    class ProcessEntry32W(ctypes.Structure):
+        _fields_=[('dwSize',wintypes.DWORD),('cntUsage',wintypes.DWORD),
+                  ('th32ProcessID',wintypes.DWORD),('th32DefaultHeapID',ctypes.c_size_t),
+                  ('th32ModuleID',wintypes.DWORD),('cntThreads',wintypes.DWORD),
+                  ('th32ParentProcessID',wintypes.DWORD),('pcPriClassBase',wintypes.LONG),
+                  ('dwFlags',wintypes.DWORD),('szExeFile',wintypes.WCHAR*260)]
+
+    kernel=ctypes.WinDLL('kernel32',use_last_error=True)
+    kernel.CreateToolhelp32Snapshot.argtypes=[wintypes.DWORD,wintypes.DWORD]
+    kernel.CreateToolhelp32Snapshot.restype=wintypes.HANDLE
+    kernel.Process32FirstW.argtypes=[wintypes.HANDLE,ctypes.POINTER(ProcessEntry32W)]
+    kernel.Process32FirstW.restype=wintypes.BOOL
+    kernel.Process32NextW.argtypes=[wintypes.HANDLE,ctypes.POINTER(ProcessEntry32W)]
+    kernel.Process32NextW.restype=wintypes.BOOL
+    kernel.CloseHandle.argtypes=[wintypes.HANDLE]
+    kernel.CloseHandle.restype=wintypes.BOOL
+
+    snapshot=kernel.CreateToolhelp32Snapshot(0x00000002,0)  # TH32CS_SNAPPROCESS
+    if snapshot==ctypes.c_void_p(-1).value:
+        raise StopRun('Cannot verify that the computer-use controller is closed.',kind='setup')
+    pids=[]
+    try:
+        entry=ProcessEntry32W()
+        entry.dwSize=ctypes.sizeof(entry)
+        if not kernel.Process32FirstW(snapshot,ctypes.byref(entry)):
+            raise StopRun('Cannot enumerate processes before guarded input.',kind='setup')
+        while True:
+            if entry.szExeFile.casefold()=='codex-computer-use.exe':
+                pids.append(int(entry.th32ProcessID))
+            ctypes.set_last_error(0)
+            if not kernel.Process32NextW(snapshot,ctypes.byref(entry)):
+                error=ctypes.get_last_error()
+                if error not in (0,18):  # ERROR_NO_MORE_FILES is the normal end.
+                    raise StopRun('Process scan failed before guarded input.',kind='setup')
+                break
+    finally:
+        kernel.CloseHandle(snapshot)
+
+    # The Swift helper can retain a hidden overlay window while idle.
+    user=ctypes.WinDLL('user32',use_last_error=True)
+    user.EnumWindows.argtypes=[ctypes.WINFUNCTYPE(wintypes.BOOL,wintypes.HWND,wintypes.LPARAM),wintypes.LPARAM]
+    user.EnumWindows.restype=wintypes.BOOL
+    user.IsWindowVisible.argtypes=[wintypes.HWND]
+    user.IsWindowVisible.restype=wintypes.BOOL
+    user.GetWindowTextLengthW.argtypes=[wintypes.HWND]
+    user.GetWindowTextLengthW.restype=ctypes.c_int
+    user.GetWindowTextW.argtypes=[wintypes.HWND,wintypes.LPWSTR,ctypes.c_int]
+    user.GetWindowTextW.restype=ctypes.c_int
+    user.GetWindowThreadProcessId.argtypes=[wintypes.HWND,ctypes.POINTER(wintypes.DWORD)]
+    user.GetWindowThreadProcessId.restype=wintypes.DWORD
+    overlay_pids=set()
+
+    @ctypes.WINFUNCTYPE(wintypes.BOOL,wintypes.HWND,wintypes.LPARAM)
+    def inspect_window(hwnd,_):
+        if not user.IsWindowVisible(hwnd):
+            return True
+        length=user.GetWindowTextLengthW(hwnd)
+        if length<=0:
+            return True
+        title=ctypes.create_unicode_buffer(length+1)
+        if user.GetWindowTextW(hwnd,title,len(title))>0 and is_active_computer_use_window_title(title.value):
+            pid=wintypes.DWORD()
+            if user.GetWindowThreadProcessId(hwnd,ctypes.byref(pid)):
+                overlay_pids.add(int(pid.value))
+        return True
+
+    ctypes.set_last_error(0)
+    if not user.EnumWindows(inspect_window,0):
+        error=ctypes.get_last_error()
+        if error:
+            raise StopRun('Cannot verify that the computer-use overlay is closed.',kind='setup')
+    return tuple(sorted(set(pids)|overlay_pids))
+
+
+def ensure_no_computer_use_controller():
+    pids=active_computer_use_controller_pids()
+    if pids:
+        joined=', '.join(map(str,pids))
+        raise StopRun(f'Active computer-use controller detected (PIDs {joined}); close it before guarded input.',
+                      kind='setup')
+
+
 KEYS = {**{c: ord(c) for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ12345"}, "SPACE": 0x20,
-        "ENTER": 0x0D, "TAB": 0x09, "BACKSLASH": 0xDC, "CTRL": 0x11,
+        "ENTER": 0x0D, "TAB": 0x09, "BACKSPACE": 0x08, "BACKSLASH": 0xDC, "CTRL": 0x11,
         "LEFT": 0x25, "UP": 0x26, "RIGHT": 0x27, "DOWN": 0x28}
 
 
@@ -98,7 +194,7 @@ class GuardedInput:
         self.check()
 
     def text(self, text: str):
-        """Literal map-search letters/spaces only. Caller must verify field focus."""
+        """Literal lowercase letters/spaces for a visually verified search field."""
         if not re.fullmatch(r"[a-z ]{1,64}", text, flags=re.ASCII):
             raise StopRun("Map search accepts only 1..64 lowercase ASCII letters/spaces.")
         for char in text:
@@ -106,7 +202,7 @@ class GuardedInput:
             self.wait(0.025)
 
     def select_all(self):
-        """Only for a visually verified map-search field; always release both keys."""
+        """Only for a visually verified search field; always release both keys."""
         self.check()
         try:
             self.platform.emit('key_down', 'CTRL')
@@ -157,6 +253,7 @@ class WindowsOS:
     hotkey_id = 0x5444
 
     def __init__(self, *, stop_hotkey=False):
+        ensure_no_computer_use_controller()
         self.stopped = False
         self.hotkey_registered = False
         phase1.USER.GetAsyncKeyState.argtypes = [ctypes.c_int]

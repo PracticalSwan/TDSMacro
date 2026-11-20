@@ -40,6 +40,16 @@ class ResourceTests(unittest.TestCase):
             result=HudReader().read(frame)
             self.assertEqual((result.cash,result.level,result.upgrade_cost),(517,2,1800))
 
+    def test_hardcore_native_farm_level1_in_tight_labeled_crop(self):
+        with Image.open(ROOT/'tests/fixtures/hardcore_f2_level1_narrow_crop_20261120.png') as frame:
+            result=HudReader(hardcore=True).read(frame)
+        self.assertEqual((result.tower_name,result.level),('Farm',1))
+
+    def test_hardcore_second_native_farm_level1_uses_bounded_variant(self):
+        with Image.open(ROOT/'tests/fixtures/hardcore_f2_level1_offset_20261120.png') as frame:
+            result=HudReader(hardcore=True).read(frame)
+        self.assertEqual((result.tower_name,result.level),('Farm',1))
+
     def test_preview_count_ocr_uses_alternate_polarity_without_guessing(self):
         with Image.open(ROOT/'tests/fixtures/hud_preview_count1.png') as frame:
             self.assertEqual(HudReader().read(frame).tower_count,1)

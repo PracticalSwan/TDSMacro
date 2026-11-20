@@ -1,5 +1,11 @@
 # Setup
 
+**v0.3.0 strategies:** The Windows release includes the original nine-Golden-Scout Dead Ahead Solo/Easy strategy and the new Hardcore Gem Grind Wretched Front Solo strategy. The requested ten-Golden-Scout revamp remains reserved for v0.3.1. Hardcore's 10-match real-game acceptance passed on November 20 with 75 confirmed actions and a natural wave-30 137-displayed-Gem result in each match. Result-screen rewards do not independently prove wallet credit.
+
+**Hardcore setup:** Equip regular Boomerang in slot 1, regular Crook Boss in slot 2, and Farm in slot 3. Slot 5 must be empty; optional slot 4 is accepted only if independently verified and calibrated. Use normal 1× speed, English TDS and the same supported 1920×991/120-DPI foreground client. The fixed 14-phase plan targets 10 Farms level 3, 3 Boomerangs level 4 and 5 Crook Bosses level 3. After exactly 75 confirmed actions and a wave-30 natural result displaying 137 Gems, the unattended worker uses the in-game **Restart Match** button. It does not visit the lobby or poll the player-list cash/wallet between successful results; the displayed rewards are not independently audited wallet deposits. If Roblox disconnects (including error 277), the camera becomes unreadable, or a purchase cannot be verified, the worker stops rather than guessing. See [Hardcore strategy](strategies.md) and [verification status](verification.md).
+
+The following baseline table and first-run steps focus on Golden Scout. Hardcore requires the separate loadout and map listed above, with the same calibrated Roblox window and TDS settings.
+
 Match this measured configuration before pressing F1.
 
 | Requirement | Value |
@@ -30,13 +36,15 @@ Use the complete [current Windows release](https://github.com/PracticalSwan/tds-
 
 **Maintainer's local installation (2026-11-18):** `dist/TDSMacro/` now contains the verified v0.2.4 package (EXE SHA-256 `51edd086a7208cd698c72ff59d94813b9a6feb17459c573851718aa3f065c482`). The previous v0.2.3 install, including its private captures, is archived at `dist/TDSMacro-previous-v0.2.3-20261118/`. A new `TDS Macro v0.2.4.lnk` desktop shortcut targets the current standard directory; the older v0.2.3 shortcut targets the archived version. This replaces the historical v0.2.3 local-install checkpoint from 2026-11-16 without deleting its evidence. These ignored local paths and shortcuts are **not included in the public release ZIP** and do not imply a new gameplay run. No global display-scaling change is needed to open the GUI.
 
+**v0.3.0 GUI preflight:** before starting a worker, the GUI may make one ordinary foreground request for an already located Roblox client, then verifies the same supported window on two reads and a clean native capture before handing its anchor to the worker. For setup, use the official Roblox experience page; if browser Play fails or the client is closed, the approved native launcher path is the fallback. Recognized disconnect recovery remains guarded and bounded. This behavior is not present in the published v0.2.4 executable.
+
 ## First run
 
 1. Extract the whole release ZIP into a writable local folder. Do not run inside the ZIP; keep `_internal`, `assets`, `calibrations`, and `strategies` together.
 2. Join the TDS lobby. Complete one-time Easy tutorials/dialogues manually before repeated games. The macro checks Login Rewards, claims an available reward once and closes an already-claimed popup when needed.
 3. Equip Golden Scout in slot 1 and empty the other slots. The macro confirms Scout/Golden labels in Items. The tested skin is Intern; portrait changes have automated coverage, but other skins need live trials.
 4. Use default camera/keyboard controls, English UI and the TDS settings below. Keep normal HUD and tower prices/levels visible. Do not change camera/UI scale during play.
-5. Before live macro testing, close every computer-use session/surface and overlay. Open TDSMacro.exe, choose Golden Scout and press F1. Put Roblox in front during the five-second countdown. Do not use computer-use tools, move the mouse, character or camera while the worker runs.
+5. Open the official TDS experience. If browser Play fails, use the project's official native launcher fallback; verify the supported client and stable lobby before starting. Open TDSMacro.exe, choose Golden Scout and press F1. The published v0.2.4 executable requires Roblox in front before F1; the v0.3.0 source candidate can make one verified pre-start foreground request. ChatGPT Computer Use (CUA) is permitted for setup, observation or other desktop tasks **only while non-interfering** with OCR, screen captures, game focus and the macro. During a macro run, CUA must remain passive and must not send Roblox input, move its cursor over game recognition regions, show a blue-cursor effect that contaminates captures, or change focus. A failing native controller guard still blocks startup; do not bypass it, and resolve interference before retrying.
 6. Observe a full match and replay on your account. Stop if settings, modifiers or network conditions produce a defeat or unexplained behavior.
 
 The macro selects an existing Dead Ahead board or uses VIP, then confirms its title and solo vote. It prepares an overhead view before every new match. No character movement is needed during tower placement.
@@ -53,7 +61,7 @@ The owner's existing avatar is unchanged. TDS Character Scale is not required or
 
 ## During play
 
-F2 requests a stop at any time. F8 is the worker's queued emergency stop; Escape is also checked. Held inputs are released on interruption. App close stops its worker. Losing Roblox foreground immediately stops input and abandons that attempt; the macro never refocuses Roblox.
+F2 requests a stop at any time. F8 is the worker's queued emergency stop; Escape is also checked. Held inputs are released on interruption. App close stops its worker. Losing Roblox foreground immediately stops input and abandons that attempt. The v0.3.0 source candidate can focus Roblox only before worker launch; it never reactivates the client during a run.
 
 With automatic recovery enabled, the worker passively waits up to **five seconds** for the same Roblox window to return to foreground naturally. Two observations must confirm the original process, window, position, size and DPI. A verified return starts the normal fresh-session recovery below; it never resumes the interrupted placement or purchase. If focus stays elsewhere, or the window changes or becomes unverifiable, the run stops without closing or reopening Roblox. A notification that leaves foreground unchanged has no effect. Disable recovery before F1 to stop immediately on any focus loss.
 
@@ -61,7 +69,7 @@ Play Again continues only while each result, reward and next state is confirmed.
 
 The Login Rewards check runs on each lobby entry. Two consecutive exact Claim readings on the green button authorize one guarded claim click. The popup may close automatically; otherwise the macro waits for grey Close before dismissing it once. An already-claimed Close screen is dismissed directly. An unreadable or delayed claim is never clicked again. An ordinary lobby skips reward input.
 
-F2, F8/Escape, app close, unrecovered focus loss, identity/geometry changes, setup/storage errors and pause cancel recovery. An invalid loadout stops after bounded verification; correct it before F1 again. A session evidence-write failure is a storage stop. There is no automatic refocus or force termination. A close timeout or unreadable reopened lobby stops. At most three automatic relaunches are allowed without a confirmed win; a win resets that consecutive-failure limit. Uncheck recovery before F1 to stop on the first game failure instead.
+F2, F8/Escape, app close, persistent focus loss, identity/geometry changes, setup/storage errors and pause cancel recovery. An invalid loadout stops after bounded verification; correct it before F1 again. A session evidence-write failure is a storage stop. Recovery may launch only through the official native path after the verified client exits; it never force-terminates or refocuses a changed client. A close timeout or unreadable reopened lobby stops. At most three automatic relaunches are allowed without a confirmed win; a win resets that consecutive-failure limit. Uncheck recovery before F1 to stop on the first game failure instead.
 
 Modifier selection is deferred until the required challenges are unlocked. This release retains the existing strategy and does not configure modifiers. Committed + Limitation + Hidden Enemies + Glass is a future target requiring separate UI and win/reward verification. Current account settings can affect results; no four-modifier win or reward boost is claimed.
 

@@ -7,7 +7,7 @@ from PIL import Image
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'src'))
 from tds_auto.control import GuardedInput,StopRun
-from tds_auto.session import Session,SessionControl
+from tds_auto.session import Session,SessionControl,_parse_expected_window
 from tds_auto.run import Playback,MatchFinished
 from tds_auto.results import GameResult
 from test_control import FakeOS
@@ -16,6 +16,20 @@ def vip_evidence(confirmed,score=None):
     return {'confirmed':confirmed,'keycap_score':score,'literal_caption':confirmed}
 
 class SessionTests(unittest.TestCase):
+    def test_compact_accepted_jpeg_evidence_keeps_ui_pixels_readable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            session=Session.__new__(Session)
+            session.output=Path(tmp)
+            source=Image.new('RGB',(64,64))
+            for y in range(64):
+                for x in range(64):
+                    source.putpixel((x,y),(240,30,30) if (x+y)%2==0 else (20,40,230))
+            session.save_frame(source,'accepted_action.jpg')
+            with Image.open(session.output/'accepted_action.jpg') as saved:
+                self.assertEqual(saved.format,'JPEG')
+                pixel=saved.getpixel((20,20))
+                self.assertLess(sum(abs(a-b) for a,b in zip(pixel,(240,30,30))),50)
+
     def test_normal_lobby_skips_the_login_rewards_click(self):
         self.state='lobby'
         readings=[]
@@ -171,6 +185,18 @@ class SessionTests(unittest.TestCase):
             self.session.approach_target()
         self.assertEqual([e for e in self.platform.events if e[0]=='key_down'],[('key_down','W'),('key_down','A')])
 
+    def test_target_approach_stops_when_both_floor_supports_are_lost_after_one_side(self):
+        from tds_auto.maps import Board
+        self.state='map_vote'
+        target=Board(1,(840,249,1080,283),'Dead Ahead')
+        with patch('tds_auto.session.visible_target',return_value=target), \
+             patch('tds_auto.session.vote_prompt',return_value=False), \
+             patch('tds_auto.session.voting_floor',side_effect=[False,False,False,True,False,False]):
+            with self.assertRaisesRegex(StopRun,'Lost the verified voting floor'):
+                self.session.approach_target()
+        self.assertEqual([e for e in self.platform.events if e[0]=='key_down'],
+                         [('key_down','W'),('key_down','W')])
+
     def test_vote_validation_keeps_the_lower_post_vote_header_and_physical_index(self):
         from tds_auto.maps import Board
         self.state='map_vote';self.session.allowed={'map_vote'}
@@ -300,6 +326,26 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(self.platform.events.count(('key_down','E')),1)
         self.assertEqual([event for event in self.platform.events if event[0]=='key_down' and event[1]=='D'],[])
         self.assertNotIn(('left_down',),self.platform.events)
+
+    def test_wretched_unknown_vote_badge_uses_wretched_floor_for_single_view_clear(self):
+        from tds_auto.maps import Board
+        self.state='map_vote';self.session.allowed={'map_vote'}
+        frame=Image.new('RGB',(1920,991));frame.info['state']='map_vote'
+        target=Board(1,(780,237,1042,277),'Wretched Front')
+        floor_calls=[]
+        def floor(image,require_both=True,for_strafe=False,map_name='Dead Ahead'):
+            floor_calls.append((require_both,for_strafe,map_name))
+            return map_name=='Wretched Front'
+        with patch.object(self.session,'approach_target',return_value=(frame,target)), \
+             patch('tds_auto.session.visible_target',return_value=target), \
+             patch.object(self.session,'vote_count',side_effect=[None,1]), \
+             patch('tds_auto.session.voting_floor',side_effect=floor), \
+             patch.object(self.session,'wait_state'):
+            self.session.vote_target(target)
+        self.assertEqual(floor_calls,[(True,True,'Wretched Front')])
+        keys=[event for event in self.platform.events if event[0]=='key_down']
+        self.assertEqual(keys,[('key_down','E'),('key_down','S'),('key_down','D')])
+        self.assertEqual(self.platform.events.count(('left_down',)),1)
 
     def test_unknown_vote_badge_uses_one_guarded_forward_correction_before_ready(self):
         from tds_auto.maps import Board
@@ -440,11 +486,91 @@ class SessionTests(unittest.TestCase):
         self.state='map_vote'
         far=Board(1,(450,255,790,290),'Dead Ahead')
         near=Board(1,(750,220,1100,270),'Dead Ahead')
-        with patch('tds_auto.session.voting_floor',side_effect=[False,True],create=True), \
+        with patch('tds_auto.session.voting_floor',side_effect=[False,False,True],create=True), \
              patch('tds_auto.session.visible_target',side_effect=[far,near]), \
              patch('tds_auto.session.vote_prompt',side_effect=[False,True]):
             self.session.approach_target()
         self.assertEqual([e for e in self.platform.events if e[0]=='key_down'],[('key_down','W')])
+
+    def test_wretched_approach_uses_the_lower_header_and_walks_forward_until_vote_prompt(self):
+        from tds_auto.maps import Board
+        frames=[]
+        for path in ('hardcore_wretched_header_below_normal_band.png','hardcore_wretched_close_vote_prompt.png'):
+            with Image.open(ROOT/'tests/fixtures'/path) as image:frame=image.copy()
+            frame.info['state']='map_vote';frames.append(frame)
+        sequence=iter(frames)
+        self.session.capture=lambda:next(sequence,frames[-1])
+        with patch('tds_auto.session.voting_floor',return_value=True):
+            frame,target=self.session.approach_target('Wretched Front')
+        self.assertEqual(target.title,'Wretched Front')
+        self.assertEqual(target.index,4)
+        self.assertEqual([e for e in self.platform.events if e[0]=='key_down'],[('key_down','W')])
+
+    def test_wretched_target_bound_vote_prompt_stops_before_unneeded_strafe(self):
+        with Image.open(ROOT/'tests/fixtures/hardcore_wretched_close_vote_prompt.png') as image:
+            frame=image.copy()
+        frame.info['state']='map_vote'
+        self.session.capture=lambda:frame.copy()
+        with patch('tds_auto.session.voting_floor',return_value=True):
+            _,target=self.session.approach_target('Wretched Front')
+        self.assertEqual(target.title,'Wretched Front')
+        self.assertEqual(target.index,4)
+        self.assertEqual(self.platform.events,[])
+
+    def test_wretched_approach_preserves_physical_board_four_when_near_view_clips_board_one(self):
+        with Image.open(ROOT/'tests/fixtures/hardcore_wretched_vote_prompt_clipped_board1.png') as image:
+            frame=image.copy()
+        frame.info['state']='map_vote'
+        self.session.board_index=4
+        self.session.capture=lambda:frame.copy()
+        with patch('tds_auto.session.voting_floor',return_value=True):
+            _,target=self.session.approach_target('Wretched Front')
+        self.assertEqual(target.title,'Wretched Front')
+        self.assertEqual(target.index,4)
+        self.assertEqual(self.platform.events,[])
+
+    def test_wretched_vote_uses_target_name_and_original_physical_index(self):
+        from tds_auto.maps import Board
+        self.state='map_vote';self.session.allowed={'map_vote'}
+        target=Board(4,(900,240,1230,320),'Wretched Front')
+        current=Board(3,(910,250,1200,325),'Wretched Front')
+        with Image.open(ROOT/'tests/fixtures/hardcore_wretched_vote_prompt_clipped_board1.png') as source:
+            frame=source.copy();frame.info['state']='map_vote'
+        self.session.capture=lambda:frame.copy()
+        with patch.object(self.session,'approach_target',return_value=(frame,current)) as approach, \
+             patch('tds_auto.session.visible_target',return_value=current) as visible, \
+             patch.object(self.session,'vote_count',return_value=1), \
+             patch.object(self.session,'wait_state'):
+            self.session.vote_target(target)
+        approach.assert_called_once_with('Wretched Front')
+        self.assertTrue(any(call.args[1]=='Wretched Front' for call in visible.call_args_list))
+        self.assertEqual(self.session.board_index,4)
+        self.assertEqual([e for e in self.platform.events if e[0]=='key_down'][:2],[('key_down','E'),('key_down','S')])
+        self.assertEqual(self.platform.events.count(('left_down',)),1)
+
+    def test_unknown_fullscreen_state_can_pass_only_the_complete_hovered_map_vote_labels(self):
+        self.state='unknown';self.session.allowed={'map_vote'}
+        with Image.open(ROOT/'tests/fixtures/map_vote_hover_inventory.png') as source:
+            frame=source.copy()
+        frame.info['state']='unknown';self.session.capture=lambda:frame.copy()
+        self.session.click_gate()
+        self.assertEqual(self.platform.events,[])
+
+    def test_unknown_click_state_without_map_vote_labels_remains_blocked(self):
+        self.state='unknown';self.session.allowed={'map_vote'}
+        frame=Image.new('RGB',(1920,991));frame.info['state']='unknown'
+        self.session.capture=lambda:frame.copy()
+        with self.assertRaisesRegex(StopRun,'Click precondition changed: unknown'):
+            self.session.click_gate()
+        self.assertEqual(self.platform.events,[])
+
+    def test_unknown_lobby_hover_state_remains_blocked_at_click_gate(self):
+        self.state='unknown';self.session.allowed={'lobby'}
+        frame=Image.new('RGB',(1920,991));frame.info['state']='unknown'
+        self.session.capture=lambda:frame.copy()
+        with self.assertRaisesRegex(StopRun,'Click precondition changed: unknown'):
+            self.session.click_gate()
+        self.assertEqual(self.platform.events,[])
 
     def test_losing_the_verified_floor_stops_before_more_strafing(self):
         from tds_auto.maps import Board
@@ -499,6 +625,32 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(movements[-1],('W',.9))
         self.assertIn(('A',.6),movements)
 
+    def test_wretched_target_is_selected_without_dead_ahead_vip_fallback(self):
+        from tds_auto.maps import Board
+        self.state='map_vote'
+        boards=tuple(Board(i,(700+i*100,280,780+i*100,330),
+                           'Wretched Front' if i==2 else 'Other Map') for i in range(1,5))
+        self.session.face_boards=lambda:None
+        self.session.boards=lambda:boards
+        selected=[]
+        self.session.vote_target=lambda target:selected.append(target)
+        self.session.choose_map('Wretched Front')
+        self.assertEqual(selected,[boards[1]])
+        self.assertEqual([event for event in self.platform.events if event[:2]==('key_down','W')],
+                         [('key_down','W')])
+
+    def test_unreadable_wretched_target_stops_instead_of_opening_vip_maps(self):
+        from tds_auto.maps import Board
+        self.state='map_vote'
+        boards=tuple(Board(i,(700+i*100,280,780+i*100,330),'Other Map') for i in range(1,5))
+        self.session.face_boards=lambda:None
+        self.session.boards=lambda:boards
+        self.session.approach_vip=lambda:(_ for _ in ()).throw(AssertionError('VIP fallback is forbidden'))
+        with self.assertRaisesRegex(StopRun,'Wretched Front target'):
+            self.session.choose_map('Wretched Front')
+        self.assertEqual([event for event in self.platform.events if event[0]=='key_down'],
+                         [('key_down','W')])
+
     def setUp(self):
         self.enterContext(contextlib.redirect_stdout(io.StringIO()))
         self.temp=tempfile.TemporaryDirectory()
@@ -516,6 +668,35 @@ class SessionTests(unittest.TestCase):
         self.session=Session(self.driver,self.path,read_frame=frame,now=self.platform.now)
         self.session.observer=SimpleNamespace(observe=lambda frame:SimpleNamespace(state=frame.info['state']))
         self.session.navigator.observer=self.session.observer
+
+    def test_preflight_window_anchor_requires_supported_client_and_complete_fields(self):
+        from tds_auto.phase1 import Window
+        anchor={'hwnd':10,'pid':20,'x':0,'y':29,'width':1920,'height':991,
+                'dpi':120,'foreground':True}
+        self.assertEqual(_parse_expected_window(json.dumps(anchor)),Window(**anchor))
+        for invalid in (
+            {**anchor,'dpi':96},
+            {**anchor,'foreground':False},
+            {**anchor,'unknown':1},
+            {**anchor,'hwnd':True},
+        ):
+            with self.subTest(invalid=invalid):
+                with self.assertRaisesRegex(ValueError,'preflight anchor'):
+                    _parse_expected_window(json.dumps(invalid))
+
+    def test_gui_start_hands_the_preflight_anchor_to_recovery_supervisor(self):
+        from tds_auto.phase1 import Window
+        from tds_auto.session import main
+        expected=Window(10,20,0,29,1920,991,120,True)
+        platform=SimpleNamespace(close=lambda:None)
+        output=self.path/'expected_window_run'
+        with patch('tds_auto.session.ROOT',self.path), \
+             patch('tds_auto.session.WindowsOS',return_value=platform), \
+             patch('tds_auto.recovery.supervise',return_value={'status':'prepared'}) as supervise:
+            result=main(['start','--confirm-start','--continuous','--auto-recover',
+                         '--output',str(output),'--expected-window',json.dumps(expected.__dict__)])
+        self.assertEqual(result,0)
+        self.assertEqual(supervise.call_args.kwargs['initial_expected'],expected)
 
     def test_idle_lobby_monitor_confirms_exact_disconnect_without_sending_input(self):
         self.platform.on_sleep=lambda os:setattr(self,'state','disconnect') if os.now()>=.6 else None
@@ -640,6 +821,13 @@ class SessionTests(unittest.TestCase):
             with self.assertRaises(StopRun) as caught:self.session.preflight()
         self.assertEqual(caught.exception.kind,'setup')
         self.assertGreaterEqual(self.platform.now(),5)
+        self.assertEqual(self.platform.events,[])
+
+    def test_scout_details_transition_delegates_to_search_first_selection(self):
+        self.state='inventory_list_2192'
+        with patch.object(self.session.navigator,'search_tower',return_value=('scout','unequip')) as search:
+            self.assertEqual(self.session.transition('scout_details'),('scout','unequip'))
+        search.assert_called_once_with('scout')
         self.assertEqual(self.platform.events,[])
 
     def test_pause_sends_no_input_and_focus_loss_stops_it(self):
@@ -853,6 +1041,169 @@ class SessionTests(unittest.TestCase):
         with patch('shutil.disk_usage',return_value=SimpleNamespace(free=0)):
             with self.assertRaisesRegex(StopRun,'GiB'):self.session.run(continuous=True)
         self.assertEqual(self.platform.events,[])
+
+    def test_hardcore_prepare_only_routes_to_map_without_wave_execution(self):
+        from unittest.mock import Mock
+        from tds_auto.hardcore_plan import PLAN_ID
+        output=self.path/'hardcore_prepare'
+        session=Session(self.driver,output,read_frame=self.session.capture,now=self.platform.now,
+                        strategy_id=PLAN_ID)
+        session.preflight_hardcore=Mock()
+        session.choose_map=Mock()
+        session.prepare_hardcore_match=Mock(return_value={'status':'hardcore_map_loaded'})
+        session.verify_hardcore_hotbar=Mock()
+        with patch('tds_auto.session.shutil.disk_usage',return_value=SimpleNamespace(free=3*1024**3)):
+            result=session.run(prepare_only=True)
+        self.assertEqual(result,{'status':'hardcore_map_loaded'})
+        session.preflight_hardcore.assert_called_once_with()
+        session.choose_map.assert_called_once_with('Wretched Front')
+        session.prepare_hardcore_match.assert_called_once_with()
+        session.verify_hardcore_hotbar.assert_called_once_with()
+        self.assertEqual(self.platform.events,[])
+
+    def test_hardcore_wave_execution_is_locked_until_prepare_only_gate(self):
+        from unittest.mock import Mock
+        from tds_auto.hardcore_plan import PLAN_ID
+        session=Session(self.driver,self.path/'hardcore_locked',read_frame=self.session.capture,
+                        now=self.platform.now,strategy_id=PLAN_ID)
+        session.preflight_hardcore=Mock()
+        with patch('tds_auto.session.shutil.disk_usage',return_value=SimpleNamespace(free=3*1024**3)):
+            with self.assertRaisesRegex(StopRun,'prepare-only gate'):
+                session.run()
+        session.preflight_hardcore.assert_not_called()
+        self.assertEqual(self.platform.events,[])
+
+    def test_hardcore_restarts_same_match_without_lobby_or_wallet_checks(self):
+        from unittest.mock import Mock
+        from tds_auto.hardcore_plan_v2 import PLAN_ID
+        output=self.path/'hardcore_v2_restart'
+        output.mkdir()
+        session=Session(self.driver,output,read_frame=self.session.capture,now=self.platform.now,
+                        strategy_id=PLAN_ID)
+        session.preflight_hardcore=Mock()
+        session.choose_map=Mock()
+        session.prepare_hardcore_match=Mock()
+        session.verify_hardcore_hotbar=Mock()
+        session.transition=Mock(return_value='match_ready')
+        session.status=Mock()
+        with patch('tds_auto.hardcore_match.HardcoreMatchV2') as candidate:
+            candidate.return_value.run.side_effect=[
+                {'status':'result_verified','displayed_gems':137},
+                {'status':'result_verified','displayed_gems':137},
+            ]
+            result=session.play_hardcore_v2(2)
+        session.preflight_hardcore.assert_called_once_with()
+        session.choose_map.assert_called_once_with('Wretched Front')
+        session.verify_hardcore_hotbar.assert_called_once_with()
+        self.assertEqual(session.prepare_hardcore_match.call_count,2)
+        session.transition.assert_called_once_with('restart_match')
+        self.assertFalse(hasattr(session,'hardcore_wallet'))
+        self.assertEqual([match['status'] for match in result['matches']],
+                         ['result_verified','result_verified'])
+        self.assertEqual((result['gem_cycles'],result['gems_total']),(2,274))
+        self.assertEqual(result['matches_completed'],2)
+        self.assertEqual(self.platform.events,[])
+
+    def test_hardcore_rejects_mismatched_or_early_reward_without_restart(self):
+        from unittest.mock import Mock
+        from tds_auto.hardcore_plan_v2 import PLAN_ID
+        for index,outcome in enumerate((
+                {'status':'early_result','displayed_gems':6},
+                {'status':'result_verified','displayed_gems':6},
+                {'status':'result_verified','displayed_gems':None})):
+            with self.subTest(outcome=outcome):
+                output=self.path/f'hardcore_bad_reward_{index}'
+                output.mkdir()
+                session=Session(self.driver,output,read_frame=self.session.capture,
+                                now=self.platform.now,strategy_id=PLAN_ID)
+                session.preflight_hardcore=Mock()
+                session.choose_map=Mock()
+                session.prepare_hardcore_match=Mock()
+                session.verify_hardcore_hotbar=Mock()
+                session.transition=Mock()
+                session.status=Mock()
+                with patch('tds_auto.hardcore_match.HardcoreMatchV2') as candidate:
+                    candidate.return_value.run.return_value=dict(outcome)
+                    result=session.play_hardcore_v2(3)
+                self.assertEqual(result['gem_cycles'],0)
+                session.transition.assert_not_called()
+
+    def test_hardcore_prepare_reuses_one_hud_reader_for_all_polls(self):
+        self.state='match_ready'
+        self.session.strategy_id='hardcore_gem_grind_wretched_front'
+        self.session.hardcore_plan=SimpleNamespace(map_name='Wretched Front',mode='Hardcore',squad_size=1)
+        with patch('tds_auto.session.HudReader') as hud_reader:
+            hud_reader.return_value.read.return_value=SimpleNamespace(tower_count=0)
+            result=self.session.prepare_hardcore_match()
+        self.assertEqual(result['tower_count'],0)
+        self.assertEqual(hud_reader.return_value.read.call_count,2)
+        self.assertEqual(hud_reader.call_count,1)
+
+    def test_hardcore_solo_reads_player_count_only_in_the_voting_room(self):
+        self.state='squad_hardcore'
+        self.session.hardcore_plan=SimpleNamespace(mode='Hardcore',squad_size=1)
+
+        def select(name):
+            self.assertEqual(name,'solo_hardcore')
+            self.assertEqual(self.state,'squad_hardcore')
+            self.state='map_vote'
+
+        def read_count(frame):
+            self.assertEqual(frame.info['state'],'map_vote')
+            return 1
+
+        with patch.object(self.session,'transition',side_effect=select) as transition, \
+             patch('tds_auto.session.vote_players',side_effect=read_count) as count:
+            self.session.select_hardcore_solo()
+        transition.assert_called_once_with('solo_hardcore')
+        self.assertEqual(count.call_count,2)
+        self.assertTrue((self.session.output/'hardcore_solo_confirmed.png').exists())
+
+    def test_hardcore_tower_search_click_gate_uses_verified_inventory_states(self):
+        from tds_auto.hardcore_plan import PLAN_ID
+        from tds_auto.loadout import INVENTORY_LIST_STATES
+        output=self.path/'hardcore_search_gate'
+        output.mkdir()
+        session=Session(self.driver,output,now=self.platform.now,strategy_id=PLAN_ID)
+        screen={'state':'lobby'}
+        def frame():
+            image=Image.new('RGB',(1920,991))
+            image.info['state']=screen['state']
+            return image
+        session.capture=frame
+        session.observer=SimpleNamespace(observe=lambda image:SimpleNamespace(state=image.info['state']))
+        session.navigator.observer=session.observer
+        session.lobby=lambda:None
+        def open_inventory(name):
+            self.assertEqual(name,'open_inventory')
+            session.allowed={'lobby'}
+            screen['state']='inventory_list_2192'
+            return 'inventory_list_2192'
+        session.transition=open_inventory
+        def search_tower(tower):
+            self.assertEqual(session.allowed,set(INVENTORY_LIST_STATES))
+            session.click_gate()
+            raise StopRun('Search boundary reached.')
+        with patch('tds_auto.session.read_slot_occupancy',return_value=(False,)*5), \
+             patch.object(session.navigator,'search_tower',side_effect=search_tower):
+            with self.assertRaisesRegex(StopRun,'Search boundary reached'):
+                session.preflight_hardcore()
+        self.assertEqual(self.platform.events,[])
+
+    def test_hardcore_wrong_hotbar_name_stops_before_ready_or_placement(self):
+        from tds_auto.hardcore_plan_v2 import load_hardcore_plan_v2
+        from tds_auto.resources import Hud
+
+        self.state='match_ready'
+        self.session.hardcore_plan=load_hardcore_plan_v2()
+        with patch('tds_auto.session.HudReader') as reader, \
+             patch('tds_auto.session.vote_players',return_value=1), \
+             patch('tds_auto.session.read_hardcore_hotbar_name',side_effect=[None,'farm','farm']):
+            reader.return_value.read.return_value=Hud(tower_count=0)
+            with self.assertRaisesRegex(StopRun,'Slot 1 contains farm'):
+                self.session.verify_hardcore_hotbar()
+        self.assertEqual(sum(event[0]=='move' for event in self.platform.events),1)
+        self.assertFalse(any(event[0] in {'left_down','key_down'} for event in self.platform.events))
 
     def test_rejected_second_start_preserves_active_control_pointer(self):
         from tds_auto.session import main

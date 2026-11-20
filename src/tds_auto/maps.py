@@ -15,18 +15,23 @@ class Board:
     title: str
 
 
-def voting_floor(frame,require_both=True,for_strafe=False):
+def voting_floor(frame,require_both=True,for_strafe=False,map_name='Dead Ahead'):
     """Flat voting walkway beside both feet in the verified third-person view."""
     if frame.size!=(1920,991):
         return False
     supported=0
+    # Wretched Front uses the same neutral stone, rendered darker in the
+    # current map-vote lighting. Keep the Dead Ahead threshold unchanged.
+    minimum=45 if map_name=='Wretched Front' else 80
+    chroma_limit=60 if map_name=='Wretched Front' else 30
+    support_fraction=.55 if map_name=='Wretched Front' and not require_both else .70
     # A sideways step needs ten more pixels of stone toward the feet. The
     # original support regions still govern edge correction and lost-floor stop.
     bottom=735 if for_strafe else 725
     for box in ((835,680,875,bottom),(1045,680,1085,bottom)):
         pixels=np.asarray(frame.crop(box).convert('RGB')).astype(np.int16)
-        stone=(pixels.max(axis=2)-pixels.min(axis=2)<30)&(pixels.min(axis=2)>80)
-        supported+=int(stone.mean()>=.70)
+        stone=(pixels.max(axis=2)-pixels.min(axis=2)<chroma_limit)&(pixels.min(axis=2)>minimum)
+        supported+=int(stone.mean()>=support_fraction)
     return supported==2 if require_both else supported>=1
 
 
@@ -78,12 +83,15 @@ def read_headers(frame,after_vote=False):
     boxes=[]
     for contour in contours:
         x,y,w,h=cv2.boundingRect(contour)
-        if w>120 and h>20 and cv2.contourArea(contour)>1000:
+        # The Wretched Front voting room uses narrower board ribbons at the
+        # closer 1920x991 view; retain them so four-board indices stay physical.
+        if w>100 and h>20 and cv2.contourArea(contour)>1000:
             boxes.append((x,y+180,x+w,y+180+int(h*.66)))
     if not 1<=len(boxes)<=4:
         return ()
     ocr=LocalOCR()
     def read_title(box):
+        x1,y1,x2,y2=box
         sample=frame.crop(box)
         text=ocr.read(sample)
         if not title_matches(text):
@@ -110,6 +118,15 @@ def read_headers(frame,after_vote=False):
             candidate=ocr.read(enlarged)
             if title_matches(candidate):
                 return candidate
+            # The narrow Wretched Front ribbon needs a tighter, lower-threshold
+            # crop to keep the final word from merging into its pink backdrop.
+            left=x1+round((x2-x1)*.14)
+            top=y1+round((y2-y1)*.18)
+            right=x2-round((x2-x1)*.105)
+            tight=frame.crop((left,top,right,y2)).convert('L')
+            candidate=ocr.read(tight.point(lambda value:255 if value>70 else 0))
+            if title_matches(candidate) or title_matches(candidate,'Wretched Front'):
+                return candidate
         return text
     return tuple(Board(index,box,read_title(box))
                  for index,box in enumerate(sorted(boxes),1))
@@ -118,11 +135,19 @@ def read_headers(frame,after_vote=False):
 def read_boards(frame):
     """Only a complete view establishes physical board positions 1..4."""
     boards=read_headers(frame)
-    return boards if len(boards)==4 else ()
+    if len(boards)!=4:
+        return ()
+    widths=[board.box[2]-board.box[0] for board in boards]
+    # At the too-close view, the clipped outer ribbon is much narrower than
+    # the others. Keep the farther, balanced distance view accepted.
+    if boards[-1].box[2]>=frame.width and max(widths)>1.7*min(widths):
+        return ()
+    return boards
 
 
 def visible_target(frame,name='Dead Ahead',after_vote=False,diagnostics=None):
-    boards=read_headers(frame,after_vote=after_vote)
+    # Wretched Front ribbons sit lower when the camera is close to the board.
+    boards=read_headers(frame,after_vote=after_vote or name=='Wretched Front')
     if diagnostics is not None:
         # Persist only expected map-name tokens, never arbitrary OCR text.
         tokens={token for board in boards for token in re.findall(r'[a-z]+',board.title.casefold())
@@ -154,14 +179,44 @@ def vote_prompt(frame,target=None):
     crop=frame.crop((750,340,1320,680))
     scores=cv2.matchTemplate(np.asarray(crop.convert('L')),template,cv2.TM_CCOEFF_NORMED)
     _,score,_,(x,y)=cv2.minMaxLoc(scores)
-    if score<.93:
+    wretched=target is not None and title_matches(target.title,'Wretched Front')
+    if score<(.90 if wretched else .93):
         return False
     x+=750;y+=340
     if target is not None and not target.box[0]<=x+template.shape[1]/2<=target.box[2]:
         return False  # A neighbouring board can have the same generic Vote prompt.
-    label=frame.crop((x-15,y+55,x+90,y+100))
+    label=frame.crop((x-65,y+45,x+140,y+110)) if wretched else frame.crop((x-15,y+55,x+90,y+100))
     ocr=LocalOCR()
     return any('vote' in re.findall(r'[a-z]+',ocr.read(sample).casefold()) for sample in (label,ink(label)))
+
+
+def map_vote_screen(frame):
+    """Recover map-vote identity when a hovered button invalidates its template."""
+    if frame.size!=(1920,991):
+        return False
+    ocr=LocalOCR()
+    def matches(box,required,count_pattern=None,alternatives=(),red_dominant=False):
+        crop=frame.crop(box)
+        samples=[crop,ink(crop)]
+        if red_dominant:
+            pixels=np.asarray(crop.convert('RGB')).astype(np.int16)
+            red=(pixels[:,:,0]>pixels[:,:,1]+35)&(pixels[:,:,0]>pixels[:,:,2]+35)
+            samples.append(Image.fromarray((red*255).astype(np.uint8)))
+        for text in (ocr.read(sample) for sample in samples):
+            tokens=set(re.findall(r'[a-z]+',text.casefold()))
+            if (required<=tokens
+                    and (not alternatives or any(option<=tokens for option in alternatives))
+                    and (count_pattern is None or re.search(count_pattern,text))):
+                return True
+        return False
+    return (
+        matches((680,75,1280,135),{'vote','for','a','map'})
+        and matches((560,170,1370,225),{'vote','a','map','start','timer'},
+                    alternatives=({'for'},{'gor'}),red_dominant=True)
+        and matches((835,740,1100,818),{'ready'},r'\([01]\s*/\s*1\)')
+        and matches((1100,740,1310,818),{'veto'},r'\([01]\s*/\s*1\)')
+        and vote_players(frame)==1
+    )
 
 
 def _vip_prompt_evidence(frame):
@@ -232,6 +287,28 @@ def solo_vote(frame):
 
 def vote_players(frame):
     import re
-    text=LocalOCR().read(frame.crop((1450,85,1660,130)))
-    match=re.fullmatch(r'players\(([0-6])/6\)',''.join(text.casefold().split()))
-    return int(match[1]) if match else None
+    if frame.size!=(1920,991):
+        return None
+    ocr=LocalOCR()
+    values=[]
+    boxes=((1450,85,1660,130),(1430,70,1680,145))
+    # The current 2.19.2 header renders the leading 1 as a V in the narrow
+    # crop on some frames. The wider crop can resolve it while appending nearby
+    # OCR noise; conflicting valid counts remain uncertain.
+    for box in boxes:
+        text=''.join(ocr.read(frame.crop(box)).casefold().split())
+        values.extend(int(value) for value in
+                      re.findall(r'(?<![a-z0-9])players\(([0-6])/6\)(?![0-9])',text))
+    if not values:
+        # Low-contrast frames can lose the same count in both raw OCR crops.
+        # Bounded grayscale thresholds recover only the literal 0..6/6 token.
+        for box in boxes:
+            gray=frame.crop(box).convert('L')
+            for threshold in (140,170,200):
+                image=gray.point(lambda value,cutoff=threshold:255 if value>cutoff else 0)
+                text=''.join(ocr.read(image).casefold().split())
+                found=re.findall(r'(?<![a-z0-9])players\(([0-6])/6\)(?![0-9])',text)
+                if found:
+                    values.extend(int(value) for value in found)
+                    break
+    return values[0] if values and len(set(values))==1 else None

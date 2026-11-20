@@ -1,0 +1,667 @@
+{
+  "schema_version": 1,
+  "strategy_id": "hardcore_gem_grind_wretched_front",
+  "profile_id": "wretched_front_hardcore_v1",
+  "map": "Wretched Front",
+  "mode": "Hardcore",
+  "squad_size": 1,
+  "required_loadout": [
+    {
+      "slot": 1,
+      "tower": "Boomerang"
+    },
+    {
+      "slot": 2,
+      "tower": "Crook Boss"
+    },
+    {
+      "slot": 3,
+      "tower": "Farm"
+    }
+  ],
+  "optional_slot": 4,
+  "slots_must_be_empty": [
+    5
+  ],
+  "placements": {
+    "F1": "farm_outer_pad_01",
+    "F2": "farm_outer_pad_02",
+    "F3": "farm_outer_pad_03",
+    "F4": "farm_outer_pad_04",
+    "F5": "farm_outer_pad_05",
+    "F6": "farm_outer_pad_06",
+    "F7": "farm_outer_pad_07",
+    "F8": "farm_outer_pad_08",
+    "B1": "boomerang_bend_01",
+    "B2": "boomerang_bend_02",
+    "B3": "boomerang_bend_03",
+    "B4": "boomerang_bend_04",
+    "B5": "boomerang_bend_05",
+    "C1": "crook_intercept_01",
+    "C2": "crook_intercept_02",
+    "C3": "crook_intercept_03",
+    "C4": "crook_intercept_04",
+    "C5": "crook_intercept_05",
+    "X1": "exp_rear_exit_01"
+  },
+  "skip_policy": {
+    "mode": "auto_then_one_per_wave",
+    "max_clicks_per_wave": 1
+  },
+  "finish_policy": {
+    "target_wave": 29,
+    "result": "natural_result",
+    "minimum_positive_wave_observations": 2
+  },
+  "towers": [
+    {
+      "id": "F1",
+      "type": "Farm",
+      "slot": 3,
+      "optional": false
+    },
+    {
+      "id": "F2",
+      "type": "Farm",
+      "slot": 3,
+      "optional": false
+    },
+    {
+      "id": "F3",
+      "type": "Farm",
+      "slot": 3,
+      "optional": false
+    },
+    {
+      "id": "F4",
+      "type": "Farm",
+      "slot": 3,
+      "optional": false
+    },
+    {
+      "id": "F5",
+      "type": "Farm",
+      "slot": 3,
+      "optional": false
+    },
+    {
+      "id": "F6",
+      "type": "Farm",
+      "slot": 3,
+      "optional": false
+    },
+    {
+      "id": "F7",
+      "type": "Farm",
+      "slot": 3,
+      "optional": false
+    },
+    {
+      "id": "F8",
+      "type": "Farm",
+      "slot": 3,
+      "optional": false
+    },
+    {
+      "id": "B1",
+      "type": "Boomerang",
+      "slot": 1,
+      "optional": false
+    },
+    {
+      "id": "B2",
+      "type": "Boomerang",
+      "slot": 1,
+      "optional": false
+    },
+    {
+      "id": "B3",
+      "type": "Boomerang",
+      "slot": 1,
+      "optional": false
+    },
+    {
+      "id": "B4",
+      "type": "Boomerang",
+      "slot": 1,
+      "optional": false
+    },
+    {
+      "id": "B5",
+      "type": "Boomerang",
+      "slot": 1,
+      "optional": false
+    },
+    {
+      "id": "C1",
+      "type": "Crook Boss",
+      "slot": 2,
+      "optional": false
+    },
+    {
+      "id": "C2",
+      "type": "Crook Boss",
+      "slot": 2,
+      "optional": false
+    },
+    {
+      "id": "C3",
+      "type": "Crook Boss",
+      "slot": 2,
+      "optional": false
+    },
+    {
+      "id": "C4",
+      "type": "Crook Boss",
+      "slot": 2,
+      "optional": false
+    },
+    {
+      "id": "C5",
+      "type": "Crook Boss",
+      "slot": 2,
+      "optional": false
+    },
+    {
+      "id": "X1",
+      "type": "EXP",
+      "slot": 4,
+      "optional": true
+    }
+  ],
+  "stages": [
+    {
+      "waves": [
+        0,
+        0
+      ],
+      "actions": [
+        {
+          "op": "place",
+          "tower_id": "F1"
+        },
+        {
+          "op": "place",
+          "tower_id": "F2"
+        },
+        {
+          "op": "place",
+          "tower_id": "F3"
+        },
+        {
+          "op": "place",
+          "tower_id": "F4"
+        }
+      ],
+      "checks": []
+    },
+    {
+      "waves": [
+        1,
+        4
+      ],
+      "actions": [
+        {
+          "op": "upgrade",
+          "tower_id": "F1",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F1",
+          "level": 2
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F2",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F2",
+          "level": 2
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F3",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F3",
+          "level": 2
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F4",
+          "level": 1
+        }
+      ],
+      "checks": []
+    },
+    {
+      "waves": [
+        5,
+        6
+      ],
+      "actions": [
+        {
+          "op": "place",
+          "tower_id": "B1"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B1",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F4",
+          "level": 2
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B1",
+          "level": 2
+        },
+        {
+          "op": "place",
+          "tower_id": "F5"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F5",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F5",
+          "level": 2
+        }
+      ],
+      "checks": []
+    },
+    {
+      "waves": [
+        7,
+        9
+      ],
+      "actions": [
+        {
+          "op": "upgrade",
+          "tower_id": "F1",
+          "level": 3
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F2",
+          "level": 3
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F3",
+          "level": 3
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F4",
+          "level": 3
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F5",
+          "level": 3
+        }
+      ],
+      "checks": []
+    },
+    {
+      "waves": [
+        10,
+        10
+      ],
+      "actions": [
+        {
+          "op": "upgrade",
+          "tower_id": "B1",
+          "level": 3
+        }
+      ],
+      "checks": []
+    },
+    {
+      "waves": [
+        11,
+        13
+      ],
+      "actions": [
+        {
+          "op": "place",
+          "tower_id": "F6"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F6",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F6",
+          "level": 2
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F6",
+          "level": 3
+        },
+        {
+          "op": "place",
+          "tower_id": "C1"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C1",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C1",
+          "level": 2
+        },
+        {
+          "op": "place",
+          "tower_id": "F7"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F7",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F7",
+          "level": 2
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F7",
+          "level": 3
+        },
+        {
+          "op": "place",
+          "tower_id": "F8"
+        }
+      ],
+      "checks": []
+    },
+    {
+      "waves": [
+        14,
+        15
+      ],
+      "actions": [
+        {
+          "op": "upgrade",
+          "tower_id": "F8",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F8",
+          "level": 2
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "F8",
+          "level": 3
+        }
+      ],
+      "checks": [
+        {
+          "op": "verify_tower_levels",
+          "tower_ids": [
+            "F1",
+            "F2",
+            "F3",
+            "F4",
+            "F5",
+            "F6",
+            "F7",
+            "F8"
+          ],
+          "level": 3
+        }
+      ]
+    },
+    {
+      "waves": [
+        16,
+        16
+      ],
+      "actions": [
+        {
+          "op": "place",
+          "tower_id": "B2"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B2",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B2",
+          "level": 2
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B2",
+          "level": 3
+        },
+        {
+          "op": "place",
+          "tower_id": "C2"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C2",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C2",
+          "level": 2
+        }
+      ],
+      "checks": []
+    },
+    {
+      "waves": [
+        17,
+        18
+      ],
+      "actions": [
+        {
+          "op": "place",
+          "tower_id": "B3"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B3",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B3",
+          "level": 2
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B3",
+          "level": 3
+        },
+        {
+          "op": "place",
+          "tower_id": "B4"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B4",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B4",
+          "level": 2
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B4",
+          "level": 3
+        },
+        {
+          "op": "place",
+          "tower_id": "B5"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B5",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B5",
+          "level": 2
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B5",
+          "level": 3
+        }
+      ],
+      "checks": []
+    },
+    {
+      "waves": [
+        19,
+        21
+      ],
+      "actions": [
+        {
+          "op": "place",
+          "tower_id": "C3"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C3",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C3",
+          "level": 2
+        },
+        {
+          "op": "place",
+          "tower_id": "C4"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C4",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C4",
+          "level": 2
+        },
+        {
+          "op": "place",
+          "tower_id": "C5"
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C5",
+          "level": 1
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C5",
+          "level": 2
+        }
+      ],
+      "checks": []
+    },
+    {
+      "waves": [
+        22,
+        22
+      ],
+      "actions": [
+        {
+          "op": "place",
+          "tower_id": "X1",
+          "optional": true
+        }
+      ],
+      "checks": []
+    },
+    {
+      "waves": [
+        23,
+        28
+      ],
+      "actions": [
+        {
+          "op": "upgrade",
+          "tower_id": "C1",
+          "level": 3
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "C2",
+          "level": 3
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B1",
+          "level": 4,
+          "optional": true
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B2",
+          "level": 4,
+          "optional": true
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B3",
+          "level": 4,
+          "optional": true
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B4",
+          "level": 4,
+          "optional": true
+        },
+        {
+          "op": "upgrade",
+          "tower_id": "B5",
+          "level": 4,
+          "optional": true
+        }
+      ],
+      "checks": []
+    },
+    {
+      "waves": [
+        29,
+        29
+      ],
+      "actions": [],
+      "checks": []
+    }
+  ]
+}

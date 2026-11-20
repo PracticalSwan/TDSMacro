@@ -138,15 +138,18 @@ class Observer:
                              for index,(boxes, templates, colored) in enumerate(anchors))
                   for state, anchors in self.anchors.items()}
         banner=location[0] if location else None
-        if banner=='victory' and scores[banner]<.90:
+        if banner and scores[banner]<.90:
             # The hover animation changes font size continuously. Confirm the
             # actual action text instead of adding templates for each size.
             # Lazy import keeps resources' ink/overlap dependency acyclic.
             from .resources import LocalOCR
             if self.result_ocr is None:
                 self.result_ocr=LocalOCR()
-            box=self.anchors['victory'][1][0][0]
-            if self.result_ocr.read(frame.crop(box)).split()==['Play','Again']:
+            if banner == 'defeat':
+                box, caption = (701, 745, 968, 790), ['Return', 'To', 'Lobby']
+            else:
+                box, caption = self.anchors['victory'][1][0][0], ['Play', 'Again']
+            if self.result_ocr.read(frame.crop(box)).split()==caption:
                 scores[banner]=.90
         if banner and scores[banner]<.90:
             return Observation('unknown',round(scores[banner],4),scores,
@@ -165,7 +168,11 @@ class Observer:
         if scores.get('login_rewards',0)>=.90:
             ranked=[state for state in ranked if state!='lobby']
         if scores.get('inventory_scout',0)>=.90:
-            ranked=[state for state in ranked if state!='inventory_list']
+            ranked=[state for state in ranked if state not in {'inventory_list','inventory_list_2192','inventory_search_2192'}]
+        elif scores.get('inventory_list_2192',0)>=.90:
+            ranked=[state for state in ranked if state not in {'inventory_list','inventory_search_2192'}]
+        elif scores.get('inventory_list',0)>=.90:
+            ranked=[state for state in ranked if state!='inventory_search_2192']
         best = ranked[0]
         if scores[best] < 0.90:
             return Observation("unknown", round(scores[best], 4), scores, "Missing or low-confidence anchors.")

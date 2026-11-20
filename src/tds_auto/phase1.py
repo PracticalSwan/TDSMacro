@@ -1,7 +1,8 @@
-"""Phase 1: Windows GDK Roblox client geometry, capture, and safe hover probe.
+"""Phase 1: Windows GDK Roblox client identity, focus, capture, and safe hover probe.
 
-Only captures pixels and optionally moves the pointer. No clicks, keys,
-gameplay actions, Roblox data reads, injection, or client modification.
+The pre-run focus action may make one bounded native foreground request. This
+module never sends clicks or keys, reads Roblox data, injects, or modifies the
+client; pointer movement is limited to the explicit Settings hover probe.
 """
 from __future__ import annotations
 
@@ -11,6 +12,7 @@ import json
 import os
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -25,6 +27,10 @@ USER = ctypes.WinDLL("user32", use_last_error=True)
 KERNEL = ctypes.WinDLL("kernel32", use_last_error=True)
 HWND = wintypes.HWND
 DWORD = wintypes.DWORD
+SUPPORTED_CLIENT = (1920, 991, 120)
+FOCUS_TIMEOUT_SECONDS = 2.0
+FOCUS_POLL_SECONDS = 0.05
+FOCUS_STABLE_SECONDS = 0.2
 
 class Point(ctypes.Structure):
     _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
@@ -83,10 +89,16 @@ class Window:
     foreground: bool
 
 
+class RobloxWindowUnavailable(RuntimeError):
+    """No Roblox client window exists; startup recovery may launch the game."""
+
+
 def locate_roblox() -> Window:
     hwnd = USER.FindWindowW(None, "Roblox")
-    if not hwnd or not USER.IsWindowVisible(hwnd) or USER.IsIconic(hwnd):
-        raise RuntimeError("A visible, non-minimized Roblox window is required.")
+    if not hwnd:
+        raise RobloxWindowUnavailable("No Roblox client window was found.")
+    if not USER.IsWindowVisible(hwnd) or USER.IsIconic(hwnd):
+        raise RuntimeError("An existing Roblox window is minimized or hidden; restore it before retrying.")
     pid = DWORD()
     if not USER.GetWindowThreadProcessId(hwnd, ctypes.byref(pid)):
         raise RuntimeError("Could not verify the Roblox process ID.")
@@ -121,6 +133,59 @@ def locate_roblox() -> Window:
         int(hwnd), pid.value, origin.x, origin.y,
         width, height, dpi, USER.GetForegroundWindow() == hwnd
     )
+
+
+def _window_anchor(window: Window) -> tuple[int, int, int, int, int, int, int]:
+    return (
+        window.hwnd, window.pid, window.x, window.y,
+        window.width, window.height, window.dpi,
+    )
+
+
+def focus_roblox(cancelled: Callable[[], bool] | None = None) -> Window:
+    """Focus the verified supported Roblox client once, before a macro starts.
+
+    This preflight helper is not recovery: it makes at most one ordinary
+    SetForegroundWindow request, requires the same client/geometry/DPI on two
+    foreground reads, and never sends game input or retries activation.
+    """
+    def check_cancelled() -> None:
+        if cancelled is not None and cancelled():
+            raise RuntimeError("Roblox focus preflight cancelled.")
+
+    check_cancelled()
+    initial = locate_roblox()
+    if (initial.width, initial.height, initial.dpi) != SUPPORTED_CLIENT:
+        raise RuntimeError("Roblox focus requires the supported 1920x991 client at 120 DPI.")
+    anchor = _window_anchor(initial)
+    current = initial
+
+    if not initial.foreground:
+        # Make one ordinary OS foreground request. Its return value is not
+        # proof; the native locator must observe the target foreground.
+        USER.SetForegroundWindow(initial.hwnd)
+        deadline = time.monotonic() + FOCUS_TIMEOUT_SECONDS
+        while True:
+            check_cancelled()
+            current = locate_roblox()
+            if _window_anchor(current) != anchor:
+                raise RuntimeError("Roblox focus preflight identity or geometry changed.")
+            if current.foreground:
+                break
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise RuntimeError("Roblox did not reach the foreground within two seconds.")
+            time.sleep(min(FOCUS_POLL_SECONDS, remaining))
+
+    if not current.foreground:
+        raise RuntimeError("Roblox focus preflight requires a foreground client.")
+    check_cancelled()
+    time.sleep(FOCUS_STABLE_SECONDS)
+    check_cancelled()
+    stable = locate_roblox()
+    if _window_anchor(stable) != anchor or not stable.foreground:
+        raise RuntimeError("Roblox focus preflight identity, geometry, or foreground changed.")
+    return stable
 
 
 def normalized_point(window: Window, x: float, y: float) -> tuple[int, int]:
@@ -181,7 +246,7 @@ def capture(window: Window) -> Image.Image:
     if (current.hwnd != window.hwnd or current.pid != window.pid
         or not current.foreground or current.width != window.width
         or current.height != window.height or current.x != window.x
-        or current.y != window.y):
+        or current.y != window.y or current.dpi != window.dpi):
         raise RuntimeError("Roblox focus/geometry changed; capture cancelled.")
     bbox = (window.x, window.y, window.x + window.width, window.y + window.height)
     img = ImageGrab.grab(bbox=bbox, all_screens=True).convert("RGB")
@@ -295,17 +360,18 @@ def take_live(action: str, activate: bool, output: Path, confirm_hover: bool) ->
 
 
 def main() -> int:
-    p = argparse.ArgumentParser(description="Read-only Roblox TDS geometry/capture and optional harmless UI hover.")
+    p = argparse.ArgumentParser(description="Inspect Roblox TDS geometry, capture, or perform a harmless UI hover.")
     p.add_argument("action", choices=("inspect", "capture", "hover"))
     p.add_argument("--activate", action="store_true", help="Temporarily foreground Roblox for a visual probe")
     p.add_argument("--confirm-hover", action="store_true", help="Allow one mouse move over the Settings icon (no click)")
-    p.add_argument("--output", type=Path, default=Path(__file__).resolve().parents[2] / "captures" / "phase1.png")
+    p.add_argument("--output", type=Path, help="Capture destination (never overwritten).")
     args = p.parse_args()
     try:
         if args.action == "inspect":
             print(json.dumps(asdict(locate_roblox()), indent=2))
         else:
-            print(json.dumps(take_live(args.action, args.activate, args.output, args.confirm_hover), indent=2))
+            output = args.output or (Path(__file__).resolve().parents[2] / "captures" / "phase1.png")
+            print(json.dumps(take_live(args.action, args.activate, output, args.confirm_hover), indent=2))
     except (RuntimeError, ValueError, OSError) as exc:
         print(f"PHASE1_STOP: {exc}", file=sys.stderr)
         return 2

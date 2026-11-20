@@ -93,10 +93,39 @@
       {
         "file": "squad_easy_1.png",
         "box": [
-          755,
+          921,
           197,
-          961,
+          957,
           217
+        ]
+      }
+    ],
+    "squad_hardcore": [
+      {
+        "file": "hardcore_choose_squad.png",
+        "box": [
+          826,
+          49,
+          1101,
+          75
+        ]
+      },
+      {
+        "file": "hardcore_mode.png",
+        "box": [
+          752,
+          197,
+          996,
+          217
+        ]
+      },
+      {
+        "file": "hardcore_solo.png",
+        "box": [
+          550,
+          515,
+          595,
+          535
         ]
       }
     ],
@@ -269,6 +298,7 @@
     "defeat": [
       {
         "file": "defeat_0.png",
+        "alternatives": ["hardcore_defeat_title.png"],
         "box": [
           825,
           365,
@@ -279,6 +309,7 @@
       },
       {
         "file": "defeat_1.png",
+        "alternatives": ["hardcore_return_lobby.png"],
         "box": [
           726,
           754,
@@ -359,6 +390,10 @@
     "inventory_list": [
       {
         "file": "inventory_list_0.png",
+        "alternatives": [
+          "inventory_list_intermediate.png"
+        ],
+        "colored": true,
         "box": [
           327,
           239,
@@ -373,6 +408,65 @@
           92,
           827,
           113
+        ]
+      }
+    ],
+    "inventory_list_2192": [
+      {
+        "file": "inventory_list_0.png",
+        "colored": true,
+        "box": [
+          327,
+          239,
+          438,
+          267
+        ]
+      },
+      {
+        "file": "inventory_list_2192_cosmetics.png",
+        "box": [
+          1011,
+          88,
+          1103,
+          116
+        ]
+      },
+      {
+        "file": "inventory_list_2192_items.png",
+        "box": [
+          929,
+          88,
+          1006,
+          116
+        ]
+      }
+    ],
+    "inventory_search_2192": [
+      {
+        "file": "inventory_search_icon_2192.png",
+        "box": [
+          302,
+          168,
+          354,
+          213
+        ]
+      },
+      {
+        "file": "inventory_list_2192_cosmetics.png",
+        "box": [
+          1011,
+          88,
+          1103,
+          116
+        ]
+      },
+      {
+        "file": "inventory_list_2192_items.png",
+        "box": [
+          929,
+          88,
+          1006,
+          116
         ]
       }
     ]

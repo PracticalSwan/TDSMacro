@@ -1,4 +1,7 @@
 """Offline checks for Phase 1 only. No game interaction or OS input."""
+import io
+from contextlib import redirect_stderr, redirect_stdout
+import json
 import sys
 import unittest
 from dataclasses import replace
@@ -7,7 +10,7 @@ from unittest.mock import patch
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from tds_auto.phase1 import Window, normalized_point, locate_green_play_button, roi_delta, encode_virtual_point, capture, take_live, send_absolute_pointer
+from tds_auto.phase1 import Window, normalized_point, locate_green_play_button, roi_delta, encode_virtual_point, capture, take_live, send_absolute_pointer, focus_roblox, main
 
 
 class Phase1Tests(unittest.TestCase):
@@ -62,6 +65,115 @@ class Phase1Tests(unittest.TestCase):
         with patch("tds_auto.phase1.locate_roblox", return_value=replace(self.window, width=1800)):
             with self.assertRaisesRegex(RuntimeError, "focus/geometry"):
                 capture(self.window)
+
+    def test_capture_refuses_dpi_change(self):
+        with patch("tds_auto.phase1.locate_roblox", return_value=replace(self.window, dpi=120)):
+            with self.assertRaisesRegex(RuntimeError, "focus/geometry"):
+                capture(self.window)
+
+    def test_missing_versus_minimized_client_is_not_confused(self):
+        from tds_auto.phase1 import RobloxWindowUnavailable, locate_roblox
+        with patch("tds_auto.phase1.USER.FindWindowW", return_value=0):
+            with self.assertRaises(RobloxWindowUnavailable):
+                locate_roblox()
+        for visible, minimized in ((False, False), (True, True)):
+            with self.subTest(visible=visible, minimized=minimized):
+                with patch("tds_auto.phase1.USER.FindWindowW", return_value=101):
+                    with patch("tds_auto.phase1.USER.IsWindowVisible", return_value=visible):
+                        with patch("tds_auto.phase1.USER.IsIconic", return_value=minimized):
+                            with self.assertRaisesRegex(RuntimeError, "minimized or hidden") as caught:
+                                locate_roblox()
+                self.assertNotIsInstance(caught.exception, RobloxWindowUnavailable)
+
+    def test_focus_start_requests_once_and_requires_two_stable_reads(self):
+        background = replace(self.window, dpi=120, foreground=False)
+        focused = replace(background, foreground=True)
+        with patch("tds_auto.phase1.locate_roblox", side_effect=[background, focused, focused]) as locate:
+            with patch("tds_auto.phase1.USER.SetForegroundWindow", return_value=False) as activate:
+                with patch("tds_auto.phase1.time.sleep") as sleep:
+                    result = focus_roblox()
+        self.assertEqual(result, focused)
+        activate.assert_called_once_with(background.hwnd)
+        self.assertEqual(locate.call_count, 3)
+        sleep.assert_called_once_with(0.2)
+
+    def test_focus_start_skips_activation_when_already_foreground(self):
+        focused = replace(self.window, dpi=120, foreground=True)
+        with patch("tds_auto.phase1.locate_roblox", side_effect=[focused, focused]) as locate:
+            with patch("tds_auto.phase1.USER.SetForegroundWindow") as activate:
+                with patch("tds_auto.phase1.time.sleep"):
+                    result = focus_roblox()
+        self.assertEqual(result, focused)
+        activate.assert_not_called()
+        self.assertEqual(locate.call_count, 2)
+
+    def test_focus_start_refuses_unsupported_geometry_before_activation(self):
+        background = replace(self.window, width=1800, dpi=120, foreground=False)
+        with patch("tds_auto.phase1.locate_roblox", return_value=background):
+            with patch("tds_auto.phase1.USER.SetForegroundWindow") as activate:
+                with self.assertRaisesRegex(RuntimeError, "1920x991.*120 DPI"):
+                    focus_roblox()
+        activate.assert_not_called()
+
+    def test_focus_start_refuses_client_identity_change_without_retry(self):
+        background = replace(self.window, dpi=120, foreground=False)
+        focused = replace(background, foreground=True)
+        changes = (
+            {"hwnd": 9}, {"pid": 99}, {"x": 1}, {"y": 30},
+            {"width": 1919}, {"height": 990}, {"dpi": 96},
+        )
+        for change in changes:
+            with self.subTest(change=change):
+                changed = replace(focused, **change)
+                with patch("tds_auto.phase1.locate_roblox", side_effect=[background, changed]) as locate:
+                    with patch("tds_auto.phase1.USER.SetForegroundWindow") as activate:
+                        with self.assertRaisesRegex(RuntimeError, "identity or geometry changed"):
+                            focus_roblox()
+                activate.assert_called_once_with(background.hwnd)
+                self.assertEqual(locate.call_count, 2)
+
+    def test_focus_start_stops_if_foreground_is_lost_between_stable_reads(self):
+        background = replace(self.window, dpi=120, foreground=False)
+        focused = replace(background, foreground=True)
+        lost = replace(focused, foreground=False)
+        with patch("tds_auto.phase1.locate_roblox", side_effect=[background, focused, lost]) as locate:
+            with patch("tds_auto.phase1.USER.SetForegroundWindow") as activate:
+                with patch("tds_auto.phase1.time.sleep"):
+                    with self.assertRaisesRegex(RuntimeError, "foreground changed"):
+                        focus_roblox()
+        activate.assert_called_once_with(background.hwnd)
+        self.assertEqual(locate.call_count, 3)
+
+    def test_focus_start_stops_after_one_bounded_activation_attempt(self):
+        background = replace(self.window, dpi=120, foreground=False)
+        with patch("tds_auto.phase1.locate_roblox", side_effect=[background, background]) as locate:
+            with patch("tds_auto.phase1.USER.SetForegroundWindow") as activate:
+                with patch("tds_auto.phase1.time.monotonic", side_effect=[0.0, 2.0]):
+                    with patch("tds_auto.phase1.time.sleep") as sleep:
+                        with self.assertRaisesRegex(RuntimeError, "within two seconds"):
+                            focus_roblox()
+        activate.assert_called_once_with(background.hwnd)
+        self.assertEqual(locate.call_count, 2)
+        sleep.assert_not_called()
+
+    def test_focus_start_honors_cancellation_before_activation(self):
+        with patch("tds_auto.phase1.locate_roblox") as locate:
+            with patch("tds_auto.phase1.USER.SetForegroundWindow") as activate:
+                with self.assertRaisesRegex(RuntimeError, "cancelled"):
+                    focus_roblox(cancelled=lambda: True)
+        locate.assert_not_called()
+        activate.assert_not_called()
+
+    def test_standalone_focus_cli_is_not_available_during_a_worker(self):
+        with patch("tds_auto.phase1.sys.argv", ["phase1.py", "focus"]):
+            with patch("tds_auto.phase1.focus_roblox") as focus:
+                with patch("tds_auto.phase1.capture") as native_capture:
+                    with redirect_stderr(io.StringIO()):
+                        with self.assertRaises(SystemExit) as raised:
+                            main()
+                    self.assertEqual(raised.exception.code, 2)
+        focus.assert_not_called()
+        native_capture.assert_not_called()
 
     def test_capture_refuses_blank_frame(self):
         blank = Image.new("RGB", (1920, 991), (0, 0, 0))

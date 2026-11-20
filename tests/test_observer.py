@@ -40,6 +40,8 @@ class ObserverTests(unittest.TestCase):
     def test_inventory_list_and_scout_details_are_distinct(self):
         with Image.open(ROOT/'tests/fixtures/inventory_list.png') as frame:
             self.assertEqual(self.observer.observe(frame).state,'inventory_list')
+        with Image.open(ROOT/'tests/fixtures/inventory_list_farm_filter.png') as frame:
+            self.assertEqual(self.observer.observe(frame).state,'inventory_list')
         from PIL import ImageChops
         with Image.open(ROOT/'tests/fixtures/inventory_list.png') as a, Image.open(ROOT/'tests/fixtures/inventory_scout_slot1.png') as b:
             frame=a.copy()
@@ -118,6 +120,13 @@ class ObserverTests(unittest.TestCase):
             self.assertEqual(Observer().observe(frame).state,'lobby')
 
 
+    def test_saved_native_items_hover_frame_keeps_lobby_recognition(self):
+        with Image.open(ROOT/'tests/fixtures/lobby_native_items_hover_20261118.png') as frame:
+            result=self.observer.observe(frame)
+        self.assertEqual(result.state,'lobby')
+        self.assertGreaterEqual(result.scores['lobby'],.90)
+
+
     def test_profile_tooltip_obscuring_play_is_rejected_and_upper_padding_is_clear(self):
         for name,expected in [('lobby_tooltip_obscured','unknown'),('lobby_tooltip_clear','lobby')]:
             with Image.open(ROOT/'tests/fixtures'/f'{name}.png') as frame:
@@ -168,9 +177,48 @@ class ObserverTests(unittest.TestCase):
         with Image.open(ROOT/'tests/fixtures/victory_hover_animated.png') as source:
             frame=source.copy()
         self.assertEqual(self.observer.observe(frame).state,'victory')
+
+    def test_actual_hardcore_return_hover_requires_banner_and_exact_caption(self):
+        with Image.open(ROOT/'tests/fixtures/hardcore_return_lobby_hover.png') as source:
+            frame = source.copy()
+        self.assertEqual(self.observer.observe(frame).state, 'defeat')
+        frame.paste((0, 0, 0), (701, 745, 968, 790))
+        self.assertNotEqual(self.observer.observe(frame).state, 'defeat')
         # A known banner cannot replace the missing action control.
         frame.paste('black',(1008,744,1188,798))
         self.assertEqual(self.observer.observe(frame).state,'unknown')
+
+    def test_hardcore_squad_requires_hardcore_mode_and_solo_anchors(self):
+        with Image.open(ROOT/'tests/fixtures/squad_hardcore.png') as source:
+            frame=source.copy()
+        self.assertEqual(self.observer.observe(frame).state,'squad_hardcore')
+        for box in ((752,197,996,217),(550,515,595,535)):
+            incomplete=frame.copy()
+            incomplete.paste('black',box)
+            with self.subTest(missing=box):
+                self.assertEqual(self.observer.observe(incomplete).state,'unknown')
+        with Image.open(ROOT/'tests/fixtures/squad_easy.png') as easy:
+            self.assertEqual(self.observer.observe(easy).state,'squad_easy')
+
+    def test_current_inventory_state_requires_starter_cosmetics_and_items_anchors(self):
+        with Image.open(ROOT/'tests/fixtures/inventory_list_2192.png') as source:
+            frame=source.copy()
+        self.assertEqual(self.observer.observe(frame).state,'inventory_list_2192')
+        for box in ((327,239,438,267),(1011,88,1103,116),(929,88,1006,116)):
+            incomplete=frame.copy()
+            incomplete.paste('black',box)
+            with self.subTest(missing=box):
+                self.assertEqual(self.observer.observe(incomplete).state,'unknown')
+
+    def test_saved_native_preclick_frame_recognizes_current_inventory_state(self):
+        with Image.open(ROOT/'tests/fixtures/inventory_list_2192_preclick_live_20261118.png') as frame:
+            result=self.observer.observe(frame)
+        self.assertEqual(result.state,'inventory_list_2192')
+        self.assertGreaterEqual(result.scores['inventory_list_2192'],.90)
+
+    def test_current_inventory_search_shell_is_recognized_without_results(self):
+        with Image.open(ROOT/'tests/fixtures/inventory_search_shell_2192.png') as frame:
+            self.assertEqual(self.observer.observe(frame).state,'inventory_search_2192')
 
 if __name__ == "__main__":
     unittest.main()

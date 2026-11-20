@@ -19,7 +19,7 @@ ROBLOX_URI='roblox://experiences/start?placeId=3260590327'
 LAUNCHER_SETTLE_SECONDS=60
 FOCUS_RETURN_SECONDS=5
 DISCONNECT_HOME_SECONDS=5
-NO_RECOVERY={'user_stop','focus_lost','focus_interrupted','window_changed','setup','storage'}
+NO_RECOVERY={'user_stop','focus_lost','focus_interrupted','window_changed','setup','storage','strategy'}
 
 
 def locate_client():
@@ -88,6 +88,25 @@ def close_client(window):
         raise ctypes.WinError(ctypes.get_last_error())
 
 
+def request_system_close(window):
+    """One ordinary Windows Close command for a verified stalled loading screen.
+
+    Unlike process termination, this permits Roblox to handle its normal close
+    flow. Never use this for an unknown or background client.
+    """
+    current=locate_client()
+    if not current.foreground:
+        raise StopRun('Roblox lost foreground before system Close.',kind='focus_lost')
+    if current!=window:
+        raise StopRun('Roblox changed before system Close.',kind='window_changed')
+    user=ctypes.WinDLL('user32',use_last_error=True)
+    user.PostMessageW.argtypes=[wintypes.HWND,wintypes.UINT,wintypes.WPARAM,wintypes.LPARAM]
+    user.PostMessageW.restype=wintypes.BOOL
+    # WM_SYSCOMMAND / SC_CLOSE: standard system-menu Close, not a force kill.
+    if not user.PostMessageW(window.hwnd,0x0112,0xF060,0):
+        raise ctypes.WinError(ctypes.get_last_error())
+
+
 def client_exists(window):
     user=ctypes.WinDLL('user32',use_last_error=True)
     user.IsWindow.argtypes=[wintypes.HWND];user.IsWindow.restype=wintypes.BOOL
@@ -107,6 +126,16 @@ def client_running(window):
         raise ctypes.WinError(ctypes.get_last_error())
     try:return kernel.WaitForSingleObject(handle,0)==258
     finally:kernel.CloseHandle(handle)
+
+
+def client_window_hidden(window):
+    """The old verified HWND may disappear while its process winds down."""
+    user=ctypes.WinDLL('user32',use_last_error=True)
+    user.IsWindowVisible.argtypes=[wintypes.HWND]
+    user.IsWindowVisible.restype=wintypes.BOOL
+    user.IsIconic.argtypes=[wintypes.HWND]
+    user.IsIconic.restype=wintypes.BOOL
+    return not user.IsWindowVisible(window.hwnd) or bool(user.IsIconic(window.hwnd))
 
 
 def launch_client():
@@ -137,14 +166,20 @@ def disconnect_prompt(frame):
 
 
 def roblox_home(frame):
-    """Recognize the intermediate Roblox Home view after a disconnect Leave."""
+    """Recognize a known Roblox Home navigation layout after disconnect Leave."""
     if frame.size!=(1920,991):return False
     ocr=LocalOCR()
-    for box,expected in (((10,16,95,84),'home'),((735,8,1270,62),'search'),
-                         ((160,82,258,132),'for you'),((258,82,345,132),'charts')):
-        text=' '.join(ocr.read(frame.crop(box)).casefold().split())
-        if text!=expected:return False
-    return True
+    layouts=(
+        (((10,16,95,84),'home'),((735,8,1270,62),'search'),
+         ((160,82,258,132),'for you'),((258,82,345,132),'charts')),
+        (((10,16,95,84),'home'),((0,90,88,158),'moments'),
+         ((0,170,88,240),'build'),((0,248,88,320),'chat')),
+    )
+    for anchors in layouts:
+        if all(' '.join(ocr.read(frame.crop(box)).casefold().split())==expected
+               for box,expected in anchors):
+            return True
+    return False
 
 
 def confirm_close(window,control,platform,allow_disconnect=True):
@@ -213,12 +248,45 @@ def restart_client(control,platform,report,*,locate=locate_client,close=close_cl
         report(stage='closing',client_pid=window.pid,client_hwnd=window.hwnd)
         check_cancel(control,platform)
         close(window)
-        deadline=platform.now()+30
+        close_started=platform.now()
+        deadline=close_started+30
         confirmed_close=False;disconnect_consumed=False
+        loading_close_checked=False
+        home_close_requested=False
         while exists(window):
+            check_cancel(control,platform)
             if platform.now()>=deadline:
                 raise StopRun('Roblox did not close; no force termination was attempted.',kind='setup')
+            # The ordinary WM_CLOSE can be ignored during a hung TDS teleport.
+            # One distinct standard Close is permitted only after two fresh
+            # loading reads from the same original foreground Roblox client.
+            if (not loading_close_checked and not confirmed_close and not disconnect_consumed
+                    and platform.now()-close_started>=5):
+                loading_close_checked=True
+                current=optional_window(locate)
+                if current is None or current!=window:
+                    raise StopRun('Roblox changed during stalled-loading close.',kind='window_changed')
+                if not current.foreground:
+                    raise StopRun('Roblox lost foreground during stalled-loading close.',kind='focus_lost')
+                if observe(window)=='loading':
+                    wait(control,platform,.2)
+                    current=optional_window(locate)
+                    if current is None or current!=window:
+                        raise StopRun('Roblox changed during stalled-loading confirmation.',kind='window_changed')
+                    if not current.foreground:
+                        raise StopRun('Roblox lost foreground during stalled-loading confirmation.',kind='focus_lost')
+                    if exists(window) and observe(window)=='loading':
+                        check_cancel(control,platform)
+                        request_system_close(window)
+                        report(stage='closing',client_pid=window.pid,client_hwnd=window.hwnd,
+                               close_reason='stalled_loading_system_close')
             if not confirmed_close:
+                # After two confirmed Home frames and an ordinary Close,
+                # Windows may hide the old HWND before the process exits.
+                # Only wait for that original PID; never click a hidden view.
+                if home_close_requested and client_window_hidden(window):
+                    wait(control,platform,.05)
+                    continue
                 dialog=confirm(window,control,platform,not disconnect_consumed)
                 if dialog=='close':
                     confirmed_close=True
@@ -232,6 +300,7 @@ def restart_client(control,platform,report,*,locate=locate_client,close=close_cl
                         except (RuntimeError,OSError) as exc:
                             if getattr(exc,'kind',None) in NO_RECOVERY or exists(window):raise
                         else:
+                            home_close_requested=True
                             report(stage='closing',client_pid=window.pid,client_hwnd=window.hwnd,
                                    close_reason='disconnect_leave_home')
             wait(control,platform,.05)
@@ -264,7 +333,11 @@ def restart_client(control,platform,report,*,locate=locate_client,close=close_cl
     raise StopRun('Recovery did not reach a foreground supported lobby or Login Rewards screen.',kind='setup')
 
 
-def supervise(output,platform,profile,*,attempt=None,restart=None,locate=locate_client,max_recoveries=3,idle_lobby_seconds=0):
+def supervise(output,platform,profile,*,attempt=None,restart=None,locate=locate_client,max_recoveries=3,
+              idle_lobby_seconds=0,initial_expected=None,strategy_id='golden_scout'):
+    from .hardcore_plan_v2 import PLAN_ID as HARDCORE_ID
+
+    hardcore=strategy_id==HARDCORE_ID
     if type(idle_lobby_seconds) is not int or (idle_lobby_seconds and not 1200<=idle_lobby_seconds<=1800):
         raise StopRun('AFK lobby monitoring is bounded to 1200..1800 seconds.',kind='setup')
     output=Path(output)
@@ -272,12 +345,17 @@ def supervise(output,platform,profile,*,attempt=None,restart=None,locate=locate_
     context={'recoveries':0,'max_recoveries':max_recoveries}
     control=SessionControl(output,context=context)
     totals={'attempts':0,'matches_completed':0,'wins':0,'coins_total':0}
-    consecutive=0;number=0
+    if hardcore:
+        context['strategy_id']=strategy_id
+        totals.update(gem_cycles=0,gems_total=0)
+    success_key='gem_cycles' if hardcore else 'wins'
+    consecutive=0;number=0;first_expected=initial_expected
     def run_attempt(path,control,totals):
         driver=GuardedInput(expected or locate(),platform);driver.check()
         if (driver.expected.width,driver.expected.height,driver.expected.dpi)!=(1920,991,120):
             raise StopRun('This profile requires a 1920x991 client at 120 DPI.',kind='setup')
-        session=Session(driver,path,profile,control=control,totals=totals)
+        session=Session(driver,path,profile,control=control,totals=totals,
+                        strategy_id=strategy_id)
         idle_pending=(idle_lobby_seconds and not context.get('idle_lobby_monitor_completed')
                       and not context.get('idle_lobby_disconnect_confirmed'))
         return session.run(continuous=True,idle_lobby_seconds=idle_lobby_seconds if idle_pending else 0)
@@ -296,10 +374,12 @@ def supervise(output,platform,profile,*,attempt=None,restart=None,locate=locate_
         except OSError as exc:
             return finish({'status':'stopped','reason':f'Cannot create attempt evidence folder ({type(exc).__name__}).','stop_kind':'storage'})
         context['attempt_folder']=path.name
-        wins_before=totals['wins']
-        expected=None
+        successes_before=totals[success_key]
+        expected=first_expected
+        first_expected=None
         try:
-            expected=optional_window(locate)
+            if expected is None:
+                expected=optional_window(locate)
             result=attempt(path,control,totals)
         except (RuntimeError,ValueError,OSError,KeyError,TypeError) as exc:
             kind=getattr(exc,'kind','setup' if isinstance(exc,(ValueError,KeyError,TypeError)) else 'failure')
@@ -310,6 +390,8 @@ def supervise(output,platform,profile,*,attempt=None,restart=None,locate=locate_
         except StopRun as exc:
             return finish({'status':'stopped','reason':str(exc),'stop_kind':exc.kind})
         if result['status'] in {'victory','prepared'}:return finish(result)
+        if hardcore and result['status']!='stopped':
+            return finish(result)
         last=result.get('matches',[{}])[-1] if result.get('matches') else {}
         kind=result.get('stop_kind') or last.get('stop_kind','failure')
         focus_return=kind=='focus_lost' and expected is not None and expected.foreground and (expected.width,expected.height,expected.dpi)==(1920,991,120)
@@ -324,9 +406,10 @@ def supervise(output,platform,profile,*,attempt=None,restart=None,locate=locate_
             append_jsonl(output/'recovery.jsonl',event)
         try:
             check_cancel(control,platform)
-            if totals['wins']>wins_before:consecutive=0
+            if totals[success_key]>successes_before:consecutive=0
             if consecutive>=max_recoveries:
-                return finish({**result,'status':'stopped','reason':f'Automatic recovery limit reached after {max_recoveries} relaunches without a win.'})
+                outcome='a credited gem cycle' if hardcore else 'a win'
+                return finish({**result,'status':'stopped','reason':f'Automatic recovery limit reached after {max_recoveries} relaunches without {outcome}.'})
             if focus_return:
                 kind='focus_interrupted'
                 await_foreground(control,platform,expected,locate=locate,report=report)

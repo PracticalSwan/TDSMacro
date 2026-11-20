@@ -13,10 +13,12 @@ foreach ($folder in @('assets','calibrations','strategies')) {
     [void](New-Item -ItemType Directory -Path (Join-Path $appPath $folder) -Force)
 }
 Copy-Item -LiteralPath (Join-Path $projectRoot 'assets\ui_2191') -Destination (Join-Path $appPath 'assets') -Recurse -Force
-foreach ($name in @('dead_ahead_vertical_nine_v4.json','camera_0.png','camera_1.png','scene.png')) {
+foreach ($name in @('dead_ahead_vertical_nine_v4.json','camera_0.png','camera_1.png','scene.png',
+                    'wretched_front_hardcore_v2.json','wretched_front_hardcore_v2.scene.png',
+                    'wretched_front_hardcore_v2.route.png')) {
     Copy-Item -LiteralPath (Join-Path $projectRoot ('calibrations\'+$name)) -Destination (Join-Path $appPath 'calibrations') -Force
 }
-foreach ($name in @('GOLDIE SCOUTO.vertical-nine-slot1.strat')) {
+foreach ($name in @('GOLDIE SCOUTO.vertical-nine-slot1.strat','hardcore_wretched_front_boomerang_crook_farm_v2.json')) {
     Copy-Item -LiteralPath (Join-Path $projectRoot ('strategies\'+$name)) -Destination (Join-Path $appPath 'strategies') -Force
 }
 Copy-Item -LiteralPath (Join-Path $projectRoot 'app\README.txt') -Destination $appPath
@@ -29,4 +31,15 @@ foreach ($name in @('setup.md','troubleshooting.md','strategies.md')) {
 }
 & $pythonPath (Join-Path $projectRoot 'scripts\collect-licenses.py') $appPath
 if ($LASTEXITCODE -ne 0) { throw 'Dependency notice collection failed.' }
+# Screenshot-only matching does not call OpenCV video capture/write APIs.
+# Remove just the optional FFmpeg video I/O helper from the new build; the
+# otherwise-identical frozen candidate was self-checked without this DLL.
+$cv2Dir=Join-Path $appPath '_internal\cv2'
+if (Test-Path -LiteralPath $cv2Dir) {
+    Get-ChildItem -LiteralPath $cv2Dir -File -Filter 'opencv_videoio_ffmpeg*_64.dll' |
+        ForEach-Object {
+            Remove-Item -LiteralPath $_.FullName
+            Write-Output ('Excluded unused video I/O library: '+$_.Name)
+        }
+}
 Write-Output (Join-Path $appPath 'TDSMacro.exe')

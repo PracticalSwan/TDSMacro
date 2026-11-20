@@ -21,6 +21,10 @@ class RecoveryTests(unittest.TestCase):
         temp=tempfile.TemporaryDirectory();self.addCleanup(temp.cleanup)
         self.path=Path(temp.name)
         self.platform=FakeOS()
+        # A fake HWND is not visible to real Win32 APIs; tests using FakeOS
+        # model a visible window unless a particular test simulates hiding.
+        hidden=patch.object(self.module(),'client_window_hidden',return_value=False)
+        hidden.start();self.addCleanup(hidden.stop)
 
     def module(self):
         from tds_auto import recovery
@@ -123,6 +127,40 @@ class RecoveryTests(unittest.TestCase):
                     restart=lambda *args:launches.append(1),locate=lambda:self.platform.window)
                 self.assertEqual(result['status'],'stopped')
                 self.assertEqual(launches,[])
+
+    def test_hardcore_transport_recovery_preserves_credit_and_stops_on_early_result(self):
+        from tds_auto.hardcore_plan_v2 import PLAN_ID
+        recovery=self.module();relaunches=[];attempts=[]
+
+        def attempt(path,control,totals):
+            attempts.append(path)
+            self.assertEqual(control.context['strategy_id'],PLAN_ID)
+            if len(attempts)==1:
+                totals.update(gem_cycles=1,gems_total=137)
+                return {'status':'stopped','stop_kind':'failure','reason':'transport loss'}
+            return {'status':'early_result'}
+
+        result=recovery.supervise(self.path,self.platform,None,strategy_id=PLAN_ID,
+            attempt=attempt,restart=lambda *args:relaunches.append(1),
+            locate=lambda:self.platform.window)
+        self.assertEqual((result['status'],result['gem_cycles'],result['gems_total']),
+                         ('early_result',1,137))
+        self.assertEqual(relaunches,[1])
+
+    def test_hardcore_preparation_and_verified_result_do_not_spend_relaunch_budget(self):
+        from tds_auto.hardcore_plan_v2 import PLAN_ID
+
+        recovery = self.module()
+        for status in ('hardcore_map_loaded', 'result_verified'):
+            with self.subTest(status=status):
+                root = self.path / status
+                root.mkdir()
+                restarts = []
+                result = recovery.supervise(root, self.platform, None, strategy_id=PLAN_ID,
+                    attempt=lambda *args: {'status': status},
+                    restart=lambda *args: restarts.append(1), locate=lambda: self.platform.window)
+                self.assertEqual(result['status'], status)
+                self.assertEqual(restarts, [])
 
     def test_natural_focus_return_requires_two_stable_reads_without_input(self):
         recovery=self.module();expected=self.platform.window;seen=[]
@@ -398,6 +436,40 @@ class RecoveryTests(unittest.TestCase):
         recovery.wait(SessionControl(self.path),self.platform,.1)
         self.assertTrue(sleeps)
 
+    def test_stalled_loading_uses_one_guarded_system_close_before_relaunch(self):
+        recovery=self.module()
+        control=SessionControl(self.path)
+        alive=[True]
+        actions=[]
+        reports=[]
+        def exists(window):
+            return alive[0]
+        def system_close(window):
+            actions.append(('system_close',window.pid))
+            alive[0]=False
+        def state(window):
+            return 'lobby' if ('launch',) in actions else 'loading'
+        with patch.object(recovery,'request_system_close',side_effect=system_close):
+            recovery.restart_client(control,self.platform,lambda **row:reports.append(row),
+                locate=lambda:self.platform.window,
+                close=lambda w:actions.append(('close',w.pid)),
+                exists=exists,launch=lambda:actions.append(('launch',)),
+                observe=state,confirm=lambda *args:False)
+        self.assertEqual(actions,[('close',self.platform.window.pid),
+                                  ('system_close',self.platform.window.pid),('launch',)])
+        self.assertEqual(sum(row.get('close_reason')=='stalled_loading_system_close'
+                             for row in reports),1)
+
+    def test_loading_fallback_does_not_bypass_window_identity_or_focus(self):
+        recovery=self.module()
+        for altered in (replace(self.platform.window,pid=999),
+                        replace(self.platform.window,foreground=False)):
+            with self.subTest(altered=altered),patch.object(recovery,'locate_client',return_value=altered), \
+                 patch.object(recovery.ctypes,'WinDLL') as native:
+                with self.assertRaises(StopRun):
+                    recovery.request_system_close(self.platform.window)
+                native.assert_not_called()
+
     def test_failed_client_close_never_launches_another_client(self):
         recovery=self.module();control=SessionControl(self.path);actions=[]
         with self.assertRaisesRegex(StopRun,'did not close'):
@@ -434,7 +506,7 @@ class RecoveryTests(unittest.TestCase):
         self.assertTrue(recovery.roblox_home(frame))
         self.assertFalse(recovery.roblox_home(Image.new('RGB',(100,100))))
         with patch.object(recovery,'LocalOCR') as ocr:
-            ocr.return_value.read.side_effect=['Home','Search','For you','Discover']
+            ocr.return_value.read.side_effect=['Home','Search','For you','Discover','']
             self.assertFalse(recovery.roblox_home(frame))
 
     def test_home_screen_is_not_a_confirmable_close_or_disconnect_dialog(self):
@@ -498,6 +570,44 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual(home_check.call_count,2)
         self.assertEqual(len(launched),1)
         self.assertGreaterEqual(launched[0],recovery.LAUNCHER_SETTLE_SECONDS+5)
+
+    def test_verified_home_close_hidden_window_waits_for_original_exit(self):
+        recovery=self.module()
+        control=SessionControl(self.path)
+        posts=[];confirms=[];launched=[]
+        def close(window):
+            posts.append(self.platform.now())
+        def exists(window):
+            return len(posts)<2 or self.platform.now()<posts[1]+1
+        def confirm(*args,**kwargs):
+            confirms.append(self.platform.now())
+            if len(confirms)>1:
+                self.fail('Must not click or inspect a hidden post-Home window')
+            return 'disconnect'
+        with patch.object(recovery,'capture',return_value=Image.new('RGB',(1920,991))), \
+             patch.object(recovery,'roblox_home',return_value=True), \
+             patch.object(recovery,'client_window_hidden',side_effect=lambda w:len(posts)==2,create=True):
+            recovery.restart_client(control,self.platform,lambda **row:None,
+                locate=lambda:self.platform.window,close=close,exists=exists,
+                launch=lambda:launched.append(self.platform.now()),
+                observe=lambda window:'lobby',confirm=confirm)
+        self.assertEqual(len(posts),2)
+        self.assertEqual(len(confirms),1)
+        self.assertEqual(len(launched),1)
+
+    def test_verified_home_close_hidden_window_that_never_exits_never_relaunches(self):
+        recovery=self.module()
+        posts=[];confirms=[];launched=[]
+        with patch.object(recovery,'capture',return_value=Image.new('RGB',(1920,991))), \
+             patch.object(recovery,'roblox_home',return_value=True), \
+             patch.object(recovery,'client_window_hidden',side_effect=lambda w:len(posts)==2,create=True):
+            with self.assertRaisesRegex(StopRun,'did not close'):
+                recovery.restart_client(SessionControl(self.path),self.platform,lambda **row:None,
+                    locate=lambda:self.platform.window,close=lambda w:posts.append(self.platform.now()),
+                    exists=lambda window:True,launch=lambda:launched.append(1),
+                    observe=lambda window:'lobby',confirm=lambda *args:'disconnect')
+        self.assertEqual(len(posts),2)
+        self.assertEqual(launched,[])
 
     def test_leave_that_exits_client_does_not_repost_close(self):
         recovery=self.module();posts=[];launched=[];checks=iter([True,False])

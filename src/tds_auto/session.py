@@ -1,4 +1,4 @@
-"""Explicitly started, bounded Golden Scout lobby-to-result session.
+"""Explicitly started, bounded Golden Scout and Hardcore sessions.
 
 F8/Escape or a stop marker stops inside input holds. Pause is honored only
 between atomic actions; Roblox keeps simulating while the macro is paused.
@@ -15,14 +15,20 @@ from PIL import ImageStat
 from .calibration import CameraGate,load_profile
 from .control import GuardedInput,StopRun,WindowsOS
 from .hotbar import read_hotbar
-from .loadout import verify_inventory
-from .maps import read_boards,find_target,read_headers,visible_target,vip_target_matches,vote_prompt,badge_is_one,spawn_board_row,voting_floor,_vip_prompt_evidence
-from .navigation import Navigator,MENU_ROUTE
+from .loadout import (HARDCORE_HOTBAR_POINTS,INVENTORY_EQUIP_BUTTON,INVENTORY_LIST_STATES,
+                      read_hardcore_hotbar_name,read_selected_tower,read_slot_occupancy,
+                      verify_hardcore_loadout,verify_inventory)
+from .maps import Board,read_boards,find_target,read_headers,visible_target,vip_target_matches,vote_prompt,map_vote_screen,badge_is_one,spawn_board_row,voting_floor,_vip_prompt_evidence,vote_players
+from .navigation import Navigator,MENU_ROUTE,HARDCORE_MENU_ROUTE
+from .hardcore_plan import PLAN_ID,load_hardcore_plan
+from .hardcore_plan_v2 import PLAN_ID as PLAN_V2_ID,load_hardcore_plan_v2
+from .hardcore_vision import wretched_match_ready
 from .observer import Observer
-from .phase1 import capture,locate_roblox,BlankCapture
+from .phase1 import capture,locate_roblox,BlankCapture,Window
 from .resources import LocalOCR,HudReader,parse_cash
 from .run import Playback,ROOT
 from .recording import append_jsonl,write_json
+
 from .timing import READ_SECONDS, TELEPORT_SECONDS
 
 
@@ -53,23 +59,56 @@ class SessionControl:
             raise StopRun(f'Cannot write status file ({type(exc).__name__}).',kind='storage') from exc
 
 
+def _parse_expected_window(source):
+    if source is None:
+        return None
+    try:
+        value=json.loads(source)
+    except (TypeError,ValueError) as exc:
+        raise ValueError('GUI supplied an invalid Roblox preflight anchor.') from exc
+    fields={'hwnd','pid','x','y','width','height','dpi','foreground'}
+    if not isinstance(value,dict) or set(value)!=fields:
+        raise ValueError('GUI supplied an incomplete Roblox preflight anchor.')
+    for name in fields-{'foreground'}:
+        if type(value[name]) is not int:
+            raise ValueError('GUI supplied an invalid Roblox preflight anchor.')
+    if (value['hwnd']<=0 or value['pid']<=0 or value['width']!=1920
+        or value['height']!=991 or value['dpi']!=120 or value['foreground'] is not True):
+        raise ValueError('GUI supplied an unsupported Roblox preflight anchor.')
+    return Window(**value)
+
+
 class Session:
     LOGIN_CAPTION_BOX=(910,773,1010,806)
     # Right padding avoids both the caption and the avatar profile tooltip.
     LOGIN_CLAIM_POINT=(1045,787)
 
-    def __init__(self,driver,output,profile_path=None,read_frame=None,now=time.monotonic,control=None,totals=None):
+    def __init__(self,driver,output,profile_path=None,read_frame=None,now=time.monotonic,control=None,totals=None,
+                 strategy_id='golden_scout'):
         self.driver=driver
         self.output=Path(output)
         self.control=control if control is not None else SessionControl(output)
         self.driver.external_stop=self.control.stopped
-        self.profile_path=Path(profile_path or ROOT/'calibrations/dead_ahead_vertical_nine_v4.json')
-        self.profile,self.strategy=load_profile(self.profile_path)
+        self.strategy_id=strategy_id
+        if strategy_id=='golden_scout':
+            self.profile_path=Path(profile_path or ROOT/'calibrations/dead_ahead_vertical_nine_v4.json')
+            self.profile,self.strategy=load_profile(self.profile_path)
+            self.hardcore_plan=None
+        elif strategy_id==PLAN_ID:
+            self.profile_path=None
+            self.profile=self.strategy=None
+            self.hardcore_plan=load_hardcore_plan()
+        elif strategy_id==PLAN_V2_ID:
+            self.profile_path=None
+            self.profile=self.strategy=None
+            self.hardcore_plan=load_hardcore_plan_v2()
+        else:
+            raise ValueError('Unsupported built-in strategy.')
         self.observer=Observer()
         self.ocr=LocalOCR()
         self.now=now
         self.capture=read_frame or (lambda:capture(driver.expected))
-        self.navigator=Navigator(self.observer,driver,self.frame,sleep=driver.wait)
+        self.navigator=Navigator(self.observer,driver,self.frame,sleep=driver.wait,ocr=self.ocr)
         self.started=self.now()
         self.phase='starting'
         self.allowed=set()
@@ -85,7 +124,13 @@ class Session:
         return frame
 
     def save_frame(self,frame,name):
-        try:frame.save(self.output/name,compress_level=1)
+        try:
+            if name.endswith('.jpg'):
+                # Successful action proofs are high-quality, compact evidence;
+                # uncertain states and final results remain lossless PNG.
+                frame.convert('RGB').save(self.output/name,quality=90,subsampling=0)
+            else:
+                frame.save(self.output/name,compress_level=1)
         except OSError as exc:
             raise StopRun(f'Cannot save session evidence ({name}): {exc}',kind='storage') from exc
 
@@ -106,16 +151,23 @@ class Session:
 
     def status(self,phase,**detail):
         self.phase=phase
-        data={'phase':phase,'runner_pid':os.getpid(),'elapsed_seconds':round(self.now()-self.started,1),**self.totals,**detail}
+        data={'phase':phase,'strategy_id':self.strategy_id,'runner_pid':os.getpid(),
+              'elapsed_seconds':round(self.now()-self.started,1),**self.totals,**detail}
         self.control.write(data)
         print(json.dumps(data),flush=True)
 
     def click_gate(self):
         deadline=self.now()+READ_SECONDS
-        state=self.observer.observe(self.frame()).state
+        frame=self.frame()
+        state=self.observer.observe(frame).state
+        if state=='unknown' and 'map_vote' in self.allowed and map_vote_screen(frame):
+            return
         while state=='unknown' and self.now()<deadline:
             self.driver.wait(.15)
-            state=self.observer.observe(self.frame()).state
+            frame=self.frame()
+            state=self.observer.observe(frame).state
+            if state=='unknown' and 'map_vote' in self.allowed and map_vote_screen(frame):
+                return
         if state not in self.allowed:
             raise StopRun(f'Click precondition changed: {state}; expected {sorted(self.allowed)}.')
 
@@ -157,7 +209,13 @@ class Session:
     def transition(self,name):
         from .navigation import TRANSITIONS
         self.pause()
+        if name=='scout_details':
+            self.allowed={'inventory_list','inventory_list_2192','inventory_search_2192','inventory_scout'}
+            self.status(name,tower_search='scout')
+            return self.navigator.search_tower('scout')
         self.allowed={TRANSITIONS[name][0]}
+        if name=='close_inventory':
+            self.allowed.update({'inventory_list','inventory_list_2192','inventory_search_2192'})
         self.status(name)
         return self.navigator.step(name,timeout=TELEPORT_SECONDS if name in {'solo','return_victory','play_again','restart_match'} else 45)
 
@@ -316,7 +374,7 @@ class Session:
     def preflight(self):
         self.lobby()
         inventory=self.transition('open_inventory')
-        if inventory=='inventory_list':
+        if inventory in {'inventory_list','inventory_list_2192','inventory_search_2192','inventory_scout'}:
             self.transition('scout_details')
         deadline=self.now()+5
         stable=0
@@ -337,6 +395,299 @@ class Session:
         if not bar.valid or bar.price is None:
             raise StopRun('Require Scout in slot 1 and no tower prices in slots 2..5.',kind='setup')
         self.status('loadout_verified',placement_price=bar.price)
+
+    def preflight_hardcore(self):
+        """Verify the fixed Hardcore loadout, then enter observed Hardcore/Solo."""
+        state=self.observer.observe(self.frame()).state
+        if state in INVENTORY_LIST_STATES:
+            self.transition('close_inventory')
+        self.lobby()
+        inventory=self.transition('open_inventory')
+        if inventory not in INVENTORY_LIST_STATES:
+            raise StopRun(f'Hardcore inventory did not open: {inventory}.',kind='setup')
+
+        initial=read_slot_occupancy(self.frame())
+        self.driver.wait(.2)
+        second_initial=read_slot_occupancy(self.frame())
+        empty_start=initial==(False,False,False,False,False)
+        if initial is None or initial!=second_initial:
+            raise StopRun('Inventory slot occupancy did not verify twice; no tower changed.',kind='setup')
+        supported={(True,True,True,False,False)}
+        if self.strategy_id==PLAN_V2_ID:
+            supported.add((True,True,True,True,False))
+        if not empty_start and initial not in supported:
+            raise StopRun('Partial or unrelated Hardcore loadout; no tower changed.',kind='setup')
+
+        observed=['','','','','']
+        expected_occupancy=[False,False,False,False,False]
+        equip_actions=0
+        self.allowed=set(INVENTORY_LIST_STATES)
+        for expected_slot,tower in self.hardcore_plan.required_loadout:
+            target=tower.casefold()
+            self.status('hardcore_tower_search',tower=tower,slot=expected_slot)
+            detail=self.navigator.search_tower(target)
+            if detail is None or detail[0]!=target:
+                raise StopRun(f'Search did not confirm the readable {tower} name.',kind='setup')
+            frame=self.frame()
+            selected=read_selected_tower(frame)
+            if selected is None or selected[0]!=target or selected[1] not in {'equip','unequip'}:
+                raise StopRun(f'{tower} selected details were unreadable; no equip action sent.',kind='setup')
+
+            if selected[1]=='equip':
+                if not empty_start:
+                    raise StopRun('Partial or nonempty Hardcore loadout; no tower changes made.',kind='setup')
+                occupancy=read_slot_occupancy(frame)
+                if occupancy!=tuple(expected_occupancy):
+                    raise StopRun('Hotbar changed after its empty-state check; no equip action sent.',kind='setup')
+                self._equip_hardcore_tower(target,expected_slot,tuple(expected_occupancy))
+                expected_occupancy[expected_slot-1]=True
+                observed[expected_slot-1]=target
+                equip_actions+=1
+            else:
+                for attempt in range(2):
+                    frame=self.frame()
+                    if read_selected_tower(frame)!=(target,'unequip'):
+                        raise StopRun(f'Equipped {tower} identity did not verify.',kind='setup')
+                    if attempt==0:
+                        self.driver.wait(.15)
+                observed[expected_slot-1]=target
+
+        # Farm uses the higher slot row in the live inventory. Its screenshot
+        # supplies an independent occupancy read for all five slots.
+        # An OS notification can temporarily cover the right inventory slots.
+        # Only reread; never dismiss external windows or change the loadout.
+        confirmed_occupancy,confirm_frame=self.confirm_hardcore_inventory()
+        optional_slot_occupied=(self.strategy_id==PLAN_V2_ID
+                                and confirmed_occupancy==(True,True,True,True,False))
+        self.hardcore_optional_tower=None
+        if optional_slot_occupied:
+            self.verify_hardcore_optional()
+            observed[3]=self.hardcore_optional_tower.casefold()
+        self.save_frame(confirm_frame,'hardcore_loadout_identity.png')
+        self.status('hardcore_inventory_verified',equipped_names=[name for name in observed if name],
+                    slot_occupancy=list(confirmed_occupancy),
+                    equip_actions=equip_actions)
+        self.transition('close_inventory')
+        self.lobby()
+        for name in HARDCORE_MENU_ROUTE[:3]:
+            self.transition(name)
+        self.select_hardcore_solo()
+
+    def verify_hardcore_optional(self):
+        """The candidate supports an independently verified equipped Scout in slot 4."""
+        target='scout'
+        self.navigator.search_tower(target)
+        for _ in range(2):
+            frame=self.frame()
+            if read_selected_tower(frame)!=(target,'unequip'):
+                raise StopRun('The optional equipped Scout identity did not verify.',kind='setup')
+            self.driver.wait(.15)
+        self.hardcore_optional_tower='Scout'
+
+    def verify_hardcore_hotbar(self):
+        """Verify the ordered native tooltips before Ready or any purchase."""
+        optional=getattr(self,'hardcore_optional_tower',None)
+        expected=list(self.hardcore_plan.required_loadout)
+        if optional:
+            expected.append((self.hardcore_plan.optional_slot,optional))
+        found=['','','','','']
+        hud_reader=HudReader(hardcore=True)
+        for slot,tower in expected:
+            self.pause()
+            self.driver.move(*HARDCORE_HOTBAR_POINTS[slot])
+            deadline=self.now()+3
+            previous=None
+            while self.now()<deadline:
+                self.pause()
+                frame=self.frame(record_latest=False)
+                hud=hud_reader.read(frame)
+                count=vote_players(frame)
+                if (hud.tower_count not in {0,None} or hud.wave is not None or count not in {1,None}):
+                    self.save_frame(frame,'hardcore_hotbar_state_changed.png')
+                    raise StopRun('Solo Ready or the zero-tower count changed during loadout verification.',kind='setup')
+                if hud.tower_count!=0 or count!=1 or not wretched_match_ready(frame,self.observer,self.ocr):
+                    previous=None
+                    self.driver.wait(.15)
+                    continue
+                name=read_hardcore_hotbar_name(frame,slot,self.ocr)
+                if name is not None and name==previous:
+                    if name!=tower.casefold():
+                        raise StopRun(f'Slot {slot} contains {name}; expected {tower}.',kind='setup')
+                    found[slot-1]=name
+                    self.save_frame(frame,f'hardcore_hotbar_slot_{slot}.png')
+                    break
+                previous=name
+                self.driver.wait(.15)
+            else:
+                self.save_frame(frame,f'hardcore_hotbar_slot_{slot}_unverified.png')
+                raise StopRun(f'Native name tooltip at slot {slot} did not verify twice.',kind='setup')
+        if verify_hardcore_loadout(tuple(found),optional_tower=optional.casefold() if optional else None):
+            raise StopRun('The required Hardcore hotbar order did not verify.',kind='setup')
+        self.driver.move(1500,500)
+        self.status('hardcore_loadout_verified',confirmed_loadout=found)
+
+    def confirm_hardcore_inventory(self):
+        """Require two matching unobstructed inventory reads, without input."""
+        expected={(True,True,True,False,False)}
+        if self.strategy_id==PLAN_V2_ID:
+            expected.add((True,True,True,True,False))
+        deadline=self.now()+8
+        previous=None
+        frame=None
+        while self.now()<deadline:
+            self.pause()
+            frame=self.frame(record_latest=False)
+            current=read_slot_occupancy(frame)
+            if current in expected and read_selected_tower(frame)==('farm','unequip'):
+                if current==previous:
+                    return current,frame
+                previous=current
+            else:
+                previous=None
+            self.driver.wait(.25)
+        if frame is not None:
+            self.save_frame(frame,'hardcore_loadout_obscured.png')
+        raise StopRun('Hardcore required loadout or empty slot 5 did not verify exactly.',kind='setup')
+
+    def play_hardcore_v2(self,matches,*,prepare_only=False,continuous=False):
+        """Play one verified Wretched Front match, then restart in place."""
+        from .hardcore_match import HardcoreMatchV2
+
+        root=self.output
+        completed=[]
+        self.totals.setdefault('gems_total',0)
+        self.totals.setdefault('gem_cycles',0)
+        try:
+            index=1
+            while continuous or index<=matches:
+                self.output=root/f'hardcore_cycle_{index:03d}'
+                self.output.mkdir()
+                if shutil.disk_usage(self.output).free<2*1024**3:
+                    raise StopRun('Less than 2 GiB free on the evidence disk.',kind='storage')
+                if index==1:
+                    self.preflight_hardcore()
+                    self.choose_map(self.hardcore_plan.map_name)
+                    prepared=self.prepare_hardcore_match()
+                    self.verify_hardcore_hotbar()
+                else:
+                    # Restart Match retains the map/loadout; only verify the
+                    # fresh zero-tower Ready screen. The new runner separately
+                    # checks and binds the current camera before placements.
+                    self.prepare_hardcore_match()
+                runner=HardcoreMatchV2(self)
+                if prepare_only:
+                    runner.align_camera()
+                    prepared.update(camera_calibrated=True,terrain_plan_validated=True)
+                    return prepared
+                self.totals['attempts']+=1
+                result=runner.run()
+                if result['status']=='result_verified' and result.get('displayed_gems')==137:
+                    # These are verified result-screen rewards, not a direct
+                    # account-wallet audit. No lobby trip is necessary.
+                    self.totals['gems_total']+=137
+                    self.totals['gem_cycles']+=1
+                    self.totals['matches_completed']+=1
+                    result['reward_verification']='result_screen_only'
+                elif result['status']=='result_verified':
+                    result['status']='reward_mismatch'
+                write_json(self.output/'result.json',result)
+                completed.append(result)
+                if continuous and len(completed)>10:
+                    completed.pop(0)
+                self.status(result['status'],result=result)
+                if result['status']!='result_verified':
+                    break
+                if not continuous and index>=matches:
+                    break
+                self.transition('restart_match')
+                index+=1
+            return {'status':completed[-1]['status'],'matches':completed,**self.totals}
+        finally:
+            self.output=root
+
+    def select_hardcore_solo(self):
+        """Select Solo on its Hardcore menu, then verify the voting-room count."""
+        self.wait_state('squad_hardcore',3)
+        self.save_frame(self.frame(),'hardcore_solo_menu.png')
+        self.transition(HARDCORE_MENU_ROUTE[3])
+        deadline=self.now()+3
+        stable=0
+        while self.now()<deadline:
+            frame=self.frame()
+            if self.observer.observe(frame).state=='map_vote' and vote_players(frame)==self.hardcore_plan.squad_size:
+                stable+=1
+                if stable>=2:
+                    self.save_frame(frame,'hardcore_solo_confirmed.png')
+                    break
+            else:
+                stable=0
+            self.driver.wait(.2)
+        else:
+            raise StopRun('Hardcore Solo voting-room count was not confirmed twice; no movement or vote sent.',kind='setup')
+        self.status('hardcore_solo_confirmed',mode=self.hardcore_plan.mode,
+                    squad_size=self.hardcore_plan.squad_size)
+
+    def _equip_hardcore_tower(self,tower,slot,expected_occupancy):
+        """One authorized Equip click after exact-name and slot checks."""
+        from .loadout import INVENTORY_EQUIP_BUTTON
+        x0,y0,x1,y1=INVENTORY_EQUIP_BUTTON
+
+        def gate():
+            frame=self.frame()
+            if (self.observer.observe(frame).state not in INVENTORY_LIST_STATES
+                    or read_selected_tower(frame)!=(tower,'equip')
+                    or read_slot_occupancy(frame)!=expected_occupancy):
+                raise StopRun(f'{tower.title()} Equip precondition changed; no click sent.',kind='setup')
+
+        previous=self.driver.before_click
+        self.driver.before_click=gate
+        try:
+            self.driver.click((x0+x1)//2,(y0+y1)//2)
+        finally:
+            self.driver.before_click=previous
+
+        expected=list(expected_occupancy)
+        expected[slot-1]=True
+        expected=tuple(expected)
+        deadline=self.now()+4
+        stable=0
+        while self.now()<deadline:
+            frame=self.frame()
+            if (read_selected_tower(frame)==(tower,'unequip')
+                    and read_slot_occupancy(frame)==expected):
+                stable+=1
+                if stable>=2:
+                    return
+            else:
+                stable=0
+            self.driver.wait(.15)
+        raise StopRun(f'{tower.title()} equip result did not verify; no repeated click sent.',kind='setup')
+
+    def prepare_hardcore_match(self):
+        """Stop at a fresh Wretched Front match with no tower-placement input."""
+        deadline=self.now()+4
+        stable=0
+        hud_reader=HudReader(hardcore=True)
+        while self.now()<deadline:
+            frame=self.frame()
+            hud=hud_reader.read(frame)
+            if wretched_match_ready(frame,self.observer,self.ocr) and hud.tower_count==0:
+                stable+=1
+                if stable>=2:
+                    self.save_frame(frame,'hardcore_match_ready.png')
+                    self.status('hardcore_match_ready',map=self.hardcore_plan.map_name,
+                                mode=self.hardcore_plan.mode,squad_size=self.hardcore_plan.squad_size,
+                                tower_count=hud.tower_count,camera_calibrated=False,
+                                terrain_plan_validated=False,no_tower_placements=True)
+                    return {'status':'hardcore_map_loaded','matches':[],
+                            'map':self.hardcore_plan.map_name,'mode':self.hardcore_plan.mode,
+                            'squad_size':self.hardcore_plan.squad_size,'tower_count':0,
+                            'camera_calibrated':False,'terrain_plan_validated':False,
+                            'no_tower_placements':True}
+            else:
+                stable=0
+            self.driver.wait(.2)
+        raise StopRun('Hardcore Wretched Front match-ready state and zero towers did not stabilize.',kind='setup')
 
     def boards(self,timeout=4):
         deadline=self.now()+timeout
@@ -419,7 +770,9 @@ class Session:
                       f'keycap_score={score}, literal_caption={caption}, observations={observations}, '
                       f'D_steps={steps}, stable_reads={stable}); no E or further walking sent.')
 
-    def choose_map(self):
+    def choose_map(self,target_name='Dead Ahead'):
+        if target_name not in {'Dead Ahead','Wretched Front'}:
+            raise StopRun('Only the calibrated Dead Ahead and Wretched Front vote targets are supported.')
         self.allowed={'map_vote'}
         frame=self.frame()
         if self.observer.observe(frame).state!='map_vote':
@@ -431,7 +784,10 @@ class Session:
         self.driver.key('W',2.8)
         self.driver.wait(.3)
         boards=self.boards()
-        target=find_target(boards)
+        target=find_target(boards,target_name)
+        if target is None and target_name=='Wretched Front':
+            self.status('wretched_target_unconfirmed',boards_read=len(boards))
+            raise StopRun('Wretched Front target was not uniquely confirmed across all four boards; no VIP fallback or vote sent.')
         if target is None:
             self.status('vip_map_selection')
             # Return to the spawn reference before the independently observed VIP route.
@@ -466,16 +822,18 @@ class Session:
             self.driver.wait(.3)
             self.save_frame(self.frame(),'vip_return.png')
             boards=self.boards()
-            target=find_target(boards)
+            target=find_target(boards,'Dead Ahead')
             if target is None:
                 raise StopRun('VIP choice did not leave Dead Ahead on any readable board.')
         self.vote_target(target)
 
     def vote_target(self,target):
+        if target.title not in {'Dead Ahead','Wretched Front'}:
+            raise StopRun('Only the calibrated Dead Ahead or Wretched Front vote targets are supported.')
         self.board_index=target.index
         self.save_frame(self.frame(),f'boards_target{target.index}.png')
         self.status('walk_to_target',physical_board=target.index,title=target.title)
-        frame,current=self.approach_target()
+        frame,current=self.approach_target(target.title)
         self.save_frame(frame,'before_vote.png')
         self.driver.key('E',.8)
         self.driver.key('S',.15)  # Turn clear of the avatar occlusion without leaving the verified floor.
@@ -495,7 +853,7 @@ class Session:
                             title_header_count=0,title_tokens=[])
                 raise StopRun(f'Map-vote state changed after voting (stage=post_vote_title, physical_board={self.board_index}, '
                               f'title=unverified, badge=not_read, observations={observations}); Ready was not clicked.')
-            current=visible_target(frame,after_vote=True,diagnostics=title_diagnostics)
+            current=visible_target(frame,target.title,after_vote=True,diagnostics=title_diagnostics)
             observations+=1
             if current is not None:
                 break
@@ -531,8 +889,8 @@ class Session:
                             title_tokens=title_diagnostics.get('title_tokens',[]))
                 raise StopRun(f'Map-vote state changed before checking the vote badge (stage=post_vote_badge, '
                               f'physical_board={self.board_index}, title=confirmed, badge=not_read); Ready was not clicked.')
-            can_strafe=voting_floor(frame,for_strafe=True)
-            if not can_strafe and voting_floor(frame,require_both=False):
+            can_strafe=voting_floor(frame,for_strafe=True,map_name=target.title)
+            if not can_strafe and voting_floor(frame,require_both=False,map_name=target.title):
                 self.status('vote_badge_forward_correction',physical_board=self.board_index,target_recognized=True,
                             badge_read=False,badge_count=None,title_observations=observations,view_clear_steps=0,
                             forward_correction_steps=1,title_header_count=title_diagnostics.get('header_count',0),
@@ -550,7 +908,7 @@ class Session:
                                   'no view adjustment or Ready click.')
                 self.save_frame(frame,'after_vote_forward_correction.png')
                 title_diagnostics={}
-                current=visible_target(frame,after_vote=True,diagnostics=title_diagnostics)
+                current=visible_target(frame,target.title,after_vote=True,diagnostics=title_diagnostics)
                 observations+=1
                 if current is None:
                     self.status('post_vote_title_unconfirmed',physical_board=self.board_index,target_recognized=False,
@@ -564,7 +922,7 @@ class Session:
                                   f'title_tokens={tokens}); Ready was not clicked.')
                 count=self.vote_count(frame,current)
                 if count is None:
-                    can_strafe=voting_floor(frame,for_strafe=True)
+                    can_strafe=voting_floor(frame,for_strafe=True,map_name=target.title)
             if count is None and not can_strafe:
                 self.status('post_vote_view_clear_blocked',physical_board=self.board_index,target_recognized=True,
                             badge_read=False,badge_count=None,title_observations=observations,view_clear_steps=0,
@@ -597,7 +955,7 @@ class Session:
                                   'Ready was not clicked.')
                 self.save_frame(frame,'after_vote_clear.png')
                 title_diagnostics={}
-                current=visible_target(frame,after_vote=True,diagnostics=title_diagnostics)
+                current=visible_target(frame,target.title,after_vote=True,diagnostics=title_diagnostics)
                 observations+=1
                 count=self.vote_count(frame,current) if current is not None else None
         if count!=1:
@@ -618,10 +976,10 @@ class Session:
         self.driver.click(960,778)
         self.wait_state('match_ready',TELEPORT_SECONDS,{'map_vote','loading','in_match'})
 
-    def approach_target(self):
+    def approach_target(self,name='Dead Ahead'):
         # Keep the physical board index from the original four-header view.
         # Movement is bounded and each step is followed by fresh visual feedback.
-        reached_floor=False
+        support_seen=False
         unreadable_since=None
         for index in range(22):
             self.pause()
@@ -629,7 +987,7 @@ class Session:
             self.save_frame(frame,f'approach_{index:02}.png')
             if self.observer.observe(frame).state!='map_vote':
                 raise StopRun('Map-vote state changed while approaching the target.')
-            current=visible_target(frame)
+            current=visible_target(frame,name)
             prompt=vote_prompt(frame,current)
             if current is None:
                 if not prompt:
@@ -641,24 +999,30 @@ class Session:
                     continue
                 self.driver.key('S',.12)  # A close header can be hidden by the fixed HUD.
             else:
+                # Preserve the board index learned from the complete four-board
+                # view; the near Wretched Front camera clips board 1.
+                if self.board_index is not None:
+                    current=Board(self.board_index,current.box,current.title)
                 unreadable_since=None
                 center=(current.box[0]+current.box[2])/2
                 error=center-960
-                on_floor=voting_floor(frame)
+                on_floor=voting_floor(frame,map_name=name)
                 if not on_floor:
-                    if reached_floor and not voting_floor(frame,require_both=False):
+                    any_support=voting_floor(frame,require_both=False,map_name=name)
+                    if support_seen and not any_support:
                         raise StopRun('Lost the verified voting floor; no further walking toward decorations.')
+                    support_seen=support_seen or any_support
                     self.driver.key('W',.10)
                     self.driver.wait(.2)
                     continue
-                reached_floor=True
-                if prompt and abs(error)<=140:
+                support_seen=True
+                if prompt and (abs(error)<=140 or name=='Wretched Front'):
                     return frame,current
                 width=current.box[2]-current.box[0]
                 if width>400:
                     self.driver.key('S',.12)
                 elif abs(error)>90:
-                    if not voting_floor(frame,for_strafe=True):
+                    if not voting_floor(frame,for_strafe=True,map_name=name):
                         self.driver.key('W',.10)
                     else:
                         self.driver.key('A' if error<0 else 'D',min(.20,max(.06,abs(error)/950)))
@@ -754,6 +1118,16 @@ class Session:
             # state is a stop rather than an opportunity to click.
             self.lobby()
             self.wait_for_afk_disconnect(idle_lobby_seconds)
+        if self.strategy_id==PLAN_ID:
+            if not prepare_only or continuous or idle_lobby_seconds:
+                raise StopRun('Hardcore currently requires its prepare-only gate before wave execution.',kind='setup')
+            self.preflight_hardcore()
+            self.choose_map(self.hardcore_plan.map_name)
+            prepared=self.prepare_hardcore_match()
+            self.verify_hardcore_hotbar()
+            return prepared
+        if self.strategy_id==PLAN_V2_ID:
+            return self.play_hardcore_v2(matches,prepare_only=prepare_only,continuous=continuous)
         self.preflight()
         self.choose_map()
         self.prepare_camera()
@@ -827,14 +1201,20 @@ def main(argv=None):
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--confirm-start',action='store_true')
     parser.add_argument('--profile',type=Path,default=ROOT/'calibrations/dead_ahead_vertical_nine_v4.json')
+    parser.add_argument('--strategy',choices=('golden_scout',PLAN_ID,PLAN_V2_ID),default='golden_scout')
+    parser.add_argument('--expected-window',help=argparse.SUPPRESS)
     parser.add_argument('--matches',type=int,default=1)
     parser.add_argument('--continuous',action='store_true',help='Explicit Solo grind until stopped, a guard fails or disk space is low')
     parser.add_argument('--auto-recover',action='store_true',help='Fresh TDS session after game failures or verified natural focus return within five seconds; continuous mode only')
     parser.add_argument('--repeat-route',choices=['play-again','lobby'],default='play-again')
     parser.add_argument('--prepare-only',action='store_true')
-    parser.add_argument('--startup-delay',type=int,default=0,choices=range(0,11),help='Seconds to switch focus to Roblox; no automatic refocus')
+    parser.add_argument('--startup-delay',type=int,default=0,choices=range(0,11),help='Seconds before the guarded worker checks Roblox; no focus activation')
     parser.add_argument('--idle-lobby-seconds',type=int,default=0,help='One-time, no-input AFK lobby observation (1200..1800 seconds); requires --continuous --auto-recover')
     args=parser.parse_args(argv)
+    try:
+        expected_window=_parse_expected_window(args.expected_window)
+    except ValueError as exc:
+        parser.error(str(exc))
     if args.action!='start':
         if not args.output.is_dir():
             parser.error('Session output folder does not exist.')
@@ -856,6 +1236,12 @@ def main(argv=None):
         parser.error('--auto-recover requires an explicitly started continuous run.')
     if args.idle_lobby_seconds and (not 1200<=args.idle_lobby_seconds<=1800 or not args.auto_recover or not args.continuous):
         parser.error('--idle-lobby-seconds requires 1200..1800 seconds with --continuous --auto-recover.')
+    if args.strategy==PLAN_ID and not args.prepare_only:
+        parser.error('Hardcore wave execution is locked until LIVE-00 calibration is complete; use --prepare-only.')
+    if args.strategy==PLAN_ID and (args.auto_recover or args.continuous or args.idle_lobby_seconds):
+        parser.error('Hardcore prepare-only does not allow continuous play or recovery automation.')
+    if args.strategy==PLAN_V2_ID and args.idle_lobby_seconds:
+        parser.error('The one-time idle lobby trial is only supported for Golden Scout.')
     session=None
     platform=None
     try:
@@ -872,20 +1258,21 @@ def main(argv=None):
             pointer=ROOT/'captures/last_session.txt';pointer.parent.mkdir(parents=True,exist_ok=True)
             pointer.write_text(str(args.output.resolve()),encoding='utf-8')
             from .recovery import supervise
-            result=supervise(args.output,platform,args.profile,idle_lobby_seconds=args.idle_lobby_seconds)
-            return 0 if result['status'] in {'victory','prepared'} else 2
-        driver=GuardedInput(locate_roblox(),platform)
+            result=supervise(args.output,platform,args.profile,idle_lobby_seconds=args.idle_lobby_seconds,
+                             initial_expected=expected_window,strategy_id=args.strategy)
+            return 0 if result['status'] in {'victory','prepared','result_verified'} else 2
+        driver=GuardedInput(expected_window or locate_roblox(),platform)
         driver.check()
         if (driver.expected.width,driver.expected.height,driver.expected.dpi)!=(1920,991,120):
             raise StopRun(f'Roblox client is {driver.expected.width}x{driver.expected.height} at {driver.expected.dpi} DPI; this profile requires 1920x991 at 120 DPI (125% scaling), windowed mode.')
-        session=Session(driver,args.output,args.profile)
+        session=Session(driver,args.output,args.profile,strategy_id=args.strategy)
         pointer=ROOT/'captures/last_session.txt'
         pointer.parent.mkdir(parents=True,exist_ok=True)
         pointer.write_text(str(args.output.resolve()),encoding='utf-8')
         result=session.run(args.matches,args.repeat_route,args.prepare_only,args.continuous,args.idle_lobby_seconds)
         session.status(result['status'],result=result)
         (args.output/'result.json').write_text(json.dumps(result,indent=2),encoding='utf-8')
-        return 0 if result['status'] in {'victory','prepared'} else 2
+        return 0 if result['status'] in {'victory','prepared','hardcore_map_loaded','result_verified'} else 2
     except (RuntimeError,ValueError,OSError,KeyError,TypeError) as exc:
         result={'status':'stopped','reason':str(exc),'final_macro_verified':False}
         if session:
