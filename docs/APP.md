@@ -1,5 +1,9 @@
 # Windows application
 
+**FINAL OWNER v0.3.1 DECISION (2026-11-21 17:44 ICT; supersedes earlier conditional OCR proposals):** **Remove automatic game-version OCR completely, now.** v0.3.1 must use **one fixed Wretched Front candidate route**, never select or retry routes from version text and never perform even one-time version detection. It is still **NOT an accepted route** until the native proof of **RIGHT onto rock tops → DOWN across the pale/white boulder beside the old gate → DOWN ends ON path → LEFT to original placement pose**, plus two fresh-spawn guarded repetitions and unchanged three-rock camera/drift checks. Terrain mismatch, lost foreground/client identity, unknown Ready/zero-tower state or failed placement checks must stop; non-version gameplay OCR stays. The candidate source has removed version-OCR route dispatch; **no live match, optional XP, final build, CI or release success is claimed**. This instruction now authorizes implementation and native calibration in separate guarded batches, not weakening safety or changing published v0.3.0.
+
+**v0.3.1 planning note (2026-11-21 15:49 ICT; not shipped):** The revised Wretched Front path is RIGHT **on top of rocks**, DOWN across the **light boulder beside the old gate**, DOWN finishing **on the path**, then LEFT to the existing strict placement camera. A single accepted route should eliminate **route-version OCR**, not the OCR needed for hotbar, prices, results, etc. Until native route proof, the existing code is not approved for current-version unattended Hardcore. The [acceptance plan](plans/2026-11-21-v0.3.1-execution-checkpoints.md) governs; GUI/release behavior described below is source-candidate status only.
+
 ## Version status
 
 - **Published stable:** v0.3.0, with the original nine-Scout fallback and v2.20.0-era three-slot Hardcore route.

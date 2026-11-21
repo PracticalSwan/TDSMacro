@@ -26,6 +26,8 @@ INVENTORY_XP_LABEL=(1080,545,1195,590)
 HARDCORE_LOADOUT=('boomerang','crook boss','farm','','')
 HARDCORE_TOWERS=frozenset(HARDCORE_LOADOUT[:3])
 LOADOUT_SEARCH_TOWERS=HARDCORE_TOWERS|{'scout'}
+# Manual, exact-text inventory selection may inspect a verified slot-4 Minigunner.
+INVENTORY_SEARCH_TOWERS=LOADOUT_SEARCH_TOWERS|{'minigunner'}
 # Evolution sources and evolved towers documented in current Tower Evolution.
 # A free-form OCR caption is never sufficient to authorize optional placement.
 OPTIONAL_EXP_TOWERS={
@@ -36,7 +38,7 @@ OPTIONAL_EXP_TOWERS={
 }
 
 INVENTORY_LIST_STATES=frozenset({'inventory_list','inventory_list_2192','inventory_search_2192','inventory_scout'})
-HARDCORE_HOTBAR_POINTS={1:(760,925),2:(865,925),3:(960,925),4:(1060,925)}
+HARDCORE_HOTBAR_POINTS={1:(760,925),2:(865,925),3:(960,925),4:(1060,925),5:(1154,925)}
 
 
 def _inventory_list_open(frame):
@@ -144,16 +146,22 @@ def _slot_occupied(frame,box,ocr):
 
 def _selected_details(frame,ocr):
     name=_slot_name(ocr.read(frame.crop(INVENTORY_TOWER_NAME_TIGHT)))
-    if name not in LOADOUT_SEARCH_TOWERS:
+    if name not in INVENTORY_SEARCH_TOWERS:
         title=frame.crop(INVENTORY_TOWER_NAME)
         name=_slot_name(ocr.read(title))
-        if name not in LOADOUT_SEARCH_TOWERS:
+        if name not in INVENTORY_SEARCH_TOWERS:
             name=_slot_name(ocr.read(ink(title)))
     action=_slot_name(ocr.read(frame.crop(INVENTORY_EQUIP_BUTTON)))
     if action not in {'equip','unequip'}:
         # The current green Equip lettering can lose its final glyph inside
         # the narrow crop. Still require an exact label from a complete button.
         action=_slot_name(ocr.read(frame.crop((1170,687,1340,765))))
+    if action not in {'equip','unequip'}:
+        # Hover moves the entire action label above the tight crops. Keep
+        # the existing exact-text, bounded-position and uniqueness checks.
+        options=[candidate for candidate in ('equip','unequip')
+                 if inventory_action_point(frame,candidate,ocr) is not None]
+        action=options[0] if len(options)==1 else ''
     return name,action
 
 
@@ -176,7 +184,7 @@ def _read_slot_occupancy(frame,ocr,action=None,name=None):
 
 
 def read_slot_occupancy(frame):
-    """Read occupied/empty slot state without using icons to identify towers."""
+    """Non-authoritative visual diagnostics only; never authorize equipment."""
     if not _inventory_list_open(frame):
         return None
     return _read_slot_occupancy(frame,LocalOCR())
@@ -223,7 +231,7 @@ def read_selected_tower(frame,ocr=None):
     if not _inventory_list_open(frame):
         return None
     name,action=_selected_details(frame,ocr or LocalOCR())
-    if name not in LOADOUT_SEARCH_TOWERS or action not in {'equip','unequip'}:
+    if name not in INVENTORY_SEARCH_TOWERS or action not in {'equip','unequip'}:
         return None
     return name,action
 
@@ -234,7 +242,10 @@ def read_hardcore_hotbar_name(frame,slot,ocr=None,*,optional=False):
         return None
     x,_=HARDCORE_HOTBAR_POINTS[slot]
     reader=ocr or LocalOCR()
-    for box in ((x+8,758,x+164,793),(x+8,749,x+187,800)):
+    boxes=[(x+8,758,x+164,793),(x+8,749,x+187,800)]
+    if optional:
+        boxes.append((x+8,775,x+187,815))  # native lower tooltip layout
+    for box in boxes:
         title=frame.crop(box)
         for sample in (title,ink(title)):
             name=_slot_name(reader.read(sample))

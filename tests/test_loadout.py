@@ -16,6 +16,13 @@ class LoadoutTests(unittest.TestCase):
         with Image.open(ROOT/'tests/fixtures/inventory_scout_slot1.png') as frame:
             return frame.copy()
 
+    def test_manual_minigunner_search_is_exact_and_does_not_enable_auto_equip(self):
+        from tds_auto.loadout import LOADOUT_SEARCH_TOWERS, INVENTORY_SEARCH_TOWERS, read_textually_empty_hotbar
+        self.assertIn('minigunner', INVENTORY_SEARCH_TOWERS)
+        self.assertNotIn('minigunner', LOADOUT_SEARCH_TOWERS)
+        self.assertNotIn('random tower', INVENTORY_SEARCH_TOWERS)
+        self.assertFalse(read_textually_empty_hotbar(self.frame()))
+
     def test_live_golden_scout_only_slot1_is_accepted(self):
         self.assertIsNotNone(verify_inventory,'read-only Golden Scout baseline check is missing')
         self.assertIsNone(verify_inventory(self.frame()))
@@ -52,6 +59,17 @@ class LoadoutTests(unittest.TestCase):
              patch('tds_auto.loadout._selected_details',return_value=('','')):
             observer.return_value.observe.return_value.state='inventory_list_2192'
             self.assertEqual(read_slot_occupancy(frame),empty)
+            self.assertIsNone(read_selected_tower(frame))
+
+    def test_native_scout_equip_hover_retains_exact_button_identity(self):
+        # Sanitized native Scout title/button crops without any account data.
+        from tds_auto.loadout import inventory_action_point
+        with Image.open(ROOT/'tests/fixtures/inventory_scout_hover_equip_native.png') as source:
+            frame=source.copy()
+        with patch('tds_auto.loadout._inventory_list_open',return_value=True):
+            self.assertEqual(inventory_action_point(frame,'equip'),(1256,686))
+            self.assertEqual(read_selected_tower(frame),('scout','equip'))
+            ImageDraw.Draw(frame).rectangle((1195,643,1334,727),fill='black')
             self.assertIsNone(read_selected_tower(frame))
 
     def test_inventory_search_click_point_uses_the_readable_search_field(self):
@@ -230,6 +248,14 @@ class LoadoutTests(unittest.TestCase):
             self.assertFalse(read_textually_empty_hotbar(frame,o))
             o.text='SLOT 1'
             self.assertFalse(read_textually_empty_hotbar(frame,o))
+
+    def test_native_optional_minigunner_lower_tooltip_is_readable(self):
+        from tds_auto.loadout import read_hardcore_hotbar_name
+        frame = Image.new('RGB',(1920,991), 'black')
+        with Image.open(ROOT/'tests/fixtures/hardcore_minigunner_title_lower_native.png') as tip:
+            frame.paste(tip,(1068,775))
+        self.assertEqual(read_hardcore_hotbar_name(frame,4,optional=True),'minigunner')
+        self.assertIsNone(read_hardcore_hotbar_name(frame,4))
 
     def test_optional_slot4_uses_only_verified_xp_tower_tooltip_text(self):
         from tds_auto.loadout import read_hardcore_hotbar_name, HARDCORE_HOTBAR_POINTS

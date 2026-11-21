@@ -1,4 +1,4 @@
-"""Native route checkpoint-4 occlusion regression using terrain-only images."""
+"""Historical pre-v0.3.1 checkpoint tiles must not authorize the single new route."""
 import sys
 import unittest
 from pathlib import Path
@@ -20,19 +20,19 @@ class WretchedRouteCheckpoint4Tests(unittest.TestCase):
     def setUpClass(cls):
         cls.route=WretchedRoute("wretched_front_hardcore_v2")
 
-    def test_occluded_right_tile_is_valid_only_for_checkpoint_four(self):
+    def test_old_occluded_checkpoint_four_rejected(self):
         frame=frame_from_terrain("hardcore_route04_occluded_terrain_only.png")
-        self.assertTrue(self.route.matches(frame,4))
+        self.assertEqual(self.route.matching_steps(frame,range(len(self.route.steps))),[])
         self.assertFalse(self.route.matches(frame,3))
         self.assertFalse(self.route.matches(frame,5))
 
-    def test_unobstructed_native_checkpoint_four_still_matches(self):
+    def test_old_unobstructed_checkpoint_four_rejected(self):
         frame=frame_from_terrain("hardcore_route04_baseline_terrain_only.png")
-        self.assertTrue(self.route.matches(frame,4))
+        self.assertEqual(self.route.matching_steps(frame,range(len(self.route.steps))),[])
 
-    def test_previous_checkpoint_is_not_mistaken_for_checkpoint_four(self):
+    def test_old_checkpoint_three_rejected(self):
         frame=frame_from_terrain("hardcore_route03_terrain_only.png")
-        self.assertTrue(self.route.matches(frame,3))
+        self.assertEqual(self.route.matching_steps(frame,range(len(self.route.steps))),[])
         self.assertFalse(self.route.matches(frame,4))
 
     def test_blank_terrain_does_not_match(self):

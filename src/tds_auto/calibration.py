@@ -14,6 +14,15 @@ from .observer import ink
 
 ROOT = Path(__file__).resolve().parents[2]
 
+# Native-accepted Golden ten-Scout strategy; status is descriptive metadata.
+GOLDEN_V031_ACCEPTED_SHA = 'cad8d6e2432d100e5c8ed250480bd511d941f6498374bea31c5f9a6cf814a0f9'
+
+
+def golden_ten_enabled(profile,strategy):
+    """Pin candidate behavior to executable strategy, never status text."""
+    return (profile.get('strategy_sha256') == GOLDEN_V031_ACCEPTED_SHA
+            and len(strategy.steps) == 50)
+
 
 def load_profile(path):
     profile = json.loads(Path(path).read_text(encoding="utf-8"))

@@ -52,7 +52,7 @@ jobs:
                                 'hardcore_camera_checkpoint08','hardcore_camera_wave28','bottom_hud_cash_simple','hardcore_cash_brace',
                                 'hardcore_hud_fastpath','hardcore_f5_hover','hardcore_route_readback','hardcore_wave14_ocr','hardcore_f10_preview',
                                 'hardcore_inventory_notification','hardcore_route04',
-                                'hardcore_route05','hardcore_spawn_cash')) {
+                                'hardcore_route05','hardcore_spawn_cash','wretched_v2203')) {
             .\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_$suite.py" -v
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }

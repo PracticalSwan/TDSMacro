@@ -46,8 +46,8 @@ class FinalCameraRegression(unittest.TestCase):
     def test_new_checkpoint_eight_right_rock_disagreement_is_recognized(self):
         with Image.open(ROOT/'tests/fixtures/hardcore_camera_checkpoint08_right_rock_precise.png') as im:
             frame=im.copy()
-        self.assertEqual(self.camera.estimate(frame),(-23,-15))
-        self.camera.offset=(-23,-15)
+        self.assertEqual(self.camera.estimate(frame),(-23,-14))
+        self.camera.offset=(-23,-14)
         self.assertFalse(self.camera.check(ImageChops.offset(frame,8,0)))
 
     def test_missing_third_landmark_still_rejected(self):

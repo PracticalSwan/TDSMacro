@@ -12,9 +12,9 @@ EVENT_FIELDS=('phase','action','tower_id','level','wave','status','reason')
 
 def sanitized(value):
     text=str(value).replace('\n',' ').replace('\r',' ')
-    text=re.sub(r'(?i)(?:\b[a-z]:[\\/]|/(?:users|home)/)[^,;|]+','[private path]',text)
+    text=re.sub(r'(?i)(?<!\w)(?:[a-z]:[\\/]|\\\\[^\\/\s]+[\\/][^\\/\s]+[\\/]|/(?:users|home|mnt)/)[^;|]*?(?=\s+(?:phase|reason|status|wave|step|action|tower_id|level)\s*[=:]|[;|]|$)', '[private path]', text)
     text=re.sub(r"(?i)\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b",'[email]',text)
-    text=re.sub(r"(?i)\b(?:token|cookie|password|authorization|bearer)\b\s*[:= ]\s*\S+",
+    text=re.sub(r"(?i)\b(?:api[_-]?key|client[_-]?secret|access[_-]?token|token|cookie|password|authorization|bearer|secret)\b\s*[:=]\s*(?:\"[^\"]*\"|'[^']*'|[^\s,;|&]+)|\bBearer\s+[^\s,;|&]+",
                 '[credential]',text)
     text=re.sub(r"\b\d{6,}\b",'[account id]',text)
     return text[:320]

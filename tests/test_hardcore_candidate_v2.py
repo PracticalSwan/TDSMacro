@@ -84,7 +84,7 @@ class HardcoreCandidateV2Tests(unittest.TestCase):
         self.assertEqual(original,list(range(2,12))+[13,14])
         runner.optional_tower='Scout'
         extended=[p.step for p in runner.execution_phases()]
-        self.assertEqual(extended,original+[12])
+        self.assertEqual(extended,list(range(2,15)))
         self.assertEqual(len(extended),13)
 
     def test_optional_tower_and_unaccepted_placement_gates(self):
@@ -108,6 +108,22 @@ class HardcoreCandidateV2Tests(unittest.TestCase):
         for tower in ("B2", "B3"):
             self.assertGreater(c["coordinates"][tower][0], c["coordinates"]["B1"][0])
         self.assertEqual(set(c["coordinates"]), {t["id"] for t in p["towers"]})
+
+    def test_optional_slot_four_reads_exact_price_before_and_during_native_preview(self):
+        # The green-only OCR changes the glyph 1 into 7 while the exact native
+        # visible price remains $1,850. Both views must yield the same quote;
+        # commit_placement independently rechecks it before any purchase.
+        from PIL import Image
+        from tds_auto.resources import LocalOCR
+        from tds_auto.hardcore_vision import wretched_price, PRICE_BOXES
+        ocr=LocalOCR()
+        for name in ('hardcore_slot4_price_normal_native.png',
+                     'hardcore_slot4_price_armed_native.png'):
+            with self.subTest(name=name):
+                frame=Image.new('RGB',(1920,991))
+                with Image.open(ROOT/'tests'/'fixtures'/name) as crop:
+                    frame.paste(crop,PRICE_BOXES[4][:2])
+                self.assertEqual(wretched_price(frame,4,ocr),1850)
 
     def test_farm_preview_accepts_one_pixel_caption_registration_only_with_white_footprint(self):
         from PIL import Image,ImageDraw
@@ -134,12 +150,23 @@ class HardcoreCandidateV2Tests(unittest.TestCase):
             ('hardcore_boomerang_preview_caption', (1112, 415), True),
             ('hardcore_crook_preview_crowded', (997, 290), True),
             ('hardcore_crook_preview_rock', (988, 283), False),
+            ('hardcore_minigunner_wave24_white_ring_native', (848, 352), True),
+            ('hardcore_minigunner_ready_white_ring_native', (1124, 652), True),
         ):
             with self.subTest(sample=sample):
                 with Image.open(ROOT / 'tests' / 'fixtures' / f'{sample}.png') as crop:
                     frame = Image.new('RGB', (1920, 991))
                     frame.paste(crop, (point[0] - 39, point[1] - 40))
                 self.assertEqual(wretched_preview(frame, point, ocr, round_footprint=True), expected)
+
+    def test_opening_ready_accepts_native_required_exclamation_ocr(self):
+        from PIL import Image
+        from tds_auto.hardcore_vision import wretched_ready
+        from tds_auto.resources import LocalOCR
+        frame=Image.new('RGB',(1920,991))
+        with Image.open(ROOT/'tests/fixtures/wretched_ready_required_exclamation_native.png') as crop:
+            frame.paste(crop,(819,156))
+        self.assertTrue(wretched_ready(frame,LocalOCR()))
 
     def test_opening_preview_preserves_exact_ready_caption_against_terrain(self):
         from PIL import Image
@@ -220,7 +247,7 @@ class HardcoreCandidateV2Tests(unittest.TestCase):
         camera = WretchedCamera(load_hardcore_plan_v2())
         with Image.open(ROOT / 'tests' / 'fixtures' / 'hardcore_camera_three_landmark_consensus.png') as source:
             frame = source.copy()
-        self.assertEqual(camera.estimate(frame), (-7, -15))
+        self.assertEqual(camera.estimate(frame), (-7, -13))
         frame.paste((0, 0, 0), (1420, 520, 1610, 770))
         self.assertIsNone(camera.estimate(frame))
 
@@ -230,7 +257,9 @@ class HardcoreCandidateV2Tests(unittest.TestCase):
 
         route = WretchedRoute('wretched_front_hardcore_v2')
         width, height = ROUTE_TILE_SIZE
-        for sample, expected in (('shifted_gate', [3]), ('shifted_gate_effect', [3]), ('occluded_gate', [])):
+        # The historical v2.20.0 tile atlas is not selectable by the single
+        # v0.3.1 route; old gate views must fail closed.
+        for sample, expected in (('shifted_gate', []), ('shifted_gate_effect', []), ('occluded_gate', [])):
             with self.subTest(sample=sample):
                 frame = Image.new('L', (1920, 991))
                 with Image.open(ROOT / 'tests' / 'fixtures' / f'hardcore_route_{sample}.png') as tiles:
@@ -239,53 +268,34 @@ class HardcoreCandidateV2Tests(unittest.TestCase):
                         frame.paste(tile.resize((x1-x0,y1-y0),Image.Resampling.NEAREST),(x0,y0))
                 self.assertEqual([i for i in range(len(route.steps)) if route.matches(frame,i)], expected)
 
-    def test_start_camera_normalizes_once_and_walks_only_after_two_verified_views(self):
+    def test_single_route_requires_positive_spawn_before_first_right_input(self):
+        from PIL import Image
         from tds_auto.control import StopRun
         from tds_auto.hardcore_match import HardcoreMatchV2
         from tds_auto.hardcore_plan_v2 import load_hardcore_plan_v2
-        from tds_auto.hardcore_vision import ROUTE_STEPS_V2
+        from tds_auto.hardcore_vision import ROUTE_STEPS_V031
 
-        for verifiable in (True, False):
-            with self.subTest(verifiable=verifiable):
-                clock = [0.0]
-                view = ['drift']
-                read_views = []
-
-                def read_frame(**_):
-                    read_views.append(view[0])
-                    return view[0]
-
-                worker = HardcoreMatchV2.__new__(HardcoreMatchV2)
-                worker.plan = load_hardcore_plan_v2()
-                worker.session = Mock()
-                worker.session.now.side_effect = lambda: clock[0]
-                worker.session.frame.side_effect = read_frame
-                worker.driver = Mock()
-                worker.driver.wait.side_effect = lambda seconds: clock.__setitem__(0, clock[0] + seconds)
-                worker.driver.orbit.side_effect = lambda *_: view.__setitem__(0, 'floor' if verifiable else 'blocked')
-
-                def walk(*_):
-                    self.assertEqual(read_views[-2:], ['floor', 'floor'])
-                    view[0] = 'placement'
-
-                worker.driver.key.side_effect = walk
-                worker.camera = Mock()
-                worker.camera.bind.return_value = False
-                worker.camera.estimate.side_effect = lambda frame: (-8, -15) if frame == 'placement' else None
-                worker.route_ready = Mock(return_value=True)
-                route = SimpleNamespace(steps=(ROUTE_STEPS_V2[0], (('key', 'S', .55),)),
-                                        matching_steps=lambda frame, indices: [1] if frame == 'floor' and 1 in indices else [])
-                with patch('tds_auto.hardcore_match.WretchedRoute', return_value=route):
-                    if verifiable:
+        for matched in (False,True):
+            with self.subTest(matched=matched):
+                worker=HardcoreMatchV2.__new__(HardcoreMatchV2)
+                worker.plan=load_hardcore_plan_v2()
+                worker.session=Mock()
+                worker.driver=Mock()
+                worker.camera=Mock()
+                frame=Image.new('RGB',(1920,991))
+                missing=(frame,None,None,False)
+                confirmed=(frame,None,0,True)
+                worker.settled_camera_view=Mock(side_effect=[confirmed,missing] if matched else [missing])
+                route=SimpleNamespace(steps=ROUTE_STEPS_V031)
+                with patch('tds_auto.hardcore_match.WretchedRoute',return_value=route):
+                    with self.assertRaisesRegex(StopRun,'terrain did not verify'):
                         worker.align_camera()
-                        worker.driver.key.assert_called_once_with('S', .55)
-                        self.assertEqual(worker.camera.offset, (-8, -15))
-                    else:
-                        with self.assertRaises(StopRun):
-                            worker.align_camera()
-                        worker.driver.key.assert_not_called()
-                worker.driver.zoom.assert_called_once_with(-8)
-                self.assertEqual(worker.driver.orbit.call_count, 2 if verifiable else 3)
+                if matched:
+                    worker.driver.key.assert_called_once_with('D',.30)
+                else:
+                    worker.driver.key.assert_not_called()
+                worker.driver.orbit.assert_not_called()
+                worker.driver.zoom.assert_not_called()
                 worker.driver.click.assert_not_called()
 
     def test_disconnect_during_camera_setup_reaches_transport_recovery_without_input(self):
@@ -825,21 +835,34 @@ class HardcoreCandidateV2Tests(unittest.TestCase):
         worker.session.save_frame.assert_called_once_with('ready', 'hardcore_opening_farms_ready.png')
         worker.driver.click.assert_not_called()
 
+    def test_opening_ready_recovers_after_multiple_blank_ocr_frames(self):
+        from tds_auto.hardcore_match import HardcoreMatchV2
+        worker = HardcoreMatchV2.__new__(HardcoreMatchV2)
+        worker.frame = Mock(side_effect=['unreadable']*5+['ready'])
+        worker.ready_frame = Mock(side_effect=[False]*5+[True])
+        worker.session = Mock()
+        worker.driver = Mock()
+        worker.confirm_opening_ready()
+        self.assertEqual(worker.frame.call_count, 6)
+        self.assertEqual(worker.driver.wait.call_count, 5)
+        worker.session.save_frame.assert_called_once_with('ready', 'hardcore_opening_farms_ready.png')
+        worker.driver.click.assert_not_called()
+
     def test_opening_ready_persistent_unknown_stops_with_evidence(self):
         from tds_auto.control import StopRun
         from tds_auto.hardcore_match import HardcoreMatchV2
 
         worker = HardcoreMatchV2.__new__(HardcoreMatchV2)
-        worker.frame = Mock(side_effect=['unknown1', 'unknown2', 'unknown3'])
+        worker.frame = Mock(side_effect=['unknown'+str(i) for i in range(12)])
         worker.ready_frame = Mock(return_value=False)
         worker.session = Mock()
         worker.driver = Mock()
         with self.assertRaisesRegex(StopRun, 'Ready changed before click'):
             worker.confirm_opening_ready()
-        self.assertEqual(worker.frame.call_count, 3)
-        self.assertEqual(worker.driver.wait.call_count, 2)
+        self.assertEqual(worker.frame.call_count, 12)
+        self.assertEqual(worker.driver.wait.call_count, 11)
         worker.session.save_frame.assert_called_once_with(
-            'unknown3', 'hardcore_ready_preclick_unverified.png')
+            'unknown11', 'hardcore_ready_preclick_unverified.png')
         worker.driver.click.assert_not_called()
 
 

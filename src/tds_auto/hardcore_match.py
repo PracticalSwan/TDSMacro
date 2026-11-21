@@ -156,12 +156,15 @@ class HardcoreMatch:
 
     def confirm_opening_ready(self):
         """Use one guarded frame per check; retry only transient read failures."""
-        for attempt in range(3):
+        # UI text anti-aliasing sometimes makes exact Ready/Required OCR blank
+        # for several frames. Only extend no-input rereads; never accept
+        # uncertain captions or repeat the Ready click.
+        for attempt in range(12):
             frame = self.frame(require_speed=False)
             if self.ready_frame(frame):
                 self.session.save_frame(frame, 'hardcore_opening_farms_ready.png')
                 return
-            if attempt < 2:
+            if attempt < 11:
                 self.driver.wait(.2)
         self.session.save_frame(frame, 'hardcore_ready_preclick_unverified.png')
         raise StopRun('Wretched Front Ready changed before click.')
@@ -203,12 +206,12 @@ class HardcoreMatch:
             self.driver.wait(.2)
 
     def align_camera(self):
-        """Restore the standard pitch and zoom once if no safe route view settles."""
+        """Use one configured terrain route without automatic game-version OCR."""
         route = WretchedRoute(self.plan.profile_id)
         end = len(route.steps)
         checkpoints = range(end)
         minimum = 0
-        reset_available = self.plan.profile_id != PROFILE_ID
+        reset_available = self.plan.profile_id == PROFILE_ID
         while True:
             frame, pose, index, ready = self.settled_camera_view(route, checkpoints)
             # Camera-only normalization is safe at spawn, not after walking.
@@ -645,10 +648,11 @@ class HardcoreMatchV2(HardcoreMatch):
         if self.optional_tower:
             self.towers['X1'] = replace(self.towers['X1'], tower_type=self.optional_tower)
             self.reader.tower_names.add(self.optional_tower)
-            # Current 2.20.0 back-path landscape: X1 is away from both fixed
-            # combat and Farm clusters. Its runtime preview MUST be green and
-            # show Place; the candidate coordinate is not acceptance evidence.
-            self.camera.points['X1'] = (840, 330)
+            # Native v2.20.3 no-purchase preview at (1120,660) showed a white
+            # outer ring and exact Place prompt; the previous (840,330)
+            # overlapped the path in two independent wave-24 failures. This
+            # coordinate still requires fresh green preview and spend guards.
+            self.camera.points['X1'] = (1120, 660)
 
     def v2_price_for(self, frame):
         placements = {}
@@ -664,12 +668,11 @@ class HardcoreMatchV2(HardcoreMatch):
         return price
 
     def execution_phases(self):
-        # Always complete the 75 required purchases before spending on XP.
-        # The optional placement must not delay the last Crook Boss upgrades.
-        required, optional = [], []
-        for phase in self.plan.phases[1:]:
-            (optional if all(action.optional for action in phase.actions) else required).append(phase)
-        return tuple(required + (optional if self.optional_tower else []))
+        # Phase 12 is the single optional window: after 70 core purchases,
+        # before the five late upgrades. Three native baseline results reached
+        # action 70 at wave 24 and action 75 at wave 29. No extra scheduler.
+        return tuple(phase for phase in self.plan.phases[1:]
+                     if self.optional_tower or not all(action.optional for action in phase.actions))
 
     def play(self):
         self.start(self.plan.phases[0])
@@ -756,6 +759,10 @@ class HardcoreMatchV2(HardcoreMatch):
                 break
             self.session.pause(self.frame)
             frame, hud = self.read({len(self.levels)}, self.plan.finish_wave - 1)
+            if actions[0].optional and hud.wave > 26:
+                self.session.status('hardcore_optional_skipped',step=phase.step,
+                                    reason='wave24_to_26_window_missed',wave=hud.wave)
+                return
             price_for = self.v2_price_for(frame)
             due, action, defense_price = self.urgent_defense(hud.wave, price_for, hud.cash)
             if due is not None and hud.wave > due and due not in self.missed_defense_deadlines:

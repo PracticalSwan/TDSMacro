@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 
 from .control import GuardedInput, StopRun, WindowsOS
-from .loadout import (LOADOUT_SEARCH_TOWERS,find_inventory_tower_card,
+from .loadout import (INVENTORY_SEARCH_TOWERS,find_inventory_tower_card,
                       inventory_search_point,read_inventory_search_query,
                       read_selected_tower)
 from .observer import Observer, StableState
@@ -45,7 +45,7 @@ class Navigator:
     def search_tower(self,tower,timeout=8):
         """Search by exact tower name, then select its uniquely OCR-located card."""
         target=' '.join(str(tower).casefold().split())
-        if target not in LOADOUT_SEARCH_TOWERS or not math.isfinite(timeout) or not 0<timeout<=30:
+        if target not in INVENTORY_SEARCH_TOWERS or not math.isfinite(timeout) or not 0<timeout<=30:
             raise StopRun('Unsupported tower name or unbounded inventory-search timeout.')
         from .loadout import INVENTORY_CURSOR_CLEAR_POINT,INVENTORY_LIST_STATES
         ocr=self.ocr or LocalOCR()

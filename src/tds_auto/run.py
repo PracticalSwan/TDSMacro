@@ -7,7 +7,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from .calibration import CameraGate, load_profile, valid_preview
+from .calibration import CameraGate, load_profile, valid_preview, golden_ten_enabled
 from .control import GuardedInput, StopRun, WindowsOS
 from .hotbar import read_hotbar
 from .match import MatchRunner, Snapshot
@@ -197,8 +197,7 @@ class Playback:
             if self.observer.observe(frame).state not in {'match_ready','in_match'} or not self.camera.check(frame):
                 return False
             return hovered_scout_at(frame,point,self.hud.ocr)
-        golden_ten = (self.profile.get('status','').startswith('v031_candidate')
-                      and len(self.strategy.steps)==50)
+        golden_ten = golden_ten_enabled(self.profile,self.strategy)
         runner=MatchRunner(self.driver,self.read,slot=1,hover_check=hover_selection,
                            use_e_upgrades=golden_ten)
         old_gate=self.driver.before_click

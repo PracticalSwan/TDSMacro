@@ -35,5 +35,34 @@ class DiagnosticsTests(unittest.TestCase):
         self.assertIn('phase=stopped',output)
         self.assertIn('[private path]',output)
 
+    def test_private_paths_and_api_key_are_redacted_in_reason_fields(self):
+        from tds_auto.diagnostics import sanitized
+        key='api_'+'key'
+        cases=[
+            r'problem C:\Users\Hidden Person\Documents\trace.log phase=failed',
+            r'problem D:/Side Projects/Hidden Folder/log.txt reason=blocked',
+            r'problem \\server\share\Hidden Person\log.txt status=failed',
+            'problem /home/private-user/project/out.txt action=stopped',
+            'request '+key+'=example_value&wave=4',
+            'problem '+key+' = "sample_value" status=failed',
+        ]
+        for case in cases:
+            with self.subTest(case=case):
+                result=sanitized(case)
+                for private in ('Hidden Person','Hidden Folder','private-user',
+                                'example_value','sample_value'):
+                    self.assertNotIn(private,result)
+        self.assertIn('phase=failed',sanitized(cases[0]))
+        self.assertIn('reason=blocked',sanitized(cases[1]))
+        self.assertIn('wave=4',sanitized(cases[4]))
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'hardcore_actions.jsonl'
+            reason=key+'=example_value; C:/Users/Hidden Person/out.log'
+            path.write_text(json.dumps({'action':'place','reason':reason})+'\n',encoding='utf-8')
+            result=collect_diagnostics({'reason':reason},Path(folder))
+            self.assertNotIn('example_value',result)
+            self.assertNotIn('Hidden Person',result)
+            self.assertIn('action=place',result)
+
     def test_no_file_or_command_execution(self):
         self.assertIn('phase=ready',collect_diagnostics({'phase':'ready'},None))

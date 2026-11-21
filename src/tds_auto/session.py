@@ -12,7 +12,7 @@ import shutil
 from dataclasses import asdict
 from pathlib import Path
 from PIL import ImageStat
-from .calibration import CameraGate,load_profile
+from .calibration import CameraGate,load_profile,golden_ten_enabled
 from .control import GuardedInput,StopRun,WindowsOS
 from .hotbar import read_hotbar
 from .loadout import (HARDCORE_HOTBAR_POINTS,INVENTORY_EQUIP_BUTTON,INVENTORY_LIST_STATES,
@@ -23,7 +23,7 @@ from .maps import Board,read_boards,find_target,read_headers,visible_target,vip_
 from .navigation import Navigator,MENU_ROUTE,HARDCORE_MENU_ROUTE
 from .hardcore_plan import PLAN_ID,load_hardcore_plan
 from .hardcore_plan_v2 import PLAN_ID as PLAN_V2_ID,load_hardcore_plan_v2
-from .hardcore_vision import wretched_match_ready
+from .hardcore_vision import wretched_match_ready,wretched_price
 from .observer import Observer
 from .phase1 import capture,locate_roblox,BlankCapture,Window
 from .resources import LocalOCR,HudReader,parse_cash
@@ -385,36 +385,17 @@ class Session:
         raise StopRun(f'Play did not reach a verified Survival menu: {opened}.',kind='setup')
 
     def preflight(self):
+        if self.auto_equip:
+            raise StopRun('Auto Equip unavailable: the current UI does not expose five explicit EMPTY labels. Equip manually.', kind='setup')
         self.lobby()
         inventory=self.transition('open_inventory')
-        selected_by_search=False
-        if self.auto_equip and inventory in INVENTORY_LIST_STATES:
-            # Never infer that five dark inventory tiles authorize equipment.
-            first=self.frame()
-            occupancy=read_slot_occupancy(first)
-            if occupancy==(False,)*5:
-                if not read_textually_empty_hotbar(first):
-                    raise StopRun('Auto-equip requires five explicit EMPTY slot labels; no Scout equipped.',kind='setup')
-                self.driver.wait(.2)
-                if not read_textually_empty_hotbar(self.frame()):
-                    raise StopRun('Empty-slot text changed before Scout search.',kind='setup')
-                detail=self.navigator.search_tower('scout')
-                chosen=self.frame()
-                if (detail!=('scout','equip')
-                        or read_selected_tower(chosen)!=('scout','equip')
-                        or self.ocr.read(chosen.crop((1095,505,1174,545))).casefold()!='golden'):
-                    raise StopRun('Golden Scout text/equip details did not verify.',kind='setup')
-                self._equip_hardcore_tower('scout',1,(False,)*5)
-                selected_by_search=True
-        if (not selected_by_search and
-                inventory in {'inventory_list','inventory_list_2192','inventory_search_2192','inventory_scout'}):
+        if inventory in INVENTORY_LIST_STATES:
             self.transition('scout_details')
         deadline=self.now()+5
         stable=0
         while self.now()<deadline:
             frame=self.frame()
-            text_only=(self.profile.get('status','').startswith('v031_candidate')
-                       and len(self.strategy.steps)==50)
+            text_only=golden_ten_enabled(self.profile,self.strategy)
             stable=stable+1 if verify_inventory(frame,text_only=text_only) is None else 0
             if stable>=2:
                 self.save_frame(frame,'loadout_identity.png')
@@ -433,7 +414,13 @@ class Session:
         self.status('loadout_verified',placement_price=bar.price)
 
     def preflight_hardcore(self):
-        """Verify the fixed Hardcore loadout, then enter observed Hardcore/Solo."""
+        """Verify exact searched equipped names; the in-match hotbar decides slots.
+
+        Inventory tile graphics, borders and edge energy never authorize a
+        loadout or Equip input. Unknown or unequipped names stop without edits.
+        """
+        if self.auto_equip:
+            raise StopRun('Auto Equip unavailable: equip the required towers manually.',kind='setup')
         state=self.observer.observe(self.frame()).state
         if state in INVENTORY_LIST_STATES:
             self.transition('close_inventory')
@@ -441,80 +428,25 @@ class Session:
         inventory=self.transition('open_inventory')
         if inventory not in INVENTORY_LIST_STATES:
             raise StopRun(f'Hardcore inventory did not open: {inventory}.',kind='setup')
-
-        initial=read_slot_occupancy(self.frame())
-        self.driver.wait(.2)
-        second_initial=read_slot_occupancy(self.frame())
-        empty_start=initial==(False,False,False,False,False)
-        if initial is None or initial!=second_initial:
-            raise StopRun('Inventory slot occupancy did not verify twice; no tower changed.',kind='setup')
-        supported={(True,True,True,False,False)}
-        if self.strategy_id==PLAN_V2_ID:
-            supported.add((True,True,True,True,False))
-        if not empty_start and initial not in supported:
-            raise StopRun('Partial or unrelated Hardcore loadout; no tower changed.',kind='setup')
-        if empty_start:
-            if not self.auto_equip:
-                raise StopRun('All five slots are empty. Auto-equip is OFF; equip Boomerang, Crook Boss and Farm manually.',kind='setup')
-            # Visual emptiness alone is not permission to change equipment.
-            # Current 2.20.0 empty tiles have no text; fail closed.
-            if not read_textually_empty_hotbar(self.frame()):
-                raise StopRun('Auto-equip requires explicit EMPTY text in all five slots; this UI has not verified it. Equip manually.',kind='setup')
-            self.driver.wait(.2)
-            if not read_textually_empty_hotbar(self.frame()):
-                raise StopRun('Five textual EMPTY labels changed; no Equip input sent.',kind='setup')
-
-        observed=['','','','','']
-        expected_occupancy=[False,False,False,False,False]
-        equip_actions=0
         self.allowed=set(INVENTORY_LIST_STATES)
-        for expected_slot,tower in self.hardcore_plan.required_loadout:
+        observed=[]
+        for slot,tower in self.hardcore_plan.required_loadout:
             target=tower.casefold()
-            self.status('hardcore_tower_search',tower=tower,slot=expected_slot)
+            self.status('hardcore_tower_search',tower=tower,slot=slot)
             detail=self.navigator.search_tower(target)
-            if detail is None or detail[0]!=target:
-                raise StopRun(f'Search did not confirm the readable {tower} name.',kind='setup')
-            frame=self.frame()
-            selected=read_selected_tower(frame)
-            if selected is None or selected[0]!=target or selected[1] not in {'equip','unequip'}:
-                raise StopRun(f'{tower} selected details were unreadable; no equip action sent.',kind='setup')
-
-            if selected[1]=='equip':
-                if not empty_start:
-                    raise StopRun('Partial or nonempty Hardcore loadout; no tower changes made.',kind='setup')
-                occupancy=read_slot_occupancy(frame)
-                if occupancy!=tuple(expected_occupancy):
-                    raise StopRun('Hotbar changed after its empty-state check; no equip action sent.',kind='setup')
-                self._equip_hardcore_tower(target,expected_slot,tuple(expected_occupancy))
-                expected_occupancy[expected_slot-1]=True
-                observed[expected_slot-1]=target
-                equip_actions+=1
-            else:
-                for attempt in range(2):
-                    frame=self.frame()
-                    if read_selected_tower(frame)!=(target,'unequip'):
-                        raise StopRun(f'Equipped {tower} identity did not verify.',kind='setup')
-                    if attempt==0:
-                        self.driver.wait(.15)
-                observed[expected_slot-1]=target
-
-        # Farm uses the higher slot row in the live inventory. Its screenshot
-        # supplies an independent occupancy read for all five slots.
-        # An OS notification can temporarily cover the right inventory slots.
-        # Only reread; never dismiss external windows or change the loadout.
-        confirmed_occupancy,confirm_frame=self.confirm_hardcore_inventory()
-        # Slot4 is user-controlled: presence selects the optional path, but its
-        # identity is not trusted until the *match* hotbar tooltip verifies it.
-        self.hardcore_optional_slot_occupied=(self.strategy_id==PLAN_V2_ID
-                                and confirmed_occupancy==(True,True,True,True,False))
-        self.hardcore_optional_tower=None
-        if self.hardcore_optional_slot_occupied:
-            self.status('hardcore_optional_pending', slot=4,
-                        reason='exact_match_hotbar_tooltip_required')
-        self.save_frame(confirm_frame,'hardcore_loadout_identity.png')
-        self.status('hardcore_inventory_verified',equipped_names=[name for name in observed if name],
-                    slot_occupancy=list(confirmed_occupancy),
-                    equip_actions=equip_actions)
+            if detail!=(target,'unequip'):
+                raise StopRun(f'{tower} must be manually equipped and positively searched.',kind='setup')
+            for attempt in range(2):
+                frame=self.frame()
+                if read_selected_tower(frame)!=(target,'unequip'):
+                    raise StopRun(f'Equipped {tower} name changed; no input sent.',kind='setup')
+                if attempt==0:
+                    self.driver.wait(.15)
+            observed.append(target)
+        self.save_frame(frame,'hardcore_loadout_identity.png')
+        self.status('hardcore_inventory_verified',equipped_names=observed,
+                    equip_actions=0,slot_order='pending_in_match_text_verification',
+                    occupancy_graphics_authoritative=False)
         self.transition('close_inventory')
         self.lobby()
         self.enter_survival_menu()
@@ -522,15 +454,22 @@ class Session:
         self.select_hardcore_solo()
 
     def verify_hardcore_hotbar(self):
-        """Verify the ordered native tooltips before Ready or any purchase."""
+        """Verify slot order from exact hover text; never trust inventory artwork."""
         from .loadout import OPTIONAL_EXP_TOWERS
-        optional_expected=getattr(self,'hardcore_optional_slot_occupied',False)
-        optional=None
-        expected=list(self.hardcore_plan.required_loadout)
-        if optional_expected:
-            expected.append((self.hardcore_plan.optional_slot,None))
+        expected=self.hardcore_plan.required_loadout
         found=['','','','','']
         hud_reader=HudReader(hardcore=True)
+
+        def ready_frame():
+            frame=self.frame(record_latest=False)
+            hud=hud_reader.read(frame)
+            if (hud.tower_count not in {0,None} or hud.wave is not None
+                    or vote_players(frame) not in {1,None}):
+                self.save_frame(frame,'hardcore_hotbar_state_changed.png')
+                raise StopRun('Solo Ready or zero-tower count changed during hotbar verification.',kind='setup')
+            return frame if (hud.tower_count==0 and vote_players(frame)==1
+                             and wretched_match_ready(frame,self.observer,self.ocr)) else None
+
         for slot,tower in expected:
             self.pause()
             self.driver.move(*HARDCORE_HOTBAR_POINTS[slot])
@@ -538,22 +477,10 @@ class Session:
             previous=None
             while self.now()<deadline:
                 self.pause()
-                frame=self.frame(record_latest=False)
-                hud=hud_reader.read(frame)
-                count=vote_players(frame)
-                if (hud.tower_count not in {0,None} or hud.wave is not None or count not in {1,None}):
-                    self.save_frame(frame,'hardcore_hotbar_state_changed.png')
-                    raise StopRun('Solo Ready or the zero-tower count changed during loadout verification.',kind='setup')
-                if hud.tower_count!=0 or count!=1 or not wretched_match_ready(frame,self.observer,self.ocr):
-                    previous=None
-                    self.driver.wait(.15)
-                    continue
-                name=read_hardcore_hotbar_name(frame,slot,self.ocr,optional=(slot==4))
+                frame=ready_frame()
+                name=read_hardcore_hotbar_name(frame,slot,self.ocr) if frame is not None else None
                 if name is not None and name==previous:
-                    if slot==4:
-                        optional=OPTIONAL_EXP_TOWERS[name]
-                        self.hardcore_optional_tower=optional
-                    elif name!=tower.casefold():
+                    if name!=tower.casefold():
                         raise StopRun(f'Slot {slot} contains {name}; expected {tower}.',kind='setup')
                     found[slot-1]=name
                     self.save_frame(frame,f'hardcore_hotbar_slot_{slot}.png')
@@ -561,13 +488,55 @@ class Session:
                 previous=name
                 self.driver.wait(.15)
             else:
-                self.save_frame(frame,f'hardcore_hotbar_slot_{slot}_unverified.png')
+                self.save_frame(self.frame(),f'hardcore_hotbar_slot_{slot}_unverified.png')
                 raise StopRun(f'Native name tooltip at slot {slot} did not verify twice.',kind='setup')
+
+        optional=None
+        # Neither an image-edge occupancy classifier nor a blank inventory
+        # tile can claim a fourth tower. Detect only exact in-match name text.
+        # An unrecognized priced slot stops rather than guessing tower identity.
+        for slot in (4,5):
+            self.pause()
+            self.driver.move(*HARDCORE_HOTBAR_POINTS[slot])
+            deadline=self.now()+3
+            prior=None
+            empty_reads=0
+            while self.now()<deadline:
+                self.pause()
+                frame=ready_frame()
+                if frame is None:
+                    prior=None
+                    empty_reads=0
+                    self.driver.wait(.15)
+                    continue
+                name=read_hardcore_hotbar_name(frame,slot,self.ocr,optional=True)
+                price=wretched_price(frame,slot,self.ocr)
+                if slot==5 and name is not None:
+                    raise StopRun('Slot 5 has a tower tooltip; leave slot 5 empty.',kind='setup')
+                if slot==4 and name is not None and name==prior:
+                    optional=OPTIONAL_EXP_TOWERS[name]
+                    found[3]=name
+                    self.save_frame(frame,'hardcore_hotbar_slot_4.png')
+                    break
+                if name is None and price is None:
+                    empty_reads+=1
+                    if empty_reads>=3:
+                        break
+                else:
+                    empty_reads=0
+                prior=name
+                self.driver.wait(.15)
+            else:
+                self.save_frame(self.frame(),f'hardcore_hotbar_slot_{slot}_unverified.png')
+                raise StopRun(f'Slot {slot} has unknown name or nonempty price text; check loadout manually.',kind='setup')
+        self.hardcore_optional_tower=optional
+        self.hardcore_optional_slot_occupied=bool(optional)
         if verify_hardcore_loadout(tuple(found),optional_tower=optional.casefold() if optional else None):
-            raise StopRun('The required Hardcore hotbar order did not verify.',kind='setup')
+            raise StopRun('Required Hardcore hotbar slot names did not verify.',kind='setup')
         self.driver.move(1500,500)
         self.status('hardcore_loadout_verified',confirmed_loadout=found,
-                    optional_xp_tower=optional,optional_branch=bool(optional))
+                    optional_xp_tower=optional,optional_branch=bool(optional),
+                    occupancy_evidence='text_tooltips_and_price_absence_only')
 
     def confirm_hardcore_inventory(self):
         """Require two matching unobstructed inventory reads, without input."""

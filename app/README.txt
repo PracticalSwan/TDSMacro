@@ -27,14 +27,14 @@ Hardcore Gem Grind:
   newer game camera layouts may require recalibration.
   An optional evolution tower may be placed in slot 4 once,
   without upgrades, only when its exact tooltip is verified.
+  Native v2.20.3 optional Minigunner: 76/76 actions, wave30,
+  137 Gems and +106 tower XP displayed in result screenshot.
   XP is not guaranteed by mere equipment; the tower must remain
   placed at match end. No wallet/XP credit claim without evidence.
 
-Auto Equip is OFF by default. It is deliberately fail-closed:
-five independently text-proven EMPTY slots are required to equip
-anything. Current game inventory may not expose the needed text.
-Equip manually instead of bypassing these checks. A nonempty,
-partial or unreadable loadout is never overwritten.
+Auto Equip is disabled because the observed game UI does not expose
+five independently text-proven EMPTY slots. Equip towers manually.
+The macro never guesses slot occupancy from graphical tiles.
 
 The Diagnostics tab shows bounded, sanitized, read-only status
 and recent events. Copy or export only when you choose. Logs

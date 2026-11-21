@@ -1184,36 +1184,13 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(count.call_count,2)
         self.assertTrue((self.session.output/'hardcore_solo_confirmed.png').exists())
 
-    def test_hardcore_tower_search_click_gate_uses_verified_inventory_states(self):
+    def test_hardcore_auto_equip_unavailable_without_any_input(self):
         from tds_auto.hardcore_plan import PLAN_ID
-        from tds_auto.loadout import INVENTORY_LIST_STATES
         output=self.path/'hardcore_search_gate'
         output.mkdir()
         session=Session(self.driver,output,now=self.platform.now,strategy_id=PLAN_ID,auto_equip=True)
-        screen={'state':'lobby'}
-        def frame():
-            image=Image.new('RGB',(1920,991))
-            image.info['state']=screen['state']
-            return image
-        session.capture=frame
-        session.observer=SimpleNamespace(observe=lambda image:SimpleNamespace(state=image.info['state']))
-        session.navigator.observer=session.observer
-        session.lobby=lambda:None
-        def open_inventory(name):
-            self.assertEqual(name,'open_inventory')
-            session.allowed={'lobby'}
-            screen['state']='inventory_list_2192'
-            return 'inventory_list_2192'
-        session.transition=open_inventory
-        def search_tower(tower):
-            self.assertEqual(session.allowed,set(INVENTORY_LIST_STATES))
-            session.click_gate()
-            raise StopRun('Search boundary reached.')
-        with (patch('tds_auto.session.read_slot_occupancy',return_value=(False,)*5),
-              patch('tds_auto.session.read_textually_empty_hotbar',return_value=True),
-              patch.object(session.navigator,'search_tower',side_effect=search_tower)):
-            with self.assertRaisesRegex(StopRun,'Search boundary reached'):
-                session.preflight_hardcore()
+        with self.assertRaisesRegex(StopRun,'Auto Equip unavailable'):
+            session.preflight_hardcore()
         self.assertEqual(self.platform.events,[])
 
     def test_hardcore_wrong_hotbar_name_stops_before_ready_or_placement(self):

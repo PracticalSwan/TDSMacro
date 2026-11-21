@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from ctypes import wintypes
 from .hardcore_plan_v2 import PLAN_ID as PLAN_V2_ID
+from .calibration import GOLDEN_V031_ACCEPTED_SHA
 
 ROOT = Path(__file__).resolve().parents[2]
 STRATEGIES = {
@@ -22,8 +23,6 @@ STRATEGIES = {
 }
 
 
-# Pinned to the exact ten-Scout strategy accepted in three native matches.
-GOLDEN_V031_ACCEPTED_SHA = 'cad8d6e2432d100e5c8ed250480bd511d941f6498374bea31c5f9a6cf814a0f9'
 
 def preflight_roblox_start(cancelled=None, allow_recovery=False):
     """Verify the client, or let the guarded recovery worker launch it."""
@@ -133,6 +132,8 @@ class Controller:
             return False
         if strategy not in STRATEGIES:
             raise ValueError('Choose an available strategy.')
+        if auto_equip:
+            raise RuntimeError('Auto Equip is unavailable: TDS does not expose five verified EMPTY slot labels. Equip manually.')
         selection = STRATEGIES[strategy]
         hardcore = selection == PLAN_V2_ID
         if cancelled is not None and cancelled():
@@ -310,13 +311,13 @@ class App:
         self.recover_toggle.pack(anchor='w', pady=(1, 0))
         self.auto_equip=tk.BooleanVar(value=False)
         self.equip_toggle=tk.Checkbutton(
-            settings,text='Auto Equip (only if all 5 slots are confirmed empty)',
+            settings,text='Auto Equip (unavailable on current TDS UI)',
             variable=self.auto_equip,bg=self.PANEL,fg=self.MUTED,
             selectcolor=self.FIELD,activebackground=self.PANEL,
             activeforeground=self.TEXT,highlightthickness=0,
-            cursor='hand2',font=('Segoe UI',10),takefocus=True)
+            cursor='arrow',font=('Segoe UI',10),state='disabled',takefocus=False)
         self.equip_toggle.pack(anchor='w',pady=(3,0))
-        tk.Label(settings,text='Requires explicit EMPTY text for all five slots; otherwise stops safely.',
+        tk.Label(settings,text='Equip manually. Empty slots lack the required EMPTY text.',
                  bg=self.PANEL,fg=self.ROSE,font=('Segoe UI',9)).pack(anchor='w')
 
         actions = tk.Frame(self.overview, bg=self.BG)
@@ -481,7 +482,7 @@ class App:
                                    bg=self.FIELD)
         self.selector.configure(state='disabled' if running else 'readonly')
         self.recover_toggle.configure(state='disabled' if running else 'normal')
-        self.equip_toggle.configure(state='disabled' if running else 'normal')
+        self.equip_toggle.configure(state='disabled')
         self.refresh_diagnostics()
         if self.closing and not running:
             self.hotkeys.close()
@@ -501,7 +502,6 @@ def self_check(path):
     profile, strategy = load_profile(ROOT/'calibrations/dead_ahead_vertical_nine_v4.json')
     candidate, expanded = load_profile(ROOT/'calibrations/dead_ahead_vertical_ten_v031_v2202_trial.json')
     if (len(expanded.steps)!=50 or candidate['strategy_sha256'] != GOLDEN_V031_ACCEPTED_SHA
-            or not candidate['status'].startswith('v031_candidate_v2202')
             or candidate['setup'].get('post_alignment_moves')!=[['S',750],['D',100]]):
         raise ValueError('The calibrated ten-Scout profile is not the verified candidate.')
     hardcore = load_hardcore_plan_v2()

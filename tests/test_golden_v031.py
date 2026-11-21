@@ -48,6 +48,16 @@ class GoldenTenV031Tests(unittest.TestCase):
         self.assertEqual(places[-1],(1032,462))
         self.assertEqual(profile['calibration_method']['version_observed'],'TDS v2.20.2')
 
+    def test_descriptive_status_does_not_control_golden_e_or_inventory_mode(self):
+        from tds_auto.calibration import golden_ten_enabled, GOLDEN_V031_ACCEPTED_SHA
+        profile, strategy=load_profile(ROOT/'calibrations/dead_ahead_vertical_ten_v031_v2202_trial.json')
+        self.assertEqual(profile['strategy_sha256'],GOLDEN_V031_ACCEPTED_SHA)
+        self.assertTrue(golden_ten_enabled(profile,strategy))
+        self.assertTrue(golden_ten_enabled({**profile,'status':'renamed by owner'},strategy))
+        self.assertFalse(golden_ten_enabled({**profile,'strategy_sha256':'0'*64},strategy))
+        legacy, old=load_profile(ROOT/'calibrations/dead_ahead_vertical_nine_v4.json')
+        self.assertFalse(golden_ten_enabled(legacy,old))
+
     def test_wave_twenty_active_hud_allows_single_e_upgrade(self):
         platform,clock=FakeOS(),Clock()
         level3=Snapshot('in_match',Hud(20000,10,'Scout',3,4000,20,True),True)

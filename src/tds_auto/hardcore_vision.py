@@ -21,6 +21,7 @@ PRICE_BOXES = {
     2: (822, 943, 905, 974),
     3: (925, 948, 1005, 973),
     4: (1025, 948, 1105, 973),
+    5: (1118, 948, 1205, 973),
 }
 
 ROUTE_SIDES = ((430, 290, 760, 740), (1180, 290, 1510, 740))
@@ -30,6 +31,8 @@ ROUND_PREVIEW_RADIUS = 26
 _ROUND_Y, _ROUND_X = np.ogrid[-ROUND_PREVIEW_RADIUS:ROUND_PREVIEW_RADIUS+1,
                              -ROUND_PREVIEW_RADIUS:ROUND_PREVIEW_RADIUS+1]
 ROUND_PREVIEW_MASK = _ROUND_X ** 2 + _ROUND_Y ** 2 <= ROUND_PREVIEW_RADIUS ** 2
+# Check collision red on the footprint perimeter, not on a red-colored tower model.
+ROUND_PREVIEW_RING_MASK = ROUND_PREVIEW_MASK & (_ROUND_X ** 2 + _ROUND_Y ** 2 >= 19 ** 2)
 ROUTE_STEPS = (
     (('zoom', -8), ('orbit', 0, 650), ('orbit', 0, 650)),
     (('key', 'S', .65),),
@@ -43,17 +46,21 @@ ROUTE_STEPS = (
     (('key', 'S', .94),),
     (('orbit', 0, 650),),
 )
-ROUTE_STEPS_V2 = (
+# One v0.3.1 candidate route, pending native rock-top and final-camera acceptance.
+# No game-version OCR, route selection or fallback atlas is performed.
+ROUTE_STEPS_V031 = (
+    (('key', 'D', .30),),  # immediately RIGHT at spawn
     (('orbit', 0, 650), ('orbit', 0, 650), ('zoom', -8)),
-    (('key', 'S', .65),),
-    (('key', 'A', .30), ('orbit', 0, WRETCHED_TRAVEL_PITCH)),
-    (('key', 'S', .55),),
-    (('key', 'D', .62),),
-    (('key', 'S', .70),),
-    (('key', 'S', .55),),
-    (('orbit', 0, 650),),
+    (('key', 'D', .18),),  # onto the rock-top approach
+    (('key', 'D', .22),),  # farther RIGHT as owner corrected
+    (('key', 'S', .45), ('key', 'S', .45), ('key', 'S', .45)),
+    (('key', 'S', .45), ('key', 'S', .45), ('key', 'S', .45)),  # pale boulder
+    (('key', 'S', .40), ('key', 'S', .40)),  # down off boulder
+    (('key', 'S', .45), ('key', 'S', .45)),  # lower path
+    (('key', 'A', .25),),
+    (('key', 'A', .18),),  # left into original placement cluster
+    (('key', 'S', .12),),  # strict three-rock final camera
 )
-
 
 def wretched_route_tiles(frame):
     return tuple(frame.crop(box).convert('L').resize(ROUTE_TILE_SIZE, Image.Resampling.BOX)
@@ -61,11 +68,15 @@ def wretched_route_tiles(frame):
 
 
 class WretchedRoute:
-    """Terrain-only checkpoints for the guarded walk from spawn past the gate."""
+    """One fixed terrain route per configured strategy, independent of TDS version text."""
     def __init__(self, profile_id=PROFILE_ID):
+        if profile_id not in (PROFILE_ID, 'wretched_front_hardcore_v2'):
+            raise ValueError('Unknown Wretched Front route profile.')
         self.legacy = profile_id == PROFILE_ID
-        self.steps = ROUTE_STEPS if self.legacy else ROUTE_STEPS_V2
-        path = ROOT / 'calibrations' / f'{profile_id}.route.png'
+        self.steps = ROUTE_STEPS if self.legacy else ROUTE_STEPS_V031
+        route_file = (f'{profile_id}.route.png' if self.legacy
+                      else 'wretched_front_hardcore_v031_single_route.route.png')
+        path = ROOT / 'calibrations' / route_file
         width, height = ROUTE_TILE_SIZE
         pair_width = width * len(ROUTE_SIDES)
         with Image.open(path) as atlas:
@@ -90,11 +101,26 @@ class WretchedRoute:
         return all(score >= threshold for _, score, _, _ in fits) and all(
             abs(a-b) <= 1 for a,b in zip(fits[0][3], fits[1][3]))
 
+    @staticmethod
+    def _matching_pinned_pair(gray, landmarks):
+        # One-pixel camera settling tolerance; both independent rock regions
+        # must agree on direction, so larger terrain shifts fail closed.
+        left = cv2.matchTemplate(gray[0][23:49, 5:31],
+                                 landmarks[0][24:48, 6:30],
+                                 cv2.TM_CCOEFF_NORMED)
+        right = cv2.matchTemplate(gray[1][63:85, 35:57],
+                                  landmarks[1][64:84, 36:56],
+                                  cv2.TM_CCOEFF_NORMED)
+        _, left_score, _, left_xy = cv2.minMaxLoc(left)
+        _, right_score, _, right_xy = cv2.minMaxLoc(right)
+        return (left_score >= .94 and right_score >= .90
+                and all(abs(a-b) <= 1 for a, b in zip(left_xy, right_xy)))
+
     def matching_steps(self, frame, checkpoints):
         if frame.size != (1920, 991):
             return []
         gray = [np.asarray(tile) for tile in wretched_route_tiles(frame)]
-        edges = [cv2.Canny(tile, 18, 38) for tile in gray]
+        edges = [cv2.Canny(tile, 18, 38) for tile in gray] if self.legacy else None
         matches = []
         for index in checkpoints:
             if self.legacy and index in (6, 7):
@@ -102,25 +128,12 @@ class WretchedRoute:
                 if all(cv2.matchTemplate(actual, planned, cv2.TM_CCOEFF_NORMED)[0, 0] >= .84
                        for actual, planned in zip(edges, self.views[index][0])):
                     matches.append(index)
-            elif any(self._matching_pair(edges, landmarks, 4, .65) for landmarks in self.views[index]):
-                matches.append(index)
-            elif not self.legacy:
-                # Animated scenery can obscure broad tiles at steps 2-5.
-                # Use only measured fixed rock/wall sections at each step,
-                # preserving two independent matching landmarks and the
-                # original .90 agreement threshold.
-                stable_left = {2: np.s_[50:78,10:48],
-                               5: np.s_[25:63,35:63]}
-                stable_right = {2: np.s_[35:70,30:61],
-                                3: np.s_[21:70,19:65],
-                                4: np.s_[30:66,32:62],
-                                5: np.s_[30:68,10:38]}
-                right = stable_right.get(index, np.s_[:,:])
-                left = stable_left.get(index, np.s_[:,:])
-                if any(self._matching_pair((gray[0][left], gray[1][right]),
-                                           (landmarks[0][left], landmarks[1][right]), 7, .90)
-                       for landmarks in self.gray_views[index]):
+            elif self.legacy:
+                if any(self._matching_pair(edges, landmarks, 4, .65) for landmarks in self.views[index]):
                     matches.append(index)
+            elif any(self._matching_pinned_pair(gray, landmarks)
+                     for landmarks in self.gray_views[index]):
+                matches.append(index)
         return matches
 
     def matches(self, frame, index):
@@ -174,6 +187,11 @@ class WretchedCamera:
                 # the other two fixed rocks. This observed static subregion
                 # agrees across failed checkpoint-8 and late-wave views.
                 boxes[1] = (1468, 602, 1513, 662)
+                # The slot-4 Minigunner range circle masks the broad third
+                # rock at wave 24. This observed lower fixed patch remains
+                # static across five native before/after frames (> .97 score)
+                # and keeps the existing three-rock/two-pixel consensus.
+                boxes[2] = (1340, 820, 1420, 850)
             self.landmarks = [(box, np.asarray(scene.crop(box).convert('L')))
                               for box in boxes]
         self.offset = None
@@ -243,12 +261,16 @@ def wretched_preview(frame, point, ocr, *, round_footprint=False):
     if round_footprint:
         # Ignore adjacent tower outlines outside the ghost's round footprint.
         r = ROUND_PREVIEW_RADIUS
-        pixels = np.asarray(frame.crop((x-r, y-r, x+r+1, y+r+1)).convert('RGB'))[ROUND_PREVIEW_MASK]
+        sample = np.asarray(frame.crop((x-r, y-r, x+r+1, y+r+1)).convert('RGB'))
+        pixels = sample[ROUND_PREVIEW_MASK]
+        invalid_pixels = sample[ROUND_PREVIEW_RING_MASK]
     else:
         # Keep the square Farm footprint and omit path units below the prompt.
         pixels = np.asarray(frame.crop((x-39, y-40, x+35, y+27)).convert('RGB'))
-    red, green, blue = np.moveaxis(pixels, -1, 0)
+        invalid_pixels = pixels
+    red, green, blue = np.moveaxis(invalid_pixels, -1, 0)
     invalid = (red > 195) & (green < 85) & (blue < 115)
+    red, green, blue = np.moveaxis(pixels, -1, 0)
     white = (red > 219) & (green > 219) & (blue > 219)
     if invalid.sum() > 40 or white.sum() < 110:
         return False
@@ -272,7 +294,10 @@ def wretched_preview(frame, point, ocr, *, round_footprint=False):
 def wretched_price(frame, slot, ocr):
     if frame.size != (1920, 991) or slot not in PRICE_BOXES:
         return None
-    text = ocr.read(green_ink(frame.crop(PRICE_BOXES[slot])))
+    region = frame.crop(PRICE_BOXES[slot])
+    # Optional-slot native prices read correctly as visible text; their
+    # green-only mask can misread the digit 1 as 7. Never infer a price.
+    text = ocr.read(region if slot == 4 else green_ink(region))
     return parse_cash(text) if text.startswith('$') else None
 
 
@@ -286,7 +311,7 @@ def wretched_ready(frame, ocr):
         ink(frame.crop((830, 158, 935, 193)))))
     count = frame.crop((820, 195, 951, 220))
     button = frame.crop((984, 194, 1081, 218))
-    return (caption and any(ocr.read(sample).casefold().split() == ['0/1', 'required']
+    return (caption and any(ocr.read(sample).casefold().strip().rstrip('!').split() == ['0/1', 'required']
                             for sample in (count, ink(count)))
             and any(ocr.read(sample).casefold() == 'ready' for sample in (button, ink(button))))
 

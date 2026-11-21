@@ -16,7 +16,7 @@ Copy-Item -LiteralPath (Join-Path $projectRoot 'assets\ui_2191') -Destination (J
 foreach ($name in @('dead_ahead_vertical_nine_v4.json','dead_ahead_vertical_ten_v031_v2202_trial.json','camera_0.png','camera_1.png','scene.png',
                     'dead_ahead_v031_2202.scene.png','dead_ahead_v031_2202.camera0.png','dead_ahead_v031_2202.camera1.png',
                     'wretched_front_hardcore_v2.json','wretched_front_hardcore_v2.scene.png',
-                    'wretched_front_hardcore_v2.route.png')) {
+                    'wretched_front_hardcore_v031_single_route.route.png')) {
     Copy-Item -LiteralPath (Join-Path $projectRoot ('calibrations\'+$name)) -Destination (Join-Path $appPath 'calibrations') -Force
 }
 foreach ($name in @('GOLDIE SCOUTO.vertical-nine-slot1.strat','GOLDIE SCOUTO.vertical-ten-slot1-v031-2202.strat','hardcore_wretched_front_boomerang_crook_farm_v2.json')) {

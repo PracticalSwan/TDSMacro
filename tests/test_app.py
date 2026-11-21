@@ -78,14 +78,15 @@ class AppTests(unittest.TestCase):
         self.assertIn('--auto-recover',command)
         self.assertEqual(command[command.index('--startup-delay')+1],'5')
 
-    def test_auto_equip_is_opt_in_and_reaches_guarded_engine(self):
+    def test_auto_equip_unavailable_stops_before_new_worker(self):
         from tds_auto.hardcore_plan_v2 import PLAN_ID
         label=next(name for name,value in STRATEGIES.items() if value==PLAN_ID)
         self.controller.start(label,auto_recover=False)
         self.assertNotIn('--auto-equip',self.commands[0])
         self.child.code=0
-        self.controller.start(label,auto_recover=False,auto_equip=True)
-        self.assertIn('--auto-equip',self.commands[-1])
+        with self.assertRaisesRegex(RuntimeError,'Auto Equip is unavailable'):
+            self.controller.start(label,auto_recover=False,auto_equip=True)
+        self.assertEqual(len(self.commands),1)
 
     def test_auto_recovery_can_be_disabled_for_a_supervised_trial(self):
         self.controller.start(next(iter(STRATEGIES)),auto_recover=False)

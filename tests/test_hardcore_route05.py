@@ -1,4 +1,4 @@
-"""Native positive and negative checkpoint-five pair regression."""
+"""Retired route-5 terrain must fail closed against the pinned v0.3.1 atlas."""
 import sys,unittest
 from pathlib import Path
 from PIL import Image
@@ -18,18 +18,18 @@ class Route5Test(unittest.TestCase):
     def setUpClass(cls):
         cls.route=WretchedRoute("wretched_front_hardcore_v2")
 
-    def test_native_occluded_checkpoint_five_matches_without_matching_four(self):
+    def test_old_occluded_checkpoint_five_rejected(self):
         x=frame("hardcore_route05_occluded_terrain_only.png")
-        self.assertTrue(self.route.matches(x,5))
+        self.assertEqual(self.route.matching_steps(x,range(len(self.route.steps))),[])
         for j in (3,4,6):
             self.assertFalse(self.route.matches(x,j))
 
-    def test_accepted_route_five_still_matches(self):
-        self.assertTrue(self.route.matches(frame("hardcore_route05_baseline_terrain_only.png"),5))
+    def test_old_route_five_baseline_rejected(self):
+        self.assertEqual(self.route.matching_steps(frame("hardcore_route05_baseline_terrain_only.png"),range(len(self.route.steps))),[])
 
-    def test_previous_checkpoint_four_is_not_mistaken_as_five(self):
+    def test_old_previous_checkpoint_four_rejected(self):
         x=frame("hardcore_route04_new_terrain_only.png")
-        self.assertTrue(self.route.matches(x,4))
+        self.assertEqual(self.route.matching_steps(x,range(len(self.route.steps))),[])
         self.assertFalse(self.route.matches(x,5))
 
     def test_blank_terrain_not_five(self):
