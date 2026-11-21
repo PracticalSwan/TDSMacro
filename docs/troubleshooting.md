@@ -1,5 +1,10 @@
 # Troubleshooting
 
+v0.3.1 UI2.20 observation: Hovering Scout search card can transition observer to inventory_scout and should be accepted only as an inventory state with title confirmation. Selected-panel icon rows can move and return unknown to visual occupancy; never use that ambiguity as authorization to equip. The native Scout Equip label moved and changed style on hover; center (1256,686) was located dynamically from exact text in supervised trial. Do not resend any uncertain Equip or upgrade action. Optional Scout is tower evolution Lv20 before this trial; inspect after-match if XP actually changed. Network, slow HUD and transition uncertainty remain stop-on-unknown with bounded read-only recovery, not repeated paid actions.
+
+
+TDS 2.20.0 diagnosis: A timeout after Play can mean the newer Survival grid was displayed but not recognized by old anchors. A partial-loadout stop can be a wrong inventory slot-row reading if an unrelated tower is selected. The green Equip text may be below the old OCR crop. Save and inspect a native frame, confirm all five slot states and each exact tower name; never disable identity checks or purchase/equip into an unverified nonempty slot. Use a verified current-UI build.
+
 ## Roblox error 278 after extended inactivity
 
 Roblox may disconnect from an unattended lobby after 20 minutes of inactivity, displaying **Error Code 278** and the native **Disconnected / Leave / Reconnect** dialog. This is a different condition from the network failure Error 277 and does not indicate a camera calibration defect. If Roblox is in the verified foreground with the supported geometry, a *single* guarded Reconnect click can return to the TDS lobby, but the resulting state must be confirmed stable before any automation. If Reconnect fails, stop; never click through an unknown screen. A prior interrupted ten-match streak does not carry over.

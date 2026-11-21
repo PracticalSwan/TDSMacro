@@ -45,6 +45,28 @@ class AppTests(unittest.TestCase):
             return self.preflight_window
         self.controller=Controller(self.root,launch,preflight=preflight)
 
+    def test_refresh_button_hover_and_keyboard_focus_without_tk(self):
+        from tds_auto.app import App
+        class Button:
+            def __init__(self):
+                self.state='normal'
+                self.events={}
+                self.color=None
+            def bind(self,tag,callback):self.events[tag]=callback
+            def cget(self,key):return self.state
+            def configure(self,**kwargs):self.color=kwargs.get('bg')
+        button=Button()
+        App._button_hover(button,'base','hover')
+        button.events['<Enter>'](None)
+        self.assertEqual(button.color,'hover')
+        button.events['<Leave>'](None)
+        self.assertEqual(button.color,'base')
+        button.events['<FocusIn>'](None)
+        self.assertEqual(button.color,'hover')
+        button.state='disabled'
+        button.events['<Leave>'](None)
+        self.assertEqual(button.color,'hover')
+
     def test_one_strategy_starts_one_explicit_continuous_guarded_worker(self):
         self.assertTrue(self.controller.start(next(iter(STRATEGIES))))
         self.assertFalse(self.controller.start(next(iter(STRATEGIES))))
@@ -55,6 +77,15 @@ class AppTests(unittest.TestCase):
         self.assertIn('--continuous',command)
         self.assertIn('--auto-recover',command)
         self.assertEqual(command[command.index('--startup-delay')+1],'5')
+
+    def test_auto_equip_is_opt_in_and_reaches_guarded_engine(self):
+        from tds_auto.hardcore_plan_v2 import PLAN_ID
+        label=next(name for name,value in STRATEGIES.items() if value==PLAN_ID)
+        self.controller.start(label,auto_recover=False)
+        self.assertNotIn('--auto-equip',self.commands[0])
+        self.child.code=0
+        self.controller.start(label,auto_recover=False,auto_equip=True)
+        self.assertIn('--auto-equip',self.commands[-1])
 
     def test_auto_recovery_can_be_disabled_for_a_supervised_trial(self):
         self.controller.start(next(iter(STRATEGIES)),auto_recover=False)

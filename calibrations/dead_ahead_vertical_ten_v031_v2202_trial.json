@@ -1,0 +1,85 @@
+{
+  "status": "v031_candidate_v2202_one_native_win_pending_fresh_repeat",
+  "strategy": "strategies/GOLDIE SCOUTO.vertical-ten-slot1-v031-2202.strat",
+  "strategy_sha256": "cad8d6e2432d100e5c8ed250480bd511d941f6498374bea31c5f9a6cf814a0f9",
+  "size": [
+    1920,
+    991
+  ],
+  "dpi": 120,
+  "map": "Dead Ahead",
+  "mode": "Easy",
+  "tower": "Scout",
+  "slot": 1,
+  "first_verified_placement": [
+    862,
+    323
+  ],
+  "setup": {
+    "movement": "W",
+    "movement_ms": 950,
+    "zoom_in": 20,
+    "zoom_out": 18,
+    "pitch_down": 840,
+    "pitch_repetitions": 2,
+    "post_alignment_moves": [
+      [
+        "S",
+        750
+      ],
+      [
+        "D",
+        100
+      ]
+    ]
+  },
+  "landmarks": [
+    {
+      "box": [
+        1250,
+        250,
+        1460,
+        450
+      ],
+      "file": "dead_ahead_v031_2202.camera0.png"
+    },
+    {
+      "box": [
+        500,
+        550,
+        620,
+        750
+      ],
+      "file": "dead_ahead_v031_2202.camera1.png"
+    }
+  ],
+  "scene": "dead_ahead_v031_2202.scene.png",
+  "scene_rois": [
+    [
+      600,
+      250,
+      850,
+      850
+    ],
+    [
+      1080,
+      250,
+      1300,
+      850
+    ]
+  ],
+  "baseline": "TDS lobby; Golden Scout slot 1, slots 2-5 empty",
+  "placement_layout": "Ten terrain-reprojected Scouts, first through tenth verified green and all 40 E upgrades confirmed in one v2.20.2 native wave20 Victory. Fresh-run reproducibility pending.",
+  "provenance": {
+    "original_author": "gall",
+    "original_sha256": "834eca1282be36a8cb5f94da4ace8beddefac0adcf0903f02697545226b05021",
+    "original_distribution": "Private user-supplied reference; not included in public source or release."
+  },
+  "calibration_method": {
+    "version_observed": "TDS v2.20.2",
+    "scale": 1.03085,
+    "inliers_minimum": 60,
+    "points_derived_from": "legacy camera terrain SIFT affine",
+    "trial_status": "single_native_win_50_actions_pending_repeat"
+  }
+}

@@ -368,7 +368,8 @@ class HardcoreMatch:
 
     def commit_placement(self, tower, stage, point, count, price):
         """Complete one placement from the slot preview that is already armed."""
-        round_footprint = tower.tower_type in {'Boomerang', 'Crook Boss'}
+        round_footprint = tower.tower_type in {'Boomerang', 'Crook Boss'} or (
+            getattr(tower, 'optional', False) and tower.tower_type != 'Military Base')
         try:
             def guard():
                 deadline = self.session.now() + 2
@@ -644,6 +645,10 @@ class HardcoreMatchV2(HardcoreMatch):
         if self.optional_tower:
             self.towers['X1'] = replace(self.towers['X1'], tower_type=self.optional_tower)
             self.reader.tower_names.add(self.optional_tower)
+            # Current 2.20.0 back-path landscape: X1 is away from both fixed
+            # combat and Farm clusters. Its runtime preview MUST be green and
+            # show Place; the candidate coordinate is not acceptance evidence.
+            self.camera.points['X1'] = (840, 330)
 
     def v2_price_for(self, frame):
         placements = {}
@@ -658,11 +663,19 @@ class HardcoreMatchV2(HardcoreMatch):
 
         return price
 
+    def execution_phases(self):
+        # Always complete the 75 required purchases before spending on XP.
+        # The optional placement must not delay the last Crook Boss upgrades.
+        required, optional = [], []
+        for phase in self.plan.phases[1:]:
+            (optional if all(action.optional for action in phase.actions) else required).append(phase)
+        return tuple(required + (optional if self.optional_tower else []))
+
     def play(self):
         self.start(self.plan.phases[0])
         deadline = self.session.now() + 45 * 60
         try:
-            for phase in self.plan.phases[1:]:
+            for phase in self.execution_phases():
                 self.play_phase(phase, deadline)
         except TargetWaveReached:
             self.session.status('hardcore_finish_before_all_actions', wave=self.last_wave,
@@ -698,7 +711,8 @@ class HardcoreMatchV2(HardcoreMatch):
 
     def crook_upgrade_priority(self, price_for, cash):
         for tower_id, level in self.levels.items():
-            if (self.towers[tower_id].tower_type == 'Crook Boss'
+            if (not self.towers[tower_id].optional
+                    and self.towers[tower_id].tower_type == 'Crook Boss'
                     and level < self.plan.crook_level_before_next_purchase):
                 action = self.plan_actions[tower_id, level + 1]
                 price = price_for(action, level)
@@ -803,6 +817,8 @@ class HardcoreMatchV2(HardcoreMatch):
         result['required_levels_verified'] = all(
             self.levels.get(tower_id) == level for tower_id, level in dict(self.plan.final_required_levels).items()
         )
+        result['optional_xp_tower'] = self.optional_tower
+        result['optional_tower_placed'] = (self.levels.get('X1') == 0) if self.optional_tower else None
         deadline = self.session.now() + RESULT_CONFIRM_SECONDS
         previous = None
         while self.session.now() < deadline:
@@ -818,7 +834,9 @@ class HardcoreMatchV2(HardcoreMatch):
                                         else 'late_result')
                 elif (result['target_wave_verified'] and result['required_levels_verified']
                       and receipt.displayed_gems == 137 and receipt.status == 'defeat'):
-                    result['status'] = 'result_verified'
+                    result['status'] = ('result_verified' if
+                                        self.optional_tower is None or result['optional_tower_placed']
+                                        else 'optional_tower_not_placed')
                 return result
             previous = receipt
             self.driver.wait(.4)

@@ -1,5 +1,12 @@
 # Setup
 
+**v0.3.1 source / v2.20.2:** Golden ten-Scout strategy has one native 50/50-action, ten-level-4 Victory using its separate v2.20.2 calibration. A fresh-client two-match replay and Windows package verification are outstanding. The original nine-Scout fallback and earlier v0.3.0 release remain protected. The three-tower Hardcore ten-match acceptance was on v2.20.0; optional slot 4 placement and current v2.20.2 Wretched Front camera are **not yet accepted**. Auto Equip defaults OFF and cannot act when all five EMPTY labels are not visible. See [execution checkpoints](plans/2026-11-21-v0.3.1-execution-checkpoints.md).
+
+v0.3.1 candidate loadouts: Hardcore default Boomerang slot1, regular Crook Boss slot2, Farm slot3 and slots4-5 empty. Optional evolution tower user-equipped in slot4 is chosen only if positively verified at Ready and slot5 empty; only one extra placement (no upgrades), core 75 purchases untouched, and no XP claim until a full result with placed tower. Scout native trial already showed evolution Lv20, potentially capped. Golden ten-Scout is experimental before 50-action native acceptance. Auto Equip OFF default, ON still requires five explicitly text-proven EMPTY labels and never replaces partial/unknown loads. Foreground physical 1920x991 client at 120 DPI, English localization and stop hotkeys mandatory.
+
+
+Current 2.20.0 UI note: Play may open the Survival grid directly; Equip text and slot rows vary with the selected tower. Only use a build positively verified for the current UI. If menu/slot recognition stops, do not guess or repeat input. Preserve the required 1920x991 at 120 DPI and exact required equipment.
+
 **Local maintainer install, November 21, 2026:** The v0.3.0 release ZIP was verified and promoted to dist/TDSMacro; the prior v0.2.4 installation was moved intact to dist/TDSMacro-previous-v0.2.4-20261121. Desktop shortcuts TDS Macro v0.2.3, v0.2.4 and v0.3.0 point to their respective preserved versions. The installed v0.3.0 self-check and GUI launch/close passed. These local paths are not part of the public release download.
 
 **v0.3.0 strategies:** The Windows release includes the original nine-Golden-Scout Dead Ahead Solo/Easy strategy and the new Hardcore Gem Grind Wretched Front Solo strategy. The requested ten-Golden-Scout revamp remains reserved for v0.3.1. Hardcore's 10-match real-game acceptance passed on November 20 with 75 confirmed actions and a natural wave-30 137-displayed-Gem result in each match. Result-screen rewards do not independently prove wallet credit.

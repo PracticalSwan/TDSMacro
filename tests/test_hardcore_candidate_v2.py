@@ -74,6 +74,19 @@ class HardcoreCandidateV2Tests(unittest.TestCase):
         self.assertEqual({k: v for k, v in levels.items() if k != "X1"}, expected)
         self.assertEqual(levels["X1"], 0)
 
+    def test_optional_experience_placement_never_preempts_required_purchases(self):
+        from tds_auto.hardcore_match import HardcoreMatchV2
+        from tds_auto.hardcore_plan_v2 import load_hardcore_plan_v2
+        runner=object.__new__(HardcoreMatchV2)
+        runner.plan=load_hardcore_plan_v2()
+        runner.optional_tower=None
+        original=[p.step for p in runner.execution_phases()]
+        self.assertEqual(original,list(range(2,12))+[13,14])
+        runner.optional_tower='Scout'
+        extended=[p.step for p in runner.execution_phases()]
+        self.assertEqual(extended,original+[12])
+        self.assertEqual(len(extended),13)
+
     def test_optional_tower_and_unaccepted_placement_gates(self):
         p = self.plan
         self.assertEqual(p["optional_slot"], 4)

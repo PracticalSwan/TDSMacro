@@ -17,6 +17,7 @@ from .control import GuardedInput,StopRun,WindowsOS
 from .hotbar import read_hotbar
 from .loadout import (HARDCORE_HOTBAR_POINTS,INVENTORY_EQUIP_BUTTON,INVENTORY_LIST_STATES,
                       read_hardcore_hotbar_name,read_selected_tower,read_slot_occupancy,
+                      read_textually_empty_hotbar,inventory_equip_point,same_inventory_button,
                       verify_hardcore_loadout,verify_inventory)
 from .maps import Board,read_boards,find_target,read_headers,visible_target,vip_target_matches,vote_prompt,map_vote_screen,badge_is_one,spawn_board_row,voting_floor,_vip_prompt_evidence,vote_players
 from .navigation import Navigator,MENU_ROUTE,HARDCORE_MENU_ROUTE
@@ -84,7 +85,8 @@ class Session:
     LOGIN_CLAIM_POINT=(1045,787)
 
     def __init__(self,driver,output,profile_path=None,read_frame=None,now=time.monotonic,control=None,totals=None,
-                 strategy_id='golden_scout'):
+                 strategy_id='golden_scout',auto_equip=False):
+        self.auto_equip=bool(auto_equip)
         self.driver=driver
         self.output=Path(output)
         self.control=control if control is not None else SessionControl(output)
@@ -216,6 +218,8 @@ class Session:
         self.allowed={TRANSITIONS[name][0]}
         if name=='close_inventory':
             self.allowed.update({'inventory_list','inventory_list_2192','inventory_search_2192'})
+        if name in {'easy','hardcore'}:
+            self.allowed.add('survival_menu_2200')
         self.status(name)
         return self.navigator.step(name,timeout=TELEPORT_SECONDS if name in {'solo','return_victory','play_again','restart_match'} else 45)
 
@@ -371,16 +375,47 @@ class Session:
         self.status('idle_lobby_monitor_complete',idle_observed_seconds=round(self.now()-started,1),
                     disconnect_observed=False,no_game_input=True)
 
+    def enter_survival_menu(self):
+        """Use the verified direct Survival view or the older two-step menu."""
+        opened=self.transition('open_play')
+        if opened=='play_menu':
+            return self.transition('survival')
+        if opened in {'survival_menu','survival_menu_2200'}:
+            return opened
+        raise StopRun(f'Play did not reach a verified Survival menu: {opened}.',kind='setup')
+
     def preflight(self):
         self.lobby()
         inventory=self.transition('open_inventory')
-        if inventory in {'inventory_list','inventory_list_2192','inventory_search_2192','inventory_scout'}:
+        selected_by_search=False
+        if self.auto_equip and inventory in INVENTORY_LIST_STATES:
+            # Never infer that five dark inventory tiles authorize equipment.
+            first=self.frame()
+            occupancy=read_slot_occupancy(first)
+            if occupancy==(False,)*5:
+                if not read_textually_empty_hotbar(first):
+                    raise StopRun('Auto-equip requires five explicit EMPTY slot labels; no Scout equipped.',kind='setup')
+                self.driver.wait(.2)
+                if not read_textually_empty_hotbar(self.frame()):
+                    raise StopRun('Empty-slot text changed before Scout search.',kind='setup')
+                detail=self.navigator.search_tower('scout')
+                chosen=self.frame()
+                if (detail!=('scout','equip')
+                        or read_selected_tower(chosen)!=('scout','equip')
+                        or self.ocr.read(chosen.crop((1095,505,1174,545))).casefold()!='golden'):
+                    raise StopRun('Golden Scout text/equip details did not verify.',kind='setup')
+                self._equip_hardcore_tower('scout',1,(False,)*5)
+                selected_by_search=True
+        if (not selected_by_search and
+                inventory in {'inventory_list','inventory_list_2192','inventory_search_2192','inventory_scout'}):
             self.transition('scout_details')
         deadline=self.now()+5
         stable=0
         while self.now()<deadline:
             frame=self.frame()
-            stable=stable+1 if verify_inventory(frame) is None else 0
+            text_only=(self.profile.get('status','').startswith('v031_candidate')
+                       and len(self.strategy.steps)==50)
+            stable=stable+1 if verify_inventory(frame,text_only=text_only) is None else 0
             if stable>=2:
                 self.save_frame(frame,'loadout_identity.png')
                 break
@@ -389,7 +424,8 @@ class Session:
             raise StopRun('Equipped Scout/Golden label/slot-1 perk not confirmed; skin portraits are not checked.',kind='setup')
         self.transition('close_inventory')
         self.lobby()
-        for name in MENU_ROUTE:
+        self.enter_survival_menu()
+        for name in MENU_ROUTE[2:]:
             self.transition(name)
         bar=read_hotbar(self.frame(),slot=1)
         if not bar.valid or bar.price is None:
@@ -417,6 +453,16 @@ class Session:
             supported.add((True,True,True,True,False))
         if not empty_start and initial not in supported:
             raise StopRun('Partial or unrelated Hardcore loadout; no tower changed.',kind='setup')
+        if empty_start:
+            if not self.auto_equip:
+                raise StopRun('All five slots are empty. Auto-equip is OFF; equip Boomerang, Crook Boss and Farm manually.',kind='setup')
+            # Visual emptiness alone is not permission to change equipment.
+            # Current 2.20.0 empty tiles have no text; fail closed.
+            if not read_textually_empty_hotbar(self.frame()):
+                raise StopRun('Auto-equip requires explicit EMPTY text in all five slots; this UI has not verified it. Equip manually.',kind='setup')
+            self.driver.wait(.2)
+            if not read_textually_empty_hotbar(self.frame()):
+                raise StopRun('Five textual EMPTY labels changed; no Equip input sent.',kind='setup')
 
         observed=['','','','','']
         expected_occupancy=[False,False,False,False,False]
@@ -457,39 +503,32 @@ class Session:
         # An OS notification can temporarily cover the right inventory slots.
         # Only reread; never dismiss external windows or change the loadout.
         confirmed_occupancy,confirm_frame=self.confirm_hardcore_inventory()
-        optional_slot_occupied=(self.strategy_id==PLAN_V2_ID
+        # Slot4 is user-controlled: presence selects the optional path, but its
+        # identity is not trusted until the *match* hotbar tooltip verifies it.
+        self.hardcore_optional_slot_occupied=(self.strategy_id==PLAN_V2_ID
                                 and confirmed_occupancy==(True,True,True,True,False))
         self.hardcore_optional_tower=None
-        if optional_slot_occupied:
-            self.verify_hardcore_optional()
-            observed[3]=self.hardcore_optional_tower.casefold()
+        if self.hardcore_optional_slot_occupied:
+            self.status('hardcore_optional_pending', slot=4,
+                        reason='exact_match_hotbar_tooltip_required')
         self.save_frame(confirm_frame,'hardcore_loadout_identity.png')
         self.status('hardcore_inventory_verified',equipped_names=[name for name in observed if name],
                     slot_occupancy=list(confirmed_occupancy),
                     equip_actions=equip_actions)
         self.transition('close_inventory')
         self.lobby()
-        for name in HARDCORE_MENU_ROUTE[:3]:
-            self.transition(name)
+        self.enter_survival_menu()
+        self.transition('hardcore')
         self.select_hardcore_solo()
-
-    def verify_hardcore_optional(self):
-        """The candidate supports an independently verified equipped Scout in slot 4."""
-        target='scout'
-        self.navigator.search_tower(target)
-        for _ in range(2):
-            frame=self.frame()
-            if read_selected_tower(frame)!=(target,'unequip'):
-                raise StopRun('The optional equipped Scout identity did not verify.',kind='setup')
-            self.driver.wait(.15)
-        self.hardcore_optional_tower='Scout'
 
     def verify_hardcore_hotbar(self):
         """Verify the ordered native tooltips before Ready or any purchase."""
-        optional=getattr(self,'hardcore_optional_tower',None)
+        from .loadout import OPTIONAL_EXP_TOWERS
+        optional_expected=getattr(self,'hardcore_optional_slot_occupied',False)
+        optional=None
         expected=list(self.hardcore_plan.required_loadout)
-        if optional:
-            expected.append((self.hardcore_plan.optional_slot,optional))
+        if optional_expected:
+            expected.append((self.hardcore_plan.optional_slot,None))
         found=['','','','','']
         hud_reader=HudReader(hardcore=True)
         for slot,tower in expected:
@@ -509,9 +548,12 @@ class Session:
                     previous=None
                     self.driver.wait(.15)
                     continue
-                name=read_hardcore_hotbar_name(frame,slot,self.ocr)
+                name=read_hardcore_hotbar_name(frame,slot,self.ocr,optional=(slot==4))
                 if name is not None and name==previous:
-                    if name!=tower.casefold():
+                    if slot==4:
+                        optional=OPTIONAL_EXP_TOWERS[name]
+                        self.hardcore_optional_tower=optional
+                    elif name!=tower.casefold():
                         raise StopRun(f'Slot {slot} contains {name}; expected {tower}.',kind='setup')
                     found[slot-1]=name
                     self.save_frame(frame,f'hardcore_hotbar_slot_{slot}.png')
@@ -524,7 +566,8 @@ class Session:
         if verify_hardcore_loadout(tuple(found),optional_tower=optional.casefold() if optional else None):
             raise StopRun('The required Hardcore hotbar order did not verify.',kind='setup')
         self.driver.move(1500,500)
-        self.status('hardcore_loadout_verified',confirmed_loadout=found)
+        self.status('hardcore_loadout_verified',confirmed_loadout=found,
+                    optional_xp_tower=optional,optional_branch=bool(optional))
 
     def confirm_hardcore_inventory(self):
         """Require two matching unobstructed inventory reads, without input."""
@@ -629,20 +672,22 @@ class Session:
 
     def _equip_hardcore_tower(self,tower,slot,expected_occupancy):
         """One authorized Equip click after exact-name and slot checks."""
-        from .loadout import INVENTORY_EQUIP_BUTTON
-        x0,y0,x1,y1=INVENTORY_EQUIP_BUTTON
+        point=inventory_equip_point(self.frame(),self.ocr)
+        if point is None:
+            raise StopRun('Equip button text location is unreadable; no click sent.',kind='setup')
 
         def gate():
             frame=self.frame()
             if (self.observer.observe(frame).state not in INVENTORY_LIST_STATES
                     or read_selected_tower(frame)!=(tower,'equip')
-                    or read_slot_occupancy(frame)!=expected_occupancy):
+                    or read_slot_occupancy(frame)!=expected_occupancy
+                    or not same_inventory_button(inventory_equip_point(frame,self.ocr),point)):
                 raise StopRun(f'{tower.title()} Equip precondition changed; no click sent.',kind='setup')
 
         previous=self.driver.before_click
         self.driver.before_click=gate
         try:
-            self.driver.click((x0+x1)//2,(y0+y1)//2)
+            self.driver.click(*point)
         finally:
             self.driver.before_click=previous
 
@@ -1097,6 +1142,21 @@ class Session:
             for _ in range(setup['pitch_repetitions']):
                 self.driver.orbit(0,setup['pitch_down'])
             self.driver.wait(.4)
+            post_moves=setup.get('post_alignment_moves',())
+            if post_moves:
+                if (self.strategy_id!='golden_scout'
+                        or self.profile.get('calibration_method',{}).get('version_observed')!='TDS v2.20.2'
+                        or post_moves!=[['S',750],['D',100]]):
+                    raise StopRun('Unsupported Golden camera movements; no further input.',kind='setup')
+                for key,milliseconds in post_moves:
+                    frame=self.frame()
+                    if (self.observer.observe(frame).state!='match_ready'
+                            or HudReader().read(frame).tower_count!=0):
+                        raise StopRun('Camera setup lost zero-tower Ready state.',kind='setup')
+                    if gate.bind(frame):
+                        break
+                    self.driver.key(key,milliseconds/1000)
+                    self.driver.wait(.3)
             self.align_fresh_camera(gate)
         bar=read_hotbar(self.frame(),slot=1)
         if not bar.valid:
@@ -1206,6 +1266,7 @@ def main(argv=None):
     parser.add_argument('--matches',type=int,default=1)
     parser.add_argument('--continuous',action='store_true',help='Explicit Solo grind until stopped, a guard fails or disk space is low')
     parser.add_argument('--auto-recover',action='store_true',help='Fresh TDS session after game failures or verified natural focus return within five seconds; continuous mode only')
+    parser.add_argument('--auto-equip',action='store_true',help='Opt-in; requires five text-proven empty inventory slots')
     parser.add_argument('--repeat-route',choices=['play-again','lobby'],default='play-again')
     parser.add_argument('--prepare-only',action='store_true')
     parser.add_argument('--startup-delay',type=int,default=0,choices=range(0,11),help='Seconds before the guarded worker checks Roblox; no focus activation')
@@ -1259,13 +1320,13 @@ def main(argv=None):
             pointer.write_text(str(args.output.resolve()),encoding='utf-8')
             from .recovery import supervise
             result=supervise(args.output,platform,args.profile,idle_lobby_seconds=args.idle_lobby_seconds,
-                             initial_expected=expected_window,strategy_id=args.strategy)
+                             initial_expected=expected_window,strategy_id=args.strategy,auto_equip=args.auto_equip)
             return 0 if result['status'] in {'victory','prepared','result_verified'} else 2
         driver=GuardedInput(expected_window or locate_roblox(),platform)
         driver.check()
         if (driver.expected.width,driver.expected.height,driver.expected.dpi)!=(1920,991,120):
             raise StopRun(f'Roblox client is {driver.expected.width}x{driver.expected.height} at {driver.expected.dpi} DPI; this profile requires 1920x991 at 120 DPI (125% scaling), windowed mode.')
-        session=Session(driver,args.output,args.profile,strategy_id=args.strategy)
+        session=Session(driver,args.output,args.profile,strategy_id=args.strategy,auto_equip=args.auto_equip)
         pointer=ROOT/'captures/last_session.txt'
         pointer.parent.mkdir(parents=True,exist_ok=True)
         pointer.write_text(str(args.output.resolve()),encoding='utf-8')

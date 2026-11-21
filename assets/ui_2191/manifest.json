@@ -80,6 +80,35 @@
         ]
       }
     ],
+    "survival_menu_2200": [
+      {
+        "file": "survival_menu_2200_title.png",
+        "box": [
+          100,
+          108,
+          202,
+          136
+        ]
+      },
+      {
+        "file": "survival_menu_2200_easy.png",
+        "box": [
+          114,
+          509,
+          172,
+          536
+        ]
+      },
+      {
+        "file": "survival_menu_2200_hardcore.png",
+        "box": [
+          115,
+          798,
+          212,
+          830
+        ]
+      }
+    ],
     "squad_easy": [
       {
         "file": "squad_easy_0.png",
@@ -234,6 +263,9 @@
           263,
           857,
           288
+        ],
+        "alternatives": [
+          "vip_maps_2202_normal.png"
         ]
       },
       {
@@ -298,7 +330,9 @@
     "defeat": [
       {
         "file": "defeat_0.png",
-        "alternatives": ["hardcore_defeat_title.png"],
+        "alternatives": [
+          "hardcore_defeat_title.png"
+        ],
         "box": [
           825,
           365,
@@ -309,7 +343,9 @@
       },
       {
         "file": "defeat_1.png",
-        "alternatives": ["hardcore_return_lobby.png"],
+        "alternatives": [
+          "hardcore_return_lobby.png"
+        ],
         "box": [
           726,
           754,
@@ -378,7 +414,10 @@
       },
       {
         "file": "login_rewards_1.png",
-        "alternatives": ["login_rewards_close.png", "login_rewards_claim_hover.png"],
+        "alternatives": [
+          "login_rewards_close.png",
+          "login_rewards_claim_hover.png"
+        ],
         "box": [
           910,
           773,

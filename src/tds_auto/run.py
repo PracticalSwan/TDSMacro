@@ -197,7 +197,10 @@ class Playback:
             if self.observer.observe(frame).state not in {'match_ready','in_match'} or not self.camera.check(frame):
                 return False
             return hovered_scout_at(frame,point,self.hud.ocr)
-        runner=MatchRunner(self.driver,self.read,slot=1,hover_check=hover_selection)
+        golden_ten = (self.profile.get('status','').startswith('v031_candidate')
+                      and len(self.strategy.steps)==50)
+        runner=MatchRunner(self.driver,self.read,slot=1,hover_check=hover_selection,
+                           use_e_upgrades=golden_ten)
         old_gate=self.driver.before_click
         self.driver.before_click=self.click_gate
         def save(current):
@@ -205,7 +208,8 @@ class Playback:
             write_json(self.output/'progress.json',data)
             if self.full_evidence:
                 self.save_evidence(self.frame(),f'step_{current.next_step:03}.png')
-            self.notify({'confirmed_step':current.next_step,'count':current.count,'levels':current.levels})
+            self.notify({'confirmed_step':current.next_step,'total_actions':len(self.strategy.steps),
+                         'count':current.count,'levels':current.levels})
         def before(step,current):
             self.pause(self.read)
             self.preview_point=self.camera.map_point(step.args[:2]) if step.operation=='SpawnTower' else None

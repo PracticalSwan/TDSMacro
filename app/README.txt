@@ -1,45 +1,50 @@
-TDS Macro — Windows v0.3.0
+TDS Macro - Windows v0.3.1
 
-Extract and keep this entire folder together: TDSMacro.exe, _internal,
-assets, calibrations, strategies and docs. Do not run directly from a ZIP
-or move only the executable. Double-click TDSMacro.exe; use Alt+Tab if
-the app window opens behind another program.
+Keep TDSMacro.exe, _internal, assets, calibrations, strategies and docs
+together in the extracted folder. Do not run it inside the ZIP.
 
-Choose ONE strategy in the app, then press F1 to start:
-  Golden Scout — Dead Ahead / Survival / Easy / Solo
-    Unchanged Golden Scout v0.2.4 behavior: nine Scouts, 44 actions.
-    Requires Golden Scout in slot 1, other slots empty, VIP map access.
-  Hardcore Gem Grind — Wretched Front / Hardcore / Solo
-    Hardcore v0.3.0: Boomerang in slot 1, regular Crook Boss
-    in slot 2 and Farm in slot 3, slot 5 empty; no golden towers required.
-    Targets ten Farms level 3, three Boomerangs level 4, five regular Crook
-    Bosses level 3 (75 confirmed actions). 1x game speed, wave-30 natural
-    result with 137 Gems displayed. Ten consecutive real-game matches
-    passed November 20 acceptance; game updates may change results.
-    After an exact qualifying result, use Restart Match on the same map
-    with a fresh camera and zero-tower check. No lobby/wallet polling.
+Choose a strategy in the Overview tab, then press Start or F1.
+F2 stops safely; F8 and Escape are emergency stops. Do not send
+other Roblox inputs or change game focus while the macro is running.
 
-Both strategies require English TDS, Windows 11, Microsoft Store Roblox,
-a foreground game client measuring EXACTLY 1920x991 at 120 DPI (125%
-display scaling), and the calibrated UI settings in docs/setup.md.
-Do not change camera, display scaling, or game UI during a run.
+Golden Scout (nine-tower fallback):
+  Original Dead Ahead / Easy / Solo nine-Scout strategy (44 actions).
+  Preserved from the previous release. The older camera calibration
+  may not match later game updates.
 
-F1 starts the selected strategy. F2 requests a safe stop. F8 or Escape
-are additional worker emergency stops. Closing the app requests a stop.
-The macro checks focus, window identity, camera, actual bottom-HUD cash
-and in-game purchase evidence; it stops on an uncertain action or result.
-It never uses the rounded player-list cash for Hardcore purchases.
+Golden Scout (ten maximum-level Scouts):
+  Experimental v2.20.2 camera calibration, Dead Ahead / Easy / Solo.
+  Requires Golden Scout in slot 1 and slots 2-5 empty.
+  Ten placements and forty E-key upgrades, individually verified.
+  Native win and repeat evidence: see docs/verification.md.
+  The app stops if the current terrain, position, cash, selected
+  Scout or upgrade quote cannot be positively verified.
 
-Normal game errors may trigger bounded official-client recovery, but an
-interrupted match never counts as a completed cycle. Roblox network error
-277 is external; no software camera adjustment fixes a disconnect.
-Only verified natural result-screen rewards count in the displayed Gems
-total; the app does not audit Gems credited to the account wallet.
+Hardcore Gem Grind:
+  Wretched Front / Hardcore / Solo; Boomerang slot 1, regular
+  Crook Boss slot 2, Farm slot 3, slot 5 empty.
+  Three-tower 75-action baseline was verified on game v2.20.0;
+  newer game camera layouts may require recalibration.
+  An optional evolution tower may be placed in slot 4 once,
+  without upgrades, only when its exact tooltip is verified.
+  XP is not guaranteed by mere equipment; the tower must remain
+  placed at match end. No wallet/XP credit claim without evidence.
 
-Local evidence is stored under captures/runs next to this executable.
-Keep screenshot evidence private; it may contain account or game details.
-No Roblox password or session token is stored. For instructions, visit
-docs/setup.md and docs/troubleshooting.md in this folder.
+Auto Equip is OFF by default. It is deliberately fail-closed:
+five independently text-proven EMPTY slots are required to equip
+anything. Current game inventory may not expose the needed text.
+Equip manually instead of bypassing these checks. A nonempty,
+partial or unreadable loadout is never overwritten.
 
-Golden Scout's tenth-placement/max-upgrade revamp is reserved for v0.3.1.
-It is NOT part of v0.3.0.
+The Diagnostics tab shows bounded, sanitized, read-only status
+and recent events. Copy or export only when you choose. Logs
+and gameplay captures remain private in local captures/runs.
+Never upload account screenshots or raw logs to public issues.
+
+English TDS, Windows 11, Store Roblox, a foreground client area
+EXACTLY 1920x991 at 120 DPI and the calibrated UI are required.
+On uncertain input, camera, network, or UI states the macro stops.
+It does not repeat uncertain paid clicks or upgrades.
+
+Read docs/setup.md, docs/APP.md and docs/troubleshooting.md
+for installation, status meanings and recovery guidance.

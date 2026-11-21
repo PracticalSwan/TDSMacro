@@ -23,6 +23,34 @@ class ObserverTests(unittest.TestCase):
                 with Image.open(ROOT / "tests" / "fixtures" / f"{name}.png") as frame:
                     self.assertEqual(self.observer.observe(frame).state, name)
 
+    def test_native_easy_squad_not_blocked_by_subthreshold_hardcore_similarity(self):
+        with Image.open(ROOT/'tests/fixtures/squad_easy_2201_conflict_labels.png') as frame:
+            observed=self.observer.observe(frame)
+        self.assertGreater(observed.scores['squad_easy'],.99)
+        self.assertLess(observed.scores['squad_hardcore'],.90)
+        self.assertEqual(observed.state,'squad_easy')
+
+    def test_v2202_vip_selector_all_three_independent_text_labels(self):
+        with Image.open(ROOT/'tests/fixtures/vip_maps_2202_labels.png') as source:
+            frame=source.copy()
+        self.assertEqual(self.observer.observe(frame).state,'vip_maps')
+        for box in ((629,263,701,288),(784,263,857,288),(757,827,1164,846)):
+            partial=frame.copy()
+            partial.paste('black',box)
+            with self.subTest(box=box):
+                self.assertNotEqual(self.observer.observe(partial).state,'vip_maps')
+
+    def test_native_survival_2200_menu_requires_three_independent_labels(self):
+        path=ROOT/'tests/fixtures/survival_menu_2200_labels.png'
+        with Image.open(path) as source:
+            frame=source.copy()
+        self.assertEqual(self.observer.observe(frame).state,'survival_menu_2200')
+        for box in ((100,108,202,136),(114,509,172,536),(115,798,212,830)):
+            masked=frame.copy()
+            masked.paste('black',box)
+            with self.subTest(missing=box):
+                self.assertNotEqual(self.observer.observe(masked).state,'survival_menu_2200')
+
     def test_blank_unfamiliar_and_resized_images_are_unknown(self):
         for frame in (Image.new("RGB", (1920, 991)), Image.new("RGB", (1920, 991), "white"),
                       Image.new("RGB", (1002, 750), "green")):

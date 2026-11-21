@@ -16,10 +16,14 @@ from .hardcore_plan_v2 import PLAN_ID as PLAN_V2_ID
 
 ROOT = Path(__file__).resolve().parents[2]
 STRATEGIES = {
-    'Golden Scout — Dead Ahead / Easy / Solo': 'dead_ahead_vertical_nine_v4.json',
+    'Golden Scout — 10 Max / Dead Ahead / Easy': 'dead_ahead_vertical_ten_v031_v2202_trial.json',
+    'Golden Scout — 9 Scouts (legacy fallback)': 'dead_ahead_vertical_nine_v4.json',
     'Hardcore Gem Grind — Wretched Front / Solo': PLAN_V2_ID,
 }
 
+
+# Pinned to the exact ten-Scout strategy accepted in three native matches.
+GOLDEN_V031_ACCEPTED_SHA = 'cad8d6e2432d100e5c8ed250480bd511d941f6498374bea31c5f9a6cf814a0f9'
 
 def preflight_roblox_start(cancelled=None, allow_recovery=False):
     """Verify the client, or let the guarded recovery worker launch it."""
@@ -124,7 +128,7 @@ class Controller:
     def running(self):
         return self.worker is not None and self.worker.poll() is None
 
-    def start(self, strategy, auto_recover=True, cancelled=None):
+    def start(self, strategy, auto_recover=True, cancelled=None, auto_equip=False):
         if self.running:
             return False
         if strategy not in STRATEGIES:
@@ -156,6 +160,8 @@ class Controller:
             command.extend(['--expected-window', json.dumps(asdict(preflight_window), separators=(',', ':'))])
         if auto_recover:
             command.append('--auto-recover')
+        if auto_equip:
+            command.append('--auto-equip')
         # A windowed application has no inherited console streams.
         with (self.output.parent/f'{self.output.name}.log').open('wb') as log:
             if cancelled is not None and cancelled():
@@ -212,7 +218,7 @@ def status_text(data, running, stopping=False, start_error=None):
         return f"Recovery {data.get('recovery_attempt',1)}/{data.get('max_recoveries',3)} · {stages.get(data.get('stage'),'restarting TDS')} · F2 cancels."
     progress = data.get('progress', {})
     if phase == 'playing' and 'confirmed_step' in progress:
-        return f"Match {data.get('match', 1)} · {progress.get('count', 0)} Scouts · {progress['confirmed_step']}/44 actions"
+        return f"Match {data.get('match', 1)} · {progress.get('count', 0)} Scouts · {progress['confirmed_step']}/{progress.get('total_actions', 44)} actions"
     if phase == 'hardcore_purchase_phase':
         return f"Hardcore phase {data.get('step', 1)}/14"
     if phase == 'hardcore_action':
@@ -226,53 +232,196 @@ def status_text(data, running, stopping=False, start_error=None):
 
 
 class App:
+    """Compact, keyboard-friendly control panel; Roblox input remains in Controller."""
+
+    BG = '#0c1322'
+    PANEL = '#162238'
+    FIELD = '#202f48'
+    BORDER = '#344561'
+    TEXT = '#eff5ff'
+    MUTED = '#a5b4ce'
+    MINT = '#75e4b9'
+    ROSE = '#ff99a4'
+
     def __init__(self):
         import tkinter as tk
         from tkinter import ttk
+
         self.hotkeys = Hotkeys()
         self.controller = Controller()
         self.root = tk.Tk()
-        self.root.title('TDS Strategy Macro')
-        self.root.geometry('650x465')
-        self.root.resizable(False, False)
-        self.root.configure(bg='#101827')
+        self.root.title('TDS Macro')
+        self.root.geometry('790x680')
+        self.root.resizable(True, True)
+        self.root.minsize(760,610)
+        self.root.configure(bg=self.BG)
         self.closing = False
         self.start_error = None
+
         style = ttk.Style(self.root)
         style.theme_use('clam')
-        style.configure('TCombobox', font=('Segoe UI', 11), padding=9)
-        tk.Label(self.root, text='TDS Strategy Macro', font=('Segoe UI Semibold', 23),
-                 bg='#101827', fg='#f2f5fa').pack(anchor='w', padx=28, pady=(22, 3))
-        tk.Label(self.root, text='Solo grinding · verified map and fixed overhead view',
-                 font=('Segoe UI', 10), bg='#101827', fg='#a4b2c6').pack(anchor='w', padx=30)
-        tk.Label(self.root, text='STRATEGY', font=('Segoe UI Semibold', 10),
-                 bg='#101827', fg='#a4b2c6').pack(anchor='w', padx=30, pady=(22, 6))
+        style.configure('Modern.TCombobox', font=('Segoe UI', 11), padding=11,
+                        foreground=self.TEXT, fieldbackground=self.FIELD,
+                        background=self.FIELD, arrowcolor=self.MINT, bordercolor=self.BORDER,
+                        lightcolor=self.FIELD, darkcolor=self.FIELD)
+        style.map('Modern.TCombobox', fieldbackground=[('readonly', self.FIELD)],
+                  foreground=[('readonly', self.TEXT)])
+        style.configure('Dark.TNotebook', background=self.BG, borderwidth=0)
+        style.configure('Dark.TNotebook.Tab', background=self.FIELD, foreground=self.TEXT,
+                        padding=(22,10), font=('Segoe UI Semibold',11))
+        style.map('Dark.TNotebook.Tab', background=[('selected',self.PANEL)],
+                  foreground=[('selected',self.MINT)])
+        self.tabs=ttk.Notebook(self.root,style='Dark.TNotebook')
+        self.overview=tk.Frame(self.tabs,bg=self.BG)
+        self.diagnostics=tk.Frame(self.tabs,bg=self.BG)
+        self.tabs.add(self.overview,text='Overview')
+        self.tabs.add(self.diagnostics,text='Diagnostics')
+        self.tabs.pack(fill='both',expand=True,padx=13,pady=(12,10))
+
+        header = tk.Frame(self.overview, bg=self.BG)
+        header.pack(fill='x', padx=30, pady=(24, 0))
+        tk.Label(header, text='TDS  /  MACRO', bg=self.BG, fg=self.MINT,
+                 font=('Segoe UI Semibold', 11)).pack(side='left', anchor='w')
+        self.state_label = tk.Label(header, text='●  READY', bg=self.FIELD, fg=self.MUTED,
+                                    font=('Segoe UI Semibold', 10), padx=12, pady=6)
+        self.state_label.pack(side='right')
+        tk.Label(self.overview, text='Tower defense, on autopilot.', bg=self.BG,
+                 fg=self.TEXT, font=('Segoe UI Semibold', 22)).pack(anchor='w', padx=30, pady=(12, 2))
+        tk.Label(self.overview, text='Golden 10 verified on v2.20.2; Hardcore needs current-map recalibration.',
+                 bg=self.BG, fg=self.MUTED, font=('Segoe UI', 10)).pack(anchor='w', padx=31)
+
+        settings = tk.Frame(self.overview, bg=self.PANEL, highlightbackground=self.BORDER,
+                            highlightthickness=1, padx=19, pady=14)
+        settings.pack(fill='x', padx=30, pady=(20, 0))
+        tk.Label(settings, text='STRATEGY', bg=self.PANEL, fg=self.MUTED,
+                 font=('Segoe UI Semibold', 10)).pack(anchor='w')
         self.strategy = tk.StringVar(value=next(iter(STRATEGIES)))
-        self.selector = ttk.Combobox(self.root, textvariable=self.strategy, values=list(STRATEGIES), state='readonly')
-        self.selector.pack(fill='x', padx=30)
-        self.auto_recover=tk.BooleanVar(value=True)
-        self.recover_toggle=tk.Checkbutton(self.root,text='Recover game failures automatically',variable=self.auto_recover,
-            bg='#101827',fg='#c1cede',selectcolor='#25334a',activebackground='#101827',activeforeground='#f2f5fa',
-            font=('Segoe UI',10),highlightthickness=0)
-        self.recover_toggle.pack(anchor='w',padx=27,pady=(9,0))
-        actions = tk.Frame(self.root, bg='#101827')
-        actions.pack(fill='x', padx=30, pady=18)
-        self.start_button = tk.Button(actions, text='Start  ·  F1', command=self.start,
-            bg='#70dfb0', fg='#09271b', activebackground='#92ebc6', font=('Segoe UI Semibold', 12), relief='flat', pady=9)
-        self.start_button.pack(side='left', fill='x', expand=True, padx=(0, 8))
-        self.stop_button = tk.Button(actions, text='Stop  ·  F2', command=self.stop,
-            bg='#e78a95', fg='#391119', font=('Segoe UI Semibold', 12), relief='flat', pady=9)
-        self.stop_button.pack(side='left', fill='x', expand=True, padx=(8, 0))
+        self.selector = ttk.Combobox(settings, textvariable=self.strategy,
+                                    values=list(STRATEGIES), state='readonly',
+                                    style='Modern.TCombobox', takefocus=True)
+        self.selector.pack(fill='x', pady=(8, 9))
+        self.auto_recover = tk.BooleanVar(value=True)
+        self.recover_toggle = tk.Checkbutton(
+            settings, text='Recover from game failures (up to 3 restarts)',
+            variable=self.auto_recover, bg=self.PANEL, fg=self.MUTED,
+            selectcolor=self.FIELD, activebackground=self.PANEL,
+            activeforeground=self.TEXT, highlightthickness=0,
+            cursor='hand2', font=('Segoe UI', 10), takefocus=True)
+        self.recover_toggle.pack(anchor='w', pady=(1, 0))
+        self.auto_equip=tk.BooleanVar(value=False)
+        self.equip_toggle=tk.Checkbutton(
+            settings,text='Auto Equip (only if all 5 slots are confirmed empty)',
+            variable=self.auto_equip,bg=self.PANEL,fg=self.MUTED,
+            selectcolor=self.FIELD,activebackground=self.PANEL,
+            activeforeground=self.TEXT,highlightthickness=0,
+            cursor='hand2',font=('Segoe UI',10),takefocus=True)
+        self.equip_toggle.pack(anchor='w',pady=(3,0))
+        tk.Label(settings,text='Requires explicit EMPTY text for all five slots; otherwise stops safely.',
+                 bg=self.PANEL,fg=self.ROSE,font=('Segoe UI',9)).pack(anchor='w')
+
+        actions = tk.Frame(self.overview, bg=self.BG)
+        actions.pack(fill='x', padx=30, pady=(16, 0))
+        self.start_button = tk.Button(
+            actions, text='Start   F1', command=self.start, cursor='hand2',
+            bg=self.MINT, fg='#10291e', activebackground='#9af2ce',
+            activeforeground='#10291e', font=('Segoe UI Semibold', 12),
+            relief='flat', bd=0, pady=11, takefocus=True,
+            highlightthickness=2, highlightbackground=self.BG,
+            highlightcolor='#ffffff')
+        self.start_button.pack(side='left', fill='x', expand=True, padx=(0, 7))
+        self.stop_button = tk.Button(
+            actions, text='Stop   F2', command=self.stop, cursor='hand2',
+            state='disabled', bg=self.FIELD, fg=self.ROSE, activebackground='#3a2638',
+            activeforeground='#ffd7dc', font=('Segoe UI Semibold', 12),
+            relief='flat', bd=0, pady=11, takefocus=True,
+            highlightthickness=2, highlightbackground=self.BG,
+            highlightcolor='#ffffff')
+        self.stop_button.pack(side='left', fill='x', expand=True, padx=(7, 0))
+        self._button_hover(self.start_button, self.MINT, '#9af2ce')
+        self._button_hover(self.stop_button, self.FIELD, '#3a2638')
+
+        activity = tk.Frame(self.overview, bg=self.PANEL, highlightbackground=self.BORDER,
+                            highlightthickness=1, padx=20, pady=14)
+        activity.pack(fill='x', padx=30, pady=(18, 0))
+        tk.Label(activity, text='SESSION', bg=self.PANEL, fg=self.MUTED,
+                 font=('Segoe UI Semibold', 10)).pack(anchor='w')
+        self.stats = tk.StringVar(value='0 wins   ·   0 coins')
+        tk.Label(activity, textvariable=self.stats, bg=self.PANEL, fg=self.TEXT,
+                 font=('Segoe UI Semibold', 17)).pack(anchor='w', pady=(6, 0))
         self.message = tk.StringVar(value='Ready — open the TDS lobby, then press F1.')
-        self.stats = tk.StringVar(value='0 wins     ·     0 coins')
-        tk.Label(self.root, textvariable=self.stats, font=('Segoe UI Semibold', 15),
-                 bg='#101827', fg='#f2f5fa').pack(anchor='w', padx=30)
-        tk.Label(self.root, textvariable=self.message, font=('Segoe UI', 10), justify='left',
-                 wraplength=585, bg='#101827', fg='#c1cede').pack(anchor='w', padx=30, pady=(8, 6))
-        tk.Label(self.root, text='Choose a strategy and open Roblox at the TDS lobby, then press F1.\nF1 verifies Roblox focus before start. F2 stops at any time; keep Roblox in front while the macro plays.',
-                 font=('Segoe UI', 9), justify='left', bg='#101827', fg='#92a3ba').pack(side='bottom', anchor='w', padx=30, pady=18)
+        tk.Label(activity, textvariable=self.message, bg=self.PANEL, fg=self.MUTED,
+                 font=('Segoe UI', 10), anchor='w', justify='left',
+                 wraplength=610).pack(fill='x', anchor='w', pady=(7, 0))
+
+        tk.Label(self.overview, text='F1 Start  |  F2 Stop  |  F8 / Esc Emergency stop', bg=self.BG, fg=self.MUTED,
+                 font=('Segoe UI', 9), justify='left').pack(anchor='w', padx=31, pady=(14, 0))
+        tk.Label(self.overview, text='Keep Roblox foreground at 1920 x 991 pixels and 120 DPI.',
+                 bg=self.BG, fg=self.MUTED, font=('Segoe UI', 9),
+                 justify='left').pack(anchor='w', padx=31, pady=(2, 0))
+        tk.Label(self.diagnostics,text='Session diagnostics',bg=self.BG,fg=self.TEXT,
+                 font=('Segoe UI Semibold',19)).pack(anchor='w',padx=24,pady=(24,3))
+        tk.Label(self.diagnostics,text='Sanitized read-only events. No command execution or private screenshots.',
+                 bg=self.BG,fg=self.MUTED,font=('Segoe UI',10)).pack(anchor='w',padx=24)
+        self.diag_text=tk.Text(self.diagnostics,wrap='word',height=18,bg=self.PANEL,
+                              fg=self.TEXT,insertbackground=self.TEXT,relief='flat',
+                              padx=16,pady=12,font=('Consolas',10),takefocus=True)
+        self.diag_text.pack(fill='both',expand=True,padx=24,pady=(15,10))
+        self.diag_text.insert('1.0','No session has started.')
+        self.diag_text.configure(state='disabled')
+        commands=tk.Frame(self.diagnostics,bg=self.BG)
+        commands.pack(fill='x',padx=24,pady=(0,20))
+        tk.Button(commands,text='Copy diagnostics',command=self.copy_diagnostics,
+                  bg=self.MINT,fg=self.BG,relief='flat',padx=15,pady=9,
+                  cursor='hand2').pack(side='left',padx=(0,8))
+        tk.Button(commands,text='Export .txt',command=self.export_diagnostics,
+                  bg=self.FIELD,fg=self.TEXT,relief='flat',padx=15,pady=9,
+                  cursor='hand2').pack(side='left')
+        self._last_diagnostics=''
         self.root.protocol('WM_DELETE_WINDOW', self.close)
         self.root.after(100, self.tick)
+
+    @staticmethod
+    def _button_hover(button, normal, hovered):
+        """Pointer and keyboard feedback without a separate UI dependency."""
+        def paint(color):
+            if str(button.cget('state')) == 'normal':
+                button.configure(bg=color)
+        button.bind('<Enter>', lambda _event: paint(hovered))
+        button.bind('<Leave>', lambda _event: paint(normal))
+        button.bind('<FocusIn>', lambda _event: paint(hovered))
+        button.bind('<FocusOut>', lambda _event: paint(normal))
+
+    def diagnostics_report(self):
+        from .diagnostics import collect_diagnostics
+        return collect_diagnostics(self.controller.status(),self.controller.output)
+
+    def refresh_diagnostics(self):
+        if self.tabs.index(self.tabs.select())!=1:
+            return
+        report=self.diagnostics_report()
+        if report!=self._last_diagnostics:
+            self.diag_text.configure(state='normal')
+            self.diag_text.delete('1.0','end')
+            self.diag_text.insert('1.0',report)
+            self.diag_text.configure(state='disabled')
+            self._last_diagnostics=report
+
+    def copy_diagnostics(self):
+        report=self.diagnostics_report()
+        self.root.clipboard_clear()
+        self.root.clipboard_append(report)
+
+    def export_diagnostics(self):
+        from tkinter import filedialog
+        path=filedialog.asksaveasfilename(parent=self.root,
+                                          defaultextension='.txt',
+                                          filetypes=[('Text diagnostics','*.txt')],
+                                          initialfile='tds-diagnostics.txt')
+        if path:
+            try:
+                Path(path).write_text(self.diagnostics_report(),encoding='utf-8')
+            except OSError as exc:
+                self.message.set('Diagnostics export failed: '+type(exc).__name__)
 
     def start(self, generation=None):
         if self.closing:
@@ -283,7 +432,7 @@ class App:
         cancelled = lambda: self.hotkeys.cancelled_since(generation)
         try:
             if self.controller.start(self.strategy.get(),auto_recover=self.auto_recover.get(),
-                                     cancelled=cancelled):
+                                     cancelled=cancelled,auto_equip=self.auto_equip.get()):
                 self.message.set(self.controller.startup_message)
                 self.root.iconify()
         except (OSError, ValueError, RuntimeError) as exc:
@@ -318,10 +467,22 @@ class App:
             self.stats.set(f"{data.get('gem_cycles', 0)} verified results     ·     {data.get('gems_total', 0):,} gems displayed")
         else:
             self.stats.set(f"{data.get('wins', 0)} wins     ·     {data.get('coins_total', 0):,} coins")
-        self.start_button.configure(state='disabled' if running else 'normal')
-        self.stop_button.configure(state='normal' if running else 'disabled')
+        if running:
+            state = '●  STOPPING' if self.controller.stop_requested else '●  RUNNING'
+            color = self.ROSE if self.controller.stop_requested else self.MINT
+        elif self.controller.stop_requested or self.start_error or data.get('reason'):
+            state, color = '●  STOPPED', self.ROSE
+        else:
+            state, color = '●  READY', self.MUTED
+        self.state_label.configure(text=state, fg=color)
+        self.start_button.configure(state='disabled' if running else 'normal',
+                                    bg=self.FIELD if running else self.MINT)
+        self.stop_button.configure(state='normal' if running else 'disabled',
+                                   bg=self.FIELD)
         self.selector.configure(state='disabled' if running else 'readonly')
         self.recover_toggle.configure(state='disabled' if running else 'normal')
+        self.equip_toggle.configure(state='disabled' if running else 'normal')
+        self.refresh_diagnostics()
         if self.closing and not running:
             self.hotkeys.close()
             self.root.destroy()
@@ -338,6 +499,11 @@ def self_check(path):
     import tkinter as tk
     from PIL import Image
     profile, strategy = load_profile(ROOT/'calibrations/dead_ahead_vertical_nine_v4.json')
+    candidate, expanded = load_profile(ROOT/'calibrations/dead_ahead_vertical_ten_v031_v2202_trial.json')
+    if (len(expanded.steps)!=50 or candidate['strategy_sha256'] != GOLDEN_V031_ACCEPTED_SHA
+            or not candidate['status'].startswith('v031_candidate_v2202')
+            or candidate['setup'].get('post_alignment_moves')!=[['S',750],['D',100]]):
+        raise ValueError('The calibrated ten-Scout profile is not the verified candidate.')
     hardcore = load_hardcore_plan_v2()
     WretchedCamera(hardcore)
     WretchedRoute(hardcore.profile_id)
@@ -347,7 +513,7 @@ def self_check(path):
         text = ocr.read(label)
     # Validate Tcl without creating a window or changing Roblox foreground.
     tcl_version = tk.Tcl().eval('info patchlevel')
-    result = {'root': str(ROOT), 'frozen': bool(getattr(sys, 'frozen', False)), 'operations': len(strategy.steps),
+    result = {'root': str(ROOT), 'frozen': bool(getattr(sys, 'frozen', False)), 'operations': len(strategy.steps), 'golden_candidate_actions': len(expanded.steps),
               'observer_states': len(observer.anchors), 'ocr_text': text, 'tcl': tcl_version, 'strategy_sha256': profile['strategy_sha256'],
               'hardcore_phases': len(hardcore.phases), 'hardcore_plan_sha256': PLAN_SHA256}
     Path(path).write_text(json.dumps(result, indent=2), encoding='utf-8')

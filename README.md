@@ -1,15 +1,20 @@
 # TDS Macro
 
-A Windows 11 macro for **Roblox Tower Defense Simulator**, using screenshot/OCR-verified actions, calibrated positions and strict foreground safeguards. **v0.3.0** supports two Solo strategies.
+**v0.3.1 source candidate (not yet released, November 21, 2026):** The ten Golden Scouts v2.20.2 profile completed three independently verified 50-action, ten-Level-4, wave-20 Victories (150/150 guarded actions and 1,350 Coins displayed in result screens). The GUI includes Overview/Diagnostics tabs, privacy-filtered local diagnostics, and an Auto Equip checkbox that defaults **OFF**. Auto Equip deliberately stops when the current inventory lacks five explicit EMPTY labels; it has **not** passed a real-game auto-equip acceptance. Hardcore's optional user-equipped slot-4 evolution tower pathway is implemented in source but its v2.20.1-v2.20.3 Wretched Front terrain route has **not** been accepted. Do not infer tower XP, current Hardcore reliability, or v0.3.1 publication from source-only evidence. [Current checkpoints](docs/plans/2026-11-21-v0.3.1-execution-checkpoints.md).
+
+**Latest published stable release: v0.3.0.** Its three-slot Hardcore baseline reached ten consecutive wave-30 results on game v2.20.0, before subsequent TDS UI/camera changes. The published ZIP contains the nine-Scout Golden fallback; current source changes and the v2.20.2 profile are not yet part of that download.
+
+A Windows 11 macro for **Roblox Tower Defense Simulator**, using screenshot/OCR-verified actions, calibrated positions and strict foreground safeguards. Published v0.3.0 supports two Solo strategies; the unreleased v0.3.1 source adds the ten-Scout candidate and optional Hardcore slot 4.
 
 | Strategy | Mode and map | Required loadout | Actions / result |
 |---|---|---|---|
-| Golden Scout | Survival Easy · Dead Ahead | Golden Scout slot 1; slots 2–5 empty; VIP map selection | Nine Scouts, 44 actions (existing v0.2.4 behavior) |
-| Hardcore Gem Grind | Hardcore · Wretched Front | Boomerang slot 1, regular Crook Boss slot 2, Farm slot 3; slot 5 empty | 18 towers, 75 actions; natural wave 30, 137 Gems displayed |
+| Golden Scout fallback | Survival Easy · Dead Ahead | Golden Scout slot 1; slots 2–5 empty; VIP map selection | Nine Scouts, 44 actions (published v0.3.0) |
+| Golden Scout ten-tower candidate | Survival Easy · Dead Ahead | Golden Scout slot 1; slots 2–5 empty; VIP map selection | Ten Scouts all level 4, 50 actions; three native v2.20.2 Victories (v0.3.1 candidate only) |
+| Hardcore Gem Grind | Hardcore · Wretched Front | Boomerang slot 1, regular Crook Boss slot 2, Farm slot 3; slot 4 empty for the verified baseline or optional evolution tower for v0.3.1 source; slot 5 empty | Baseline: 18 towers/75 actions, wave 30 and 137 Gems displayed on v2.20.0. Optional slot 4 adds one guarded placement, not yet validated on current game. |
 
 **Hardcore v0.3.0 live acceptance (November 20, 2026):** Ten consecutive native Solo Hardcore matches passed: **750/750 confirmed actions**, all 18 required towers at final levels in each match, ten natural wave-30 Defeat screens and **1,370 Gems displayed** (137 per match). The worker used the in-game **Restart Match** button between results. These values are confirmed **from result screens only**, not from account-wallet audits, and do not guarantee future matches against game updates or connectivity changes.
 
-The Golden Scout strategy remains unchanged from v0.2.4. The requested tenth Golden Scout and additional maximum upgrades are reserved for **v0.3.1**, not included in v0.3.0.
+The **published v0.3.0** Golden Scout strategy remains unchanged from v0.2.4. The ten-Scout E-key extension is included in the **unreleased v0.3.1 source**, not the public v0.3.0 executable.
 
 **[Download Windows release](https://github.com/PracticalSwan/tds-macro/releases/latest)** · [Setup](docs/setup.md) · [Troubleshooting](docs/troubleshooting.md) · [Verification evidence](docs/verification.md)
 
@@ -32,7 +37,7 @@ For Hardcore, the displayed Gems counter is **not** a wallet balance. Game updat
 | Window / language | Windowed, fully visible and foreground; English TDS and local English Windows OCR |
 | TDS settings | UI Scale **Large**, vertical upgrades; [full baseline](docs/setup.md#tds-settings-baseline) |
 | Game / account | Solo; VIP required for Golden Scout map selection; Hardcore uses its own Solo loadout |
-| Strategy | Golden Scout: Dead Ahead/Easy, 44 actions. Hardcore: Wretched Front/Hardcore, 75 actions |
+| Strategy | Published Golden fallback: 44 actions. v0.3.1 source candidate: 50 actions. Hardcore baseline: 75 actions; slot-4 candidate adds one placement. |
 
 The client area excludes title bar/borders. A 1920×1080 display is tested; a “1920×992 window” is not an equivalent measurement. Fullscreen, other sizes/DPI, macOS and mobile are unsupported. Read [setup](docs/setup.md) first.
 

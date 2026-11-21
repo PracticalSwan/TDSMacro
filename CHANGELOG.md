@@ -1,5 +1,43 @@
 # Changelog
 
+v0.3.1 Golden acceptance VERIFIED: Three native 50/50-action wave20 Easy Dead Ahead Victories, 10/10 Scouts Lv4 in each, 150 source-confirmed actions and 1,350 total displayed Coins, game v2.20.2 terrain calibrated and E-upgrade path, verified normal two-match Play Again loop. Additional v0.3.1 hardening after successful test: optional Hardcore XP placement is processed only after all 75 core required actions, preventing XP purchase from delaying critical final Crook Boss upgrades; explicit OCR 'EMPTY' slot labels no longer incorrectly count as occupied; ten-Scout native candidate becomes GUI default and nine-Scout remains explicit fallback. Source-focused tests pass, current Hardcore native/XP and frozen/CI/release remain pending.
+
+v0.3.1 latest native evidence, Nov 21 morning: Golden Scout ten-tower v2.20.2 terrain-calibrated trial completed 50/50 individual actions (10 placements and 40 guarded E-key upgrades), all ten Lv4, Dead Ahead Easy wave20 Victory with 450 displayed Coins. A fresh-client two-match repeat run has passed end-to-end menu, Golden text-loadout and camera preparation; live worker still purchasing, so repeatability outcome is not yet known. Includes updated forthcoming Windows README and GUI/diagnostics documentation in build script. Hardcore optional slot4 XP camera acceptance and frozen Windows/CI/release remain blocked and must not be advertised as delivered.
+
+v0.3.1 UNRELEASED Golden native milestone, November 21: On TDS v2.20.2 the separate camera/SIFT-calibrated ten-Scout candidate performed all 10 guarded placements and 40 one-time E-key upgrades, verified ALL 10 level4 and wave20 natural Victory, 459 seconds and 450 Coins displayed. Process exited 0; result/steps and final screenshot saved privately. Single-run result only; fresh-map startup, repeatability, optional Hardcore slot4 XP, packaged GUI, hosted CI and stable release still outstanding.
+
+
+Unreleased v0.3.1 Golden v2.20.2 native trial: after current-map camera pose drift and preservation of strict original gate, produced separate sanitized terrain-reference calibration and reprojected 10 XY. Native trial reference independently passes original camera bind/drift checks. First Scout placement and two E-key upgrades confirmed 3/50, remainder active. Original 44-action nine-Scout and initial 50-action candidate untouched. These are partial experimental results, NOT a production-ready win or published binary.
+
+
+Additional unreleased v0.3.1 v2.20.2 VIP override adaptation: retained three independent text anchors, added one tiny Normal-filter label alternative from native current modal because old template only matched 0.745 (other two still matched above .998); native menu now verifies .9976 and sanitized test/negative masking passes. Search for Maps field and Dead Ahead hovered title were independently and positively read twice during supervised mode; map-selection input not yet sent. The previous Golden test stopped safely before placement. Do not present v031 as released.
+
+
+Unreleased v0.3.1 additional UI fixes (November 21): Skip a redundant card search when existing exact Search query and selected tower/action match twice; ignore subthreshold 0.82-0.90 second-state similarity when best state is accepted, while still rejecting two >=0.90 conflicting states; accept only <=3px OCR button-center jitter with exact Equip/Unequip text. Native sanitized Easy squad fixture/regression included. Golden ten-Scout retry3 underway without 50/50 result; v2.20.1 Wretched camera blocker remains open.
+
+
+Unreleased v0.3.1 source checkpoint, Nov 21: TDS2.20 Hardcore three-slot baseline verified with fresh native 10/10, 750 confirmed purchases, wave30 and 1370 displayed Gems. Optional Scout slot4 verified equipped via positive title/button text and 2x pre/post slot-state observations; one-match placement/XP acceptance still in progress. Golden ten-Scout candidate once-only E upgrades, dark two-tab Tk GUI, sanitized diagnostics and opt-in strict text-empty Auto Equip implemented only in source. Native Tk Overview and Diagnostics were screenshot-verified. Full source 587 tests green. Current game empty inventory tiles have no explicit EMPTY labels, so Auto Equip cannot yet be called generally usable; it stops safely. No v031 release, commit or installation performed, and published v0.3.0 remains authoritative.
+
+
+v0.3.1 scope approved but NOT yet released: optional Hardcore user-equipped slot4 tower-XP placement (default three-tower strategy unchanged); ten Golden Scouts Lv4 with once-only E upgrades; two-tab Tk GUI and sanitized diagnostics, strictly opt-in text-only auto-equip; TDS 2.20.0 compatibility and safe latency/disconnect handling. Exact live, frozen and hosted CI verification pending.
+
+## v0.3.1 — historical requirements snapshot (implementation underway; not released)
+
+- Planned Golden Scout ten placements / forty upgrades, each confirmed; switch Golden upgrade purchases from mouse-button click to guarded E key while retaining selected tower/price/cash/post-level checks and the nine-Scout fallback.
+- Planned small two-tab Tk Overview/Diagnostics GUI: clearer navigation/stats/failure instructions, readable bounded log console, explicit sanitized Copy/Export diagnostics (no arbitrary command execution or background upload), preserved F1/F2/F8/Escape.
+- Planned **Auto-equip towers** checkbox default OFF with visible “requires all five hotbar slots empty” note. OFF emits no Equip input; ON uses exact inventory Search and text-only slot/identity checks, never skins/icons/models/borders/Golden color marker/fixed inventory-card points; refuse unknown/nonempty/partial slots.
+- Integrate and fully verify existing TDS 2.20.0 UI corrections plus additional native screen/edge-case checks **as v0.3.1**, not a separately published v0.3.0 patch. See [integrated handoff](docs/plans/2026-11-21-v0.3.1-integrated-handoff.md). That planning entry preceded later authorized implementation; see the current unreleased source checkpoint at the top of this changelog.
+
+Unpublished candidate checkpoint (November 21): isolated Windows folder-mode build succeeded with 20 observer states and passed bundled self-check/basic package audit. Three independently verified wave-30, 75-action, 137-displayed-Gem cycles have passed in the ongoing updated-game acceptance. No hotfix publication or completed 10/10 claim. Windows CI now runs test_observer.py.
+
+## Unreleased — TDS 2.20.0 compatibility and desktop GUI refresh
+
+- Recognize the new direct Survival menu after Play and retain the older multi-step route.
+- Accept native current vote-one glyphs without accepting zero; inspect shifted inventory Equip text using an exact alternate crop.
+- Redesign the existing Tk GUI with clear strategy/session panels, status indicator, keyboard focus and pointer hover on Start/Stop, retaining F1/F2/F8/Escape and a single guarded worker.
+- The updated-game ten-match acceptance and frozen package/release gates remain pending; do not confuse the source patch with the published v0.3.0 archive. The ten-Golden-Scout proposal is excluded.
+
+
 ## v0.3.0 — Hardcore Wretched Front Gem Grind
 
 Released November 21, 2026 (Bangkok), at commit f9fb225; successful Windows CI and independently checked published archive.

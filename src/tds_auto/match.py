@@ -21,10 +21,12 @@ class Snapshot:
 
 
 class MatchRunner:
-    def __init__(self, driver, read, now=time.monotonic, sleep=time.sleep, slot=1, hover_check=None):
+    def __init__(self, driver, read, now=time.monotonic, sleep=time.sleep, slot=1, hover_check=None,
+                 use_e_upgrades=False):
         self.driver, self.read, self.now, self.sleep = driver, read, now, sleep
         self.slot=slot
         self.hover_check=hover_check
+        self.use_e_upgrades=use_e_upgrades
 
     def checked(self):
         deadline=self.now()+READ_SECONDS
@@ -110,7 +112,19 @@ class MatchRunner:
             self.sleep(0.25)
         else:
             raise StopRun("Timed out waiting for cash; upgrade was not sent.")
-        self.driver.click(220, 578)
+        if self.use_e_upgrades:
+            # A fresh final read immediately before the single irreversible E.
+            # Never repeat the key if the postcondition is ambiguous.
+            last=self.checked()
+            if ((last.hud.tower_name,last.hud.level,last.hud.tower_count) !=
+                    ("Scout",expected_level,count) or
+                    last.hud.upgrade_cost != cost or
+                    last.hud.cash < cost or not last.hud.upgrade_affordable):
+                raise StopRun("Golden E precondition changed; no key sent.")
+            self.driver.key('E',0.10)
+        else:
+            # Published nine-Scout fallback retains the previous control path.
+            self.driver.click(220, 578)
         confirm_until = self.now() + ACTION_CONFIRM_SECONDS
         while self.now() < confirm_until:
             shot = self.checked()

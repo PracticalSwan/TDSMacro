@@ -176,7 +176,10 @@ class Observer:
         best = ranked[0]
         if scores[best] < 0.90:
             return Observation("unknown", round(scores[best], 4), scores, "Missing or low-confidence anchors.")
-        if len(ranked) > 1 and scores[ranked[1]] > 0.82:
+        # A second state is ambiguous only if it ALSO meets the positive
+        # .90 acceptance threshold. Shared squad headers can score .83 on
+        # the wrong mode while the true mode independently scores .99.
+        if len(ranked) > 1 and scores[ranked[1]] >= 0.90:
             return Observation("unknown", round(scores[best], 4), scores, "Conflicting screen states.")
         return Observation(best, round(scores[best], 4), scores)
 

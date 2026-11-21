@@ -334,7 +334,7 @@ def restart_client(control,platform,report,*,locate=locate_client,close=close_cl
 
 
 def supervise(output,platform,profile,*,attempt=None,restart=None,locate=locate_client,max_recoveries=3,
-              idle_lobby_seconds=0,initial_expected=None,strategy_id='golden_scout'):
+              idle_lobby_seconds=0,initial_expected=None,strategy_id='golden_scout',auto_equip=False):
     from .hardcore_plan_v2 import PLAN_ID as HARDCORE_ID
 
     hardcore=strategy_id==HARDCORE_ID
@@ -355,7 +355,7 @@ def supervise(output,platform,profile,*,attempt=None,restart=None,locate=locate_
         if (driver.expected.width,driver.expected.height,driver.expected.dpi)!=(1920,991,120):
             raise StopRun('This profile requires a 1920x991 client at 120 DPI.',kind='setup')
         session=Session(driver,path,profile,control=control,totals=totals,
-                        strategy_id=strategy_id)
+                        strategy_id=strategy_id,auto_equip=auto_equip)
         idle_pending=(idle_lobby_seconds and not context.get('idle_lobby_monitor_completed')
                       and not context.get('idle_lobby_disconnect_confirmed'))
         return session.run(continuous=True,idle_lobby_seconds=idle_lobby_seconds if idle_pending else 0)

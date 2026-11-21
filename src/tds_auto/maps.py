@@ -264,7 +264,8 @@ def badge_is_one(frame,box):
         return False
     glyph=mask.crop(bounds).resize((24,32)).point(lambda p:255 if p>127 else 0)
     folder=Path(__file__).resolve().parents[2]/'assets/ui_2191'
-    for name in ('vote_one.png','vote_one_board4.png','vote_one_replay.png'):
+    for name in ('vote_one.png','vote_one_board4.png','vote_one_replay.png',
+                 'vote_one_2200_clear.png','vote_one_2200_close.png'):
         with Image.open(folder/name) as reference:
             reference=reference.convert('L').point(lambda p:255 if p>127 else 0)
             # A slightly different view angle can shift the normalized digit

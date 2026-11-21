@@ -27,6 +27,13 @@ class LoadoutTests(unittest.TestCase):
             ImageDraw.Draw(frame).rectangle((x-25,750,x+25,805),fill='magenta')
         self.assertIsNone(verify_inventory(frame))
 
+    def test_v031_golden_perk_requires_text_not_colored_marker(self):
+        f=self.frame()
+        ImageDraw.Draw(f).rectangle((1180,720,1208,754),fill='black')
+        self.assertIsNone(verify_inventory(f,text_only=True))
+        ImageDraw.Draw(f).rectangle((1095,505,1174,545),fill='black')
+        self.assertIsNotNone(verify_inventory(f,text_only=True))
+
     def test_missing_golden_marker_is_rejected(self):
         self.assertIsNotNone(verify_inventory)
         frame=self.frame();ImageDraw.Draw(frame).rectangle((1180,720,1208,754),fill='black')
@@ -170,6 +177,87 @@ class LoadoutTests(unittest.TestCase):
                     frame.paste(tooltip,(x+8,749))
                 self.assertEqual(read_hardcore_hotbar_name(frame,slot),expected)
 
+    def test_one_pixel_inventory_text_center_jitter_is_not_a_new_button(self):
+        from tds_auto.loadout import same_inventory_button
+        self.assertTrue(same_inventory_button((1256,732),(1257,731)))
+        self.assertFalse(same_inventory_button((1256,732),(1256,695)))
+        self.assertFalse(same_inventory_button((1256,732),None))
+
+    def test_native_unequip_label_is_detected_textually(self):
+        from tds_auto.loadout import inventory_action_point
+        with Image.open(ROOT/'tests/fixtures/inventory_farm_unequip_slot3_live_20261118.png') as image:
+            frame=image.copy()
+        with patch('tds_auto.loadout.Observer') as observer:
+            observer.return_value.observe.return_value.state='inventory_list'
+            self.assertEqual(inventory_action_point(frame,'unequip'),(1256,705))
+            self.assertIsNone(inventory_action_point(frame,'equip'))
+            self.assertIsNone(inventory_action_point(frame,'invalid'))
+
+    def test_current_equip_button_click_point_comes_from_exact_word(self):
+        from tds_auto.loadout import inventory_equip_point
+        with Image.open(ROOT/'tests/fixtures/inventory_boomerang_equip_2200_button.png') as f:
+            frame=f.copy()
+        with patch('tds_auto.loadout.Observer') as observer:
+            observer.return_value.observe.return_value.state='inventory_list'
+            self.assertEqual(inventory_equip_point(frame),(1256,732))
+            class OCR:
+                def read_lines(self,image):
+                    return [('UNEQUIP',(206,134,267,150))]
+            self.assertIsNone(inventory_equip_point(frame,OCR()))
+
+    def test_explicit_empty_slot_caption_is_not_mistaken_for_a_tower(self):
+        from tds_auto.loadout import _slot_occupied,INVENTORY_SLOTS
+        class Reader:
+            text='EMPTY'
+            def read(self,image):return self.text
+        frame=Image.new('RGB',(1920,991))
+        reader=Reader()
+        self.assertIs(_slot_occupied(frame,INVENTORY_SLOTS[0],reader),False)
+        reader.text='Scout'
+        self.assertIs(_slot_occupied(frame,INVENTORY_SLOTS[0],reader),True)
+
+    def test_auto_equip_requires_explicit_empty_labels_not_blank_graphics(self):
+        from tds_auto.loadout import read_textually_empty_hotbar,INVENTORY_SLOTS
+        class OCR:
+            text='EMPTY'
+            def read(self,image):return self.text
+        frame=Image.new('RGB',(1920,991))
+        with patch('tds_auto.loadout.Observer') as observer:
+            observer.return_value.observe.return_value.state='inventory_list'
+            o=OCR()
+            self.assertTrue(read_textually_empty_hotbar(frame,o))
+            o.text=''
+            self.assertFalse(read_textually_empty_hotbar(frame,o))
+            o.text='SLOT 1'
+            self.assertFalse(read_textually_empty_hotbar(frame,o))
+
+    def test_optional_slot4_uses_only_verified_xp_tower_tooltip_text(self):
+        from tds_auto.loadout import read_hardcore_hotbar_name, HARDCORE_HOTBAR_POINTS
+        class OCR:
+            text='Minigunner'
+            def read(self, image):
+                return self.text
+        frame=Image.new('RGB',(1920,991))
+        ocr=OCR()
+        self.assertIsNone(read_hardcore_hotbar_name(frame,4,ocr))
+        self.assertEqual(read_hardcore_hotbar_name(frame,4,ocr,optional=True),'minigunner')
+        ocr.text='Settings'
+        self.assertIsNone(read_hardcore_hotbar_name(frame,4,ocr,optional=True))
+        ocr.text='Military Base'
+        self.assertIsNone(read_hardcore_hotbar_name(frame,4,ocr,optional=True))
+        ocr.text='Crook Boss'
+        self.assertEqual(read_hardcore_hotbar_name(frame,4,ocr,optional=True),'crook boss')
+        ocr.text='ABC 123 $'
+        self.assertIsNone(read_hardcore_hotbar_name(frame,4,ocr,optional=True))
+
+    def test_optional_hardcore_loadout_requires_exact_fourth_name_and_empty_fifth(self):
+        self.assertIsNone(verify_hardcore_loadout(
+            ('boomerang','crook boss','farm','minigunner',''),
+            optional_tower='minigunner'))
+        self.assertIsNotNone(verify_hardcore_loadout(
+            ('boomerang','crook boss','farm','minigunner','scout'),
+            optional_tower='minigunner'))
+
     def test_actual_unselected_farm_slot_is_occupied_without_skin_border_identity(self):
         from tds_auto.loadout import INVENTORY_SLOTS
         with Image.open(ROOT/'tests/fixtures/inventory_three_equipped_live_unselected.png') as row:
@@ -178,6 +266,16 @@ class LoadoutTests(unittest.TestCase):
         with patch('tds_auto.loadout.Observer') as observer:
             observer.return_value.observe.return_value.state='inventory_list_2192'
             self.assertEqual(read_slot_occupancy(frame),(True,True,True,False,False))
+
+    def test_native_v2200_equip_button_wider_crop_requires_exact_label(self):
+        with Image.open(ROOT/'tests/fixtures/inventory_boomerang_equip_2200_button.png') as source:
+            frame=source.copy()
+        with patch('tds_auto.loadout.Observer') as observer:
+            observer.return_value.observe.return_value.state='inventory_list_2192'
+            self.assertEqual(read_selected_tower(frame),('boomerang','equip'))
+            self.assertEqual(read_slot_occupancy(frame),(False,False,False,False,False))
+            frame.paste('black',(1170,687,1340,765))
+            self.assertIsNone(read_selected_tower(frame))
 
     def test_saved_native_farm_label_and_occupancy_verify(self):
         with Image.open(ROOT/'tests/fixtures/inventory_farm_unequip_slot3_live_20261118.png') as frame:

@@ -37,7 +37,8 @@ class NavigationTests(unittest.TestCase):
         def read():
             nonlocal last
             last = next(sequence, last)
-            fixture = ("squad_hardcore.png" if last == "squad_hardcore" else
+            fixture = ("survival_menu_2200_labels.png" if last == "survival_menu_2200" else
+                       "squad_hardcore.png" if last == "squad_hardcore" else
                        "inventory_search_shell_2192.png" if last == "inventory_search_2192" else f"{last}.png")
             path = ROOT / "tests/fixtures" / fixture
             return Image.open(path).convert("RGB") if path.is_file() else Image.new("RGB", (1920, 991))
@@ -57,6 +58,13 @@ class NavigationTests(unittest.TestCase):
         clicks = [event for event in self.platform.events if event == ("left_down",)]
         self.assertEqual(len(clicks), 4)
 
+    def test_new_survival_layout_skips_obsolete_play_menu_step(self):
+        nav=self.nav(['lobby','lobby','survival_menu_2200','survival_menu_2200',
+                      'survival_menu_2200','survival_menu_2200','squad_hardcore','squad_hardcore'])
+        self.assertEqual(nav.step('open_play'),'survival_menu_2200')
+        self.assertEqual(nav.step('hardcore'),'squad_hardcore')
+        self.assertEqual(self.platform.events.count(('left_down',)),2)
+
     def test_menu_click_follows_two_spaced_confirmations_without_an_extra_blind_wait(self):
         nav=self.nav(['lobby','lobby','play_menu','play_menu'])
         read=nav.read_frame;observed=[];clicked=[]
@@ -68,6 +76,22 @@ class NavigationTests(unittest.TestCase):
         self.assertEqual(observed[:2],[0,.2])
         self.assertEqual(clicked,[.2],'A third unobserved delay adds latency without another screen check.')
         self.assertEqual(self.platform.events.count(('left_down',)),1)
+
+    def test_session_enter_survival_menu_avoids_reclick_on_direct_route(self):
+        from tds_auto.session import Session
+        for observed,expected in (
+            ('survival_menu_2200',['open_play']),
+            ('play_menu',['open_play','survival']),
+        ):
+            with self.subTest(observed=observed):
+                calls=[]
+                session=object.__new__(Session)
+                def transition(name):
+                    calls.append(name)
+                    return observed if name=='open_play' else 'survival_menu'
+                session.transition=transition
+                self.assertIn(session.enter_survival_menu(),{'survival_menu','survival_menu_2200'})
+                self.assertEqual(calls,expected)
 
     def test_wrong_start_unknown_or_wrong_mode_sends_no_input(self):
         for state in ("unknown", "settings", "map_vote"):
@@ -188,7 +212,7 @@ class NavigationTests(unittest.TestCase):
         self.assertIn(('key_down','BACKSPACE'),self.platform.events)
         self.assertFalse(any(event[:2]==('key_down','B') for event in self.platform.events))
 
-    def test_exact_visible_search_query_selects_without_retyping(self):
+    def test_exact_visible_search_query_reuses_verified_selected_tower_without_click(self):
         from types import SimpleNamespace
         from unittest.mock import patch
         clock=Clock()
@@ -211,7 +235,7 @@ class NavigationTests(unittest.TestCase):
         self.assertLess(cursor_clear,query_reads[0])
         self.assertGreater(clock.value,0)
         self.assertLess(clock.value,2)
-        self.assertEqual(self.platform.events.count(('left_down',)),1)
+        self.assertEqual(self.platform.events.count(('left_down',)),0)
         self.assertFalse(any(event[0].startswith('key_') for event in self.platform.events))
 
     def test_blank_capture_during_teleport_is_observed_without_another_click(self):

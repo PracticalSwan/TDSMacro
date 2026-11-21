@@ -70,6 +70,16 @@ class Navigator:
         if query is None or point is None or second_query!=query or search_point is None:
             raise StopRun('Inventory search field was unreadable or changed; no search input sent.',kind='setup')
 
+        if query==target:
+            # Already-selected searched tower is a valid postcondition.
+            # Avoid a redundant card OCR/click when the highlighted item
+            # disappears or loses contrast, but require two fresh text reads.
+            first_selected=read_selected_tower(first,ocr)
+            second_selected=read_selected_tower(second,ocr)
+            if (first_selected is not None and first_selected==second_selected
+                    and first_selected[0]==target):
+                return first_selected
+
         if query!=target:
             self.driver.click(*search_point)
             self.driver.select_all()
@@ -136,6 +146,11 @@ class Navigator:
         source, target, point = TRANSITIONS[name]
         sources={source}
         targets={target}
+        if name=='open_play':
+            # A retained Survival tab can bypass the older Play category view.
+            targets.update({'survival_menu','survival_menu_2200'})
+        if name in {'easy','hardcore'}:
+            sources.add('survival_menu_2200')
         if name=='open_inventory':
             targets.add('inventory_scout')
             targets.add('inventory_list_2192')

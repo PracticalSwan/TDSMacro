@@ -845,6 +845,31 @@ class SessionTests(unittest.TestCase):
             self.session.prepare_camera(retained=True)
         self.assertEqual(self.platform.events,[])
 
+    def test_v2202_candidate_fresh_camera_uses_only_two_preapproved_moves(self):
+        self.state='match_ready'
+        self.session.profile['calibration_method']={'version_observed':'TDS v2.20.2'}
+        self.session.profile['setup']['post_alignment_moves']=[['S',750],['D',100]]
+        with patch('tds_auto.session.HudReader') as hud, patch('tds_auto.session.CameraGate') as gate, \
+             patch('tds_auto.session.read_hotbar',return_value=SimpleNamespace(valid=True,price=250)):
+            hud.return_value.read.return_value=SimpleNamespace(tower_count=0)
+            gate.return_value.bind.side_effect=[False,False,True,True]
+            self.session.prepare_camera()
+        keys=[event for event in self.platform.events if event[0]=='key_down']
+        self.assertEqual([event[1] for event in keys],['W','S','D'])
+        self.assertFalse(any(event[0]=='left_down' for event in self.platform.events))
+
+    def test_golden_candidate_disallows_unapproved_camera_actions(self):
+        self.state='match_ready'
+        self.session.profile['calibration_method']={'version_observed':'TDS v2.20.2'}
+        self.session.profile['setup']['post_alignment_moves']=[['W',2500]]
+        with patch('tds_auto.session.HudReader') as hud, patch('tds_auto.session.CameraGate'):
+            hud.return_value.read.return_value=SimpleNamespace(tower_count=0)
+            with self.assertRaises(StopRun):
+                self.session.prepare_camera()
+        self.assertNotIn(('key_down','S'),self.platform.events)
+        self.assertNotIn(('key_down','D'),self.platform.events)
+        self.assertFalse(any(e[0]=='left_down' for e in self.platform.events))
+
     def test_fresh_camera_can_correct_zoom_only_before_any_tower_exists(self):
         self.state='match_ready'
         from unittest.mock import Mock
@@ -1164,7 +1189,7 @@ class SessionTests(unittest.TestCase):
         from tds_auto.loadout import INVENTORY_LIST_STATES
         output=self.path/'hardcore_search_gate'
         output.mkdir()
-        session=Session(self.driver,output,now=self.platform.now,strategy_id=PLAN_ID)
+        session=Session(self.driver,output,now=self.platform.now,strategy_id=PLAN_ID,auto_equip=True)
         screen={'state':'lobby'}
         def frame():
             image=Image.new('RGB',(1920,991))
@@ -1184,8 +1209,9 @@ class SessionTests(unittest.TestCase):
             self.assertEqual(session.allowed,set(INVENTORY_LIST_STATES))
             session.click_gate()
             raise StopRun('Search boundary reached.')
-        with patch('tds_auto.session.read_slot_occupancy',return_value=(False,)*5), \
-             patch.object(session.navigator,'search_tower',side_effect=search_tower):
+        with (patch('tds_auto.session.read_slot_occupancy',return_value=(False,)*5),
+              patch('tds_auto.session.read_textually_empty_hotbar',return_value=True),
+              patch.object(session.navigator,'search_tower',side_effect=search_tower)):
             with self.assertRaisesRegex(StopRun,'Search boundary reached'):
                 session.preflight_hardcore()
         self.assertEqual(self.platform.events,[])

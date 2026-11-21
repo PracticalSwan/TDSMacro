@@ -13,12 +13,13 @@ foreach ($folder in @('assets','calibrations','strategies')) {
     [void](New-Item -ItemType Directory -Path (Join-Path $appPath $folder) -Force)
 }
 Copy-Item -LiteralPath (Join-Path $projectRoot 'assets\ui_2191') -Destination (Join-Path $appPath 'assets') -Recurse -Force
-foreach ($name in @('dead_ahead_vertical_nine_v4.json','camera_0.png','camera_1.png','scene.png',
+foreach ($name in @('dead_ahead_vertical_nine_v4.json','dead_ahead_vertical_ten_v031_v2202_trial.json','camera_0.png','camera_1.png','scene.png',
+                    'dead_ahead_v031_2202.scene.png','dead_ahead_v031_2202.camera0.png','dead_ahead_v031_2202.camera1.png',
                     'wretched_front_hardcore_v2.json','wretched_front_hardcore_v2.scene.png',
                     'wretched_front_hardcore_v2.route.png')) {
     Copy-Item -LiteralPath (Join-Path $projectRoot ('calibrations\'+$name)) -Destination (Join-Path $appPath 'calibrations') -Force
 }
-foreach ($name in @('GOLDIE SCOUTO.vertical-nine-slot1.strat','hardcore_wretched_front_boomerang_crook_farm_v2.json')) {
+foreach ($name in @('GOLDIE SCOUTO.vertical-nine-slot1.strat','GOLDIE SCOUTO.vertical-ten-slot1-v031-2202.strat','hardcore_wretched_front_boomerang_crook_farm_v2.json')) {
     Copy-Item -LiteralPath (Join-Path $projectRoot ('strategies\'+$name)) -Destination (Join-Path $appPath 'strategies') -Force
 }
 Copy-Item -LiteralPath (Join-Path $projectRoot 'app\README.txt') -Destination $appPath
@@ -26,7 +27,7 @@ foreach ($name in @('LICENSE','NOTICE.md')) {
     Copy-Item -LiteralPath (Join-Path $projectRoot $name) -Destination $appPath
 }
 [void](New-Item -ItemType Directory -Path (Join-Path $appPath 'docs') -Force)
-foreach ($name in @('setup.md','troubleshooting.md','strategies.md')) {
+foreach ($name in @('setup.md','APP.md','diagnostic-data.md','troubleshooting.md','strategies.md')) {
     Copy-Item -LiteralPath (Join-Path $projectRoot ('docs\'+$name)) -Destination (Join-Path $appPath 'docs')
 }
 & $pythonPath (Join-Path $projectRoot 'scripts\collect-licenses.py') $appPath

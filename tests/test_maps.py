@@ -9,6 +9,17 @@ except ImportError:
     read_boards=None
 
 class MapTests(unittest.TestCase):
+    def test_v2200_vote_one_at_two_angles_does_not_match_zero(self):
+        from tds_auto.maps import badge_is_one
+        for name,expected in (
+            ('clear',True),('close',True),
+            ('zero_left',False),('zero_right',False),
+        ):
+            with self.subTest(name=name):
+                with Image.open(ROOT/'tests/fixtures'/f'vote_badge_2200_{name}.png') as image:
+                    self.assertEqual(
+                        badge_is_one(image,(0,0,image.width,image.height)),expected)
+
     def test_board_detection_only_processes_its_header_bands_and_keeps_screen_coordinates(self):
         from tds_auto import maps
         from unittest.mock import patch
