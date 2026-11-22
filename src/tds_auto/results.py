@@ -75,6 +75,13 @@ class HardcoreResult:
 
 
 HARDCORE_MAP_BOX = (1138, 472, 1262, 507)
+# Observed on native wave-30 results: high-contrast purple scenery changes
+# only the W/M/N first glyph and the terminal t/d/i. These exact variants
+# are independently bounded to the verified Wretched Front result panel.
+HARDCORE_MAP_LABELS_OCR = frozenset({
+    'Wretched Front', 'Wretched Fror',
+    'Mretched Froni', 'Mretched Frond', 'Nretched Frond',
+})
 
 
 @lru_cache(maxsize=1)
@@ -96,7 +103,7 @@ def read_hardcore_result(frame, observer, ocr):
     text = lambda box: ocr.read(frame.crop(box))
     map_name = text((1090, 473, 1281, 501))
     # The current result panel clips the last letters of Wretched Front.
-    if (map_name not in {'Wretched Front', 'Wretched Fror'}
+    if (map_name not in HARDCORE_MAP_LABELS_OCR
             and max(overlap(ink(frame.crop(HARDCORE_MAP_BOX)), label)
                     for label in hardcore_map_labels()) < .94):
         return None

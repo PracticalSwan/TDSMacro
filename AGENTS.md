@@ -1,5 +1,8 @@
 # Project instructions — TDS Macro
 
+**v0.4.1 corrective candidate, November 23 2026:** After 38 verified wave-30 results (5,206 Gems displayed), one further full 75-action natural wave-30 Defeat was not credited because native Wretched Front map-label OCR returned `Mretched Froni`. The saved result visibly contained 137 Gems and strict mode/difficulty/wave/duration/reward text, but existing map recognition rejected the label. Extend only the exact map-label OCR allowlist to the native-observed `Mretched Froni`, `Mretched Frond`, `Nretched Frond` variants, keeping the existing two map-template fallbacks and all result checks. New sanitized panel-only native screenshot fixture reproduces this failure (red before fix, green after fix), with map masking negative. No synthetic credit for old unverified result. Separate Roblox error-277 disconnect occurred after the stopped session and requires normal client recovery. Full regression, frozen build, GUI/native loop and CI gate release; protect old versions and untracked calibration.
+
+
 **v0.4.0 released/installed (November 22, 2026):** Stable tag `v0.4.0` at `1d321822` passed hosted Windows CI `45031060770`, frozen self-check, 656 local tests, native UI toggle/manual check, disposable end-to-end updater/rollback, and two live 75/75 wave-30 result/restart cycles with zero recoveries. Public ZIP SHA256 `3698a93f3e9e150e4701e6af10475a32eebebbc39e907107bb66ee06e8327252` (published re-download verified); EXE SHA256 `70a349444165f71cae7988482f1fa04acc73fe6d95854ab21b0cf01b9beba5ac`. Standard install v0.4.0; preserved v0.3.4 folder/shortcut; continuous candidate worker remains active separately. Do not disturb private experimental calibration or re-enable Auto-Equip.
 
 

@@ -50,6 +50,20 @@ class ResultTests(unittest.TestCase):
             self.assertIsNotNone(result)
             self.assertEqual((result.map_name,result.difficulty,result.wave,result.duration_seconds,result.coins),('Dead Ahead','Easy',20,464,450))
 
+    def test_native_wave30_result_with_two_exact_ocr_confusions(self):
+        # Native wave-30 result panel from long-run attempt 40. Outside the
+        # result card is blacked out to exclude player/account information.
+        from tds_auto.observer import Observer
+        from tds_auto.resources import LocalOCR
+        from tds_auto.results import HardcoreResult, read_hardcore_result
+        with Image.open(ROOT/'tests/fixtures/hardcore_result_wave30_native_sanitized.png') as source:
+            frame=source.convert('RGB')
+        self.assertEqual(Observer().observe(frame).state,'defeat')
+        self.assertEqual(read_hardcore_result(frame,Observer(),LocalOCR()),
+                         HardcoreResult('defeat',30,463,137))
+        frame.paste('black',(1090,473,1281,501))
+        self.assertIsNone(read_hardcore_result(frame,Observer(),LocalOCR()))
+
     def test_current_hardcore_defeat_reads_the_wave_and_displayed_gems(self):
         from tds_auto.observer import Observer
         from tds_auto.resources import LocalOCR

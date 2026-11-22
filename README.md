@@ -1,5 +1,8 @@
 # TDS Macro
 
+**v0.4.1 corrective candidate, November 23 2026:** After 38 verified wave-30 results (5,206 Gems displayed), one further full 75-action natural wave-30 Defeat was not credited because native Wretched Front map-label OCR returned `Mretched Froni`. The saved result visibly contained 137 Gems and strict mode/difficulty/wave/duration/reward text, but existing map recognition rejected the label. Extend only the exact map-label OCR allowlist to the native-observed `Mretched Froni`, `Mretched Frond`, `Nretched Frond` variants, keeping the existing two map-template fallbacks and all result checks. New sanitized panel-only native screenshot fixture reproduces this failure (red before fix, green after fix), with map masking negative. No synthetic credit for old unverified result. Separate Roblox error-277 disconnect occurred after the stopped session and requires normal client recovery. Full regression, frozen build, GUI/native loop and CI gate release; protect old versions and untracked calibration.
+
+
 **Latest stable: [v0.4.0](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.4.0)** (November 22, 2026). Adds OFF-by-default Automatic updates switch, Check now, secure verified downloads and idle-only installation with old-install backup. Full tests/CI, frozen GUI, official asset re-download and native Hardcore reward/restart passed. Users on older versions install v0.4.0 once from the ZIP, then can enable updates in the Updates tab. Details: [Windows app](docs/APP.md) and [verification](docs/verification.md).
 
 

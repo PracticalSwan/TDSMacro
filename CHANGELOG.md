@@ -1,5 +1,8 @@
 # Changelog
 
+**v0.4.1 corrective candidate, November 23 2026:** After 38 verified wave-30 results (5,206 Gems displayed), one further full 75-action natural wave-30 Defeat was not credited because native Wretched Front map-label OCR returned `Mretched Froni`. The saved result visibly contained 137 Gems and strict mode/difficulty/wave/duration/reward text, but existing map recognition rejected the label. Extend only the exact map-label OCR allowlist to the native-observed `Mretched Froni`, `Mretched Frond`, `Nretched Frond` variants, keeping the existing two map-template fallbacks and all result checks. New sanitized panel-only native screenshot fixture reproduces this failure (red before fix, green after fix), with map masking negative. No synthetic credit for old unverified result. Separate Roblox error-277 disconnect occurred after the stopped session and requires normal client recovery. Full regression, frozen build, GUI/native loop and CI gate release; protect old versions and untracked calibration.
+
+
 **v0.4.0 PUBLISHED — November 22, 2026:** First opt-in auto-updater, manual update check/installation, official GitHub release SHA256+checksum verification, staged self-check, safe idle-only install and rollback; no gameplay input changes. 656 local tests, Windows CI, frozen GUI, disposable installer and 2 native 75-action Hardcore result/restart cycles verified with zero recoveries. Official ZIP and checksum re-downloaded and matched. Prior v0.3.4 installation/release preserved.
 
 

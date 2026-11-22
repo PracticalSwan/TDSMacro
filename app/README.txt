@@ -1,4 +1,10 @@
-TDS Macro - Windows v0.4.0
+TDS Macro - Windows v0.4.1
+
+This patch accepts a strictly bounded, native-tested Wretched Front
+map label OCR variant on the Hardcore wave-30 results screen. Other
+mode, difficulty, duration, wave, reward and safe-stop guards remain.
+The source strategy, tower loadout, route and auto-update controls are
+unchanged.
 
 This patch addresses a documented early-Defeat stop after 29 complete
 three-tower Hardcore cycles. Two consecutive verified early Defeats may
