@@ -1,13 +1,16 @@
-TDS Macro - Windows v0.3.2
+TDS Macro - Windows v0.3.3
 
-Current patch: v0.3.2 (public v0.3.1 is preserved).
-The 960x690 Overview/Diagnostics GUI defaults to Solo Wretched Front Hardcore.
+This patch addresses a documented early-Defeat stop after 29 complete
+three-tower Hardcore cycles. Two consecutive verified early Defeats may
+trigger direct Restart Match; a third consecutive one stops for review.
+Early results do not count as complete cycles or full-cycle Gems.
+The 960x690 Overview/Diagnostics GUI defaults to Wretched Front Hardcore Solo.
 Equip Boomerang 1, regular Crook Boss 2, Farm 3; leave slots 4 and 5 EMPTY.
-Auto-Equip is unavailable: the game does not expose 5 confirmed EMPTY labels.
-Two native 75-action wave-30 results displayed 137 Gems each (274 total);
-result-screen amounts are not a verified wallet balance. Automatic Restart
-Match is enabled, recovery is bounded to three attempts, and unknown
-terrain, focus, prices or selected towers stop safely.
+Auto-Equip remains disabled. A frozen candidate completed 75/75 actions,
+natural wave-30 Defeat, 137 Gems displayed and direct Restart Match.
+Displayed Gems are not independently wallet-audited. Client recovery stays
+bounded to three relaunches; unknown focus, terrain, prices, purchases,
+selected towers or results stop safely.
 
 
 
@@ -37,7 +40,8 @@ Hardcore Gem Grind:
   For the current three-tower GUI run, leave slots 4 AND 5 empty.
   Three-tower source guards include native-tested v2.20.3 route
   checkpoints and a corrected exact 18/40 HUD text template.
-  A complete new 75-action GUI result is pending verification.
+  The corrected frozen GUI baseline completed 75/75 actions and wave-30
+  Defeat with 137 Gems displayed, and restarted another match.
   An optional evolution tower may be placed in slot 4 once,
   without upgrades, only when its exact tooltip is verified.
   Its exact price must be readable between $200 and $10,000.
