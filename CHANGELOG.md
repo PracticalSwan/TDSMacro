@@ -1,6 +1,9 @@
 # Changelog
 
-**Unreleased v0.3.4 candidate (November 22, 2026):** Address repeatable Hardcore wave-11 HUD OCR ambiguity with two independent exact text crops and allow 2 additional seconds for consecutive wave confirmation, without guessing, bypassing purchase guards, or restarting the active worker. Native failure screenshots reproduced the issue; focused regression passes. Full suite, new frozen candidate and hosted CI are release gates.
+**v0.3.4 acceptance update, 2026-11-22:** The published OCR/passive-read correction completed a live 75/75-action wave-30 result with 137 Gems displayed and zero recoveries in the frozen GUI; direct Restart Match was verified by fresh cycle-2 purchases. The standard v0.3.4 installation passed frozen self-check and the prior v0.3.3 installation is preserved. The source strategy, map route and purchase guards remain unchanged.
+
+
+**v0.3.4 published November 22, 2026 (commit f078887):** A repeatable wave-11 OCR failure was corrected by widening one existing independently processed text crop; the Hardcore HUD read window now permits two additional seconds of passive wave confirmation. No extra OCR passes, version checks, uncontrolled restarts, purchase retries or route changes. Hosted Windows CI, frozen self-check and public ZIP integrity audit passed; native v0.3.4 gameplay acceptance is in progress.
 
 
 **v0.3.3 corrective patch, November 22, 2026:** Native logs establish one wave-28 Defeat after 29 full Hardcore wave-30 cycles. The existing loop previously stopped on any early result. A narrowly verified early-Defeat path now retries via the guarded Restart Match transition at most twice consecutively, resets after a fully verified cycle, and stops on unclear evidence or a third early defeat. No changes to tower plan, map route, paid-action guards, or Auto-Equip. Regression and native evidence are tracked in `docs/verification.md`.

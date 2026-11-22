@@ -1,9 +1,12 @@
 # TDS Macro
 
+**v0.3.4 native acceptance (November 22, 2026):** The frozen GUI completed one fresh Wretched Front Solo Hardcore match with 75/75 purchases, all required tower levels, natural wave-30 Defeat, 137 Gems displayed and zero recoveries, then automatically restarted and entered cycle 2. The standard installation passed frozen self-check and retains prior v0.3.3. Displayed rewards are not independently audited wallet deposits.
+
+
 **Unreleased v0.3.4 candidate (November 22, 2026):** After the v0.3.3 release, a live continuous session encountered a wave-transition HUD read timeout. A smaller source-only change replaces the secondary OCR crop using tested native wave-11/12 evidence and extends passive HUD observation from 5 to 7 seconds without repeating actions. The 75-action strategy, route, loadout and payment safeguards are unchanged. v0.3.3 remains the published release until the new frozen and native acceptance gates pass.
 
 
-**v0.3.4 follow-up in verification (November 22, 2026):** v0.3.3 completed two additional native 75-action wave-30 matches (274 displayed Gems) after one guarded relaunch. A later repeatable wave-11 OCR failure triggered another bounded recovery, so a targeted two-crop OCR and passive wave-confirmation correction is being verified. The active GUI worker remains untouched; the published v0.3.3 package is preserved.
+**v0.3.4 released November 22, 2026:** The wave-11 Hardcore HUD correction and two-second passive wave-confirmation allowance are available in the latest Windows package. Hosted Windows CI passed at f078887; frozen self-check, public ZIP checksum and archive privacy audit passed. Older v0.3.3 package and Desktop shortcut are preserved. Native v0.3.4 Hardcore gameplay is being verified from the GUI. See docs/verification.md for exact scope and evidence.
 
 
 **v0.3.3 corrective update (November 22, 2026):** The prior continuous three-tower run completed 29 fully verified wave-30 matches (3,973 Gems displayed), then stopped on a genuine wave-28 Defeat. v0.3.3 adds at most two direct Restart Match retries for twice-confirmed early Defeats, without crediting them as full cycles. See `docs/verification.md` for evidence and release/acceptance status; v0.3.2 and earlier release assets remain preserved.

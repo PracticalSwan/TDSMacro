@@ -1,9 +1,12 @@
 # Windows application
 
+**v0.3.4 GUI verified (2026-11-22):** Current standard installation is `dist/TDSMacro` and the v0.3.4 Desktop shortcut targets that application. The frozen GUI verified the exact three-tower loadout, one complete 75-action wave-30 Defeat with 137 Gems displayed and automatic direct Restart Match into cycle 2, with zero recoveries at the accepted result. Auto-Equip remains disabled; the session is continuous until safe stop, an uncertain state or bounded recovery termination.
+
+
 **Unreleased post-v0.3.3 HUD correction:** The next candidate retains the same three-tower GUI and controls; only wave-fraction sampling and the existing no-input wait are adjusted. Live v0.3.3 evidence includes two complete 75/75 wave-30 results followed by a safely recovered wave-11/12 HUD timeout. Current public v0.3.3 is unchanged; new frozen/native acceptance is required before deploying the candidate.
 
 
-**v0.3.4 candidate correction:** The Hardcore reader can require up to seven seconds of passive observation when cash/count/wave evidence is initially unreadable; a second exact wave reading is still mandatory. New wave-11 OCR fallback requires agreement between two bounded crops. Unknown HUD beyond this period, uncertain tower/cash and camera/focus loss still stop safely. This is not present in released v0.3.3.
+**v0.3.4 available in the current Windows release:** The Hardcore reader allows up to seven seconds of passive observation when HUD fields are initially unreadable, requiring two valid consecutive wave readings after a transition. A wider alternate text crop recovers the proven native wave-11 fraction only when exact OCR agreement is obtained. Persistent ambiguity, wrong selected tower/cash, missing focus and unknown camera still stop safely. This does not enable Auto-Equip.
 
 
 **v0.3.3 GUI behavior (November 22, 2026):** For continuous three-tower Hardcore only, a verified early Defeat can show `Restart Match 1/2` or `2/2`; these are not counted in Gem-cycle totals. Three consecutive early Defeats stop instead of looping. Normal three-client-relaunch recovery remains separate; uncertain results and purchases remain terminal. This behavior is new in v0.3.3; the original v0.3.2 package is preserved.
