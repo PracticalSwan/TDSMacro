@@ -1,5 +1,8 @@
 # Changelog
 
+v0.4.0 CANDIDATE (2026-11-22): User-controlled persistent automatic updates, OFF by default, and manual check/install in new Updates tab. Stable official release verification uses both GitHub SHA-256 asset digests and matching SHA256SUMS, strict ZIP/version validation, frozen pre-install self-check, and deferred install while gameplay runs. Separate helper waits for old GUI shutdown, backs up complete previous installation/captures and rolls back failed swap. No gameplay action, route, OCR or purchase changes. Release requires full tests, native Windows GUI/transaction acceptance, CI and archive privacy review.
+
+
 **v0.3.4 acceptance update, 2026-11-22:** The published OCR/passive-read correction completed a live 75/75-action wave-30 result with 137 Gems displayed and zero recoveries in the frozen GUI; direct Restart Match was verified by fresh cycle-2 purchases. The standard v0.3.4 installation passed frozen self-check and the prior v0.3.3 installation is preserved. The source strategy, map route and purchase guards remain unchanged.
 
 

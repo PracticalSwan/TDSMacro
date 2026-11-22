@@ -1,5 +1,8 @@
 # TDS Macro
 
+v0.4.0 CANDIDATE: The new Updates tab provides an Automatic updates ON/OFF toggle (OFF by default), Check now and manual Download/Install. When enabled, check stable official GitHub releases at startup and every six hours. Download and installation wait until the game worker stops. Verify exact release hash and sidecar, frozen self-check and safe ZIP paths; preserve the previous installation as backup. The replacement GUI starts idle and never resumes gameplay itself. See docs/APP.md for use and docs/verification.md for release gates. Version 0.4.0 is NOT published until those gates pass.
+
+
 **v0.3.4 native acceptance (November 22, 2026):** The frozen GUI completed one fresh Wretched Front Solo Hardcore match with 75/75 purchases, all required tower levels, natural wave-30 Defeat, 137 Gems displayed and zero recoveries, then automatically restarted and entered cycle 2. The standard installation passed frozen self-check and retains prior v0.3.3. Displayed rewards are not independently audited wallet deposits.
 
 

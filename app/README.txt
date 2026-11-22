@@ -1,4 +1,4 @@
-TDS Macro - Windows v0.3.4
+TDS Macro - Windows v0.4.0
 
 This patch addresses a documented early-Defeat stop after 29 complete
 three-tower Hardcore cycles. Two consecutive verified early Defeats may
@@ -8,7 +8,13 @@ A native wave-11 OCR ambiguity now requires agreement between exact,
 independently bounded text crops. Hardcore HUD verification allows up to
 7 seconds of passive rereading across wave changes, without any inputs
 or guesses; persistent unknown values still stop safely.
-The 960x690 Overview/Diagnostics GUI defaults to Wretched Front Hardcore Solo.
+The Overview, Diagnostics and Updates GUI defaults to Wretched Front Hardcore Solo.
+Updates tab: Automatic updates OFF by default. Enable for official stable
+GitHub release checks at startup and every six hours; Check now also works
+manually. Download/install are deferred while gameplay is running. Both
+GitHub asset digests and SHA256SUMS must agree, the ZIP is validated, and
+the new frozen app must pass self-check. The old complete installation is
+kept as backup; the replacement GUI starts idle without restarting Roblox.
 Equip Boomerang 1, regular Crook Boss 2, Farm 3; leave slots 4 and 5 EMPTY.
 Auto-Equip remains disabled. A frozen candidate completed 75/75 actions,
 natural wave-30 Defeat, 137 Gems displayed and direct Restart Match.

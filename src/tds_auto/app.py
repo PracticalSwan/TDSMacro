@@ -9,11 +9,13 @@ import queue
 import subprocess
 import sys
 import threading
+import time
 from datetime import datetime
 from pathlib import Path
 from ctypes import wintypes
 from .hardcore_plan_v2 import PLAN_ID as PLAN_V2_ID
 from .calibration import GOLDEN_V031_ACCEPTED_SHA
+from .updates import CURRENT_VERSION, UpdateError, UpdateService
 
 ROOT = Path(__file__).resolve().parents[2]
 STRATEGIES = {
@@ -256,12 +258,14 @@ class App:
         self.hotkeys = Hotkeys()
         self.controller = Controller()
         self.root = tk.Tk()
-        self.root.title('TDS Macro  •  Command Center')
+        self.root.title(f'TDS Macro v{CURRENT_VERSION}  •  Command Center')
         self.root.geometry('960x690')
         self.root.minsize(890, 690)
         self.root.resizable(True, True)
         self.root.configure(bg=self.BG)
         self.closing = False
+        self.update_handoff = False
+        self.updater = UpdateService(install_root=ROOT)
         self.start_error = None
 
         style = ttk.Style(self.root)
@@ -286,8 +290,10 @@ class App:
         self.tabs = ttk.Notebook(self.root, style='Dark.TNotebook')
         self.overview = tk.Frame(self.tabs, bg=self.BG)
         self.diagnostics = tk.Frame(self.tabs, bg=self.BG)
+        self.updates_tab = tk.Frame(self.tabs, bg=self.BG)
         self.tabs.add(self.overview, text='Overview')
         self.tabs.add(self.diagnostics, text='Diagnostics')
+        self.tabs.add(self.updates_tab, text='Updates')
         self.tabs.pack(fill='both', expand=True, padx=18, pady=(15, 12))
 
         header = tk.Frame(self.overview, bg=self.BG)
@@ -451,9 +457,114 @@ class App:
         tk.Button(commands, text='Export sanitized .txt', command=self.export_diagnostics,
                   bg=self.FIELD, fg=self.TEXT, relief='flat', padx=18, pady=10,
                   cursor='hand2', takefocus=True).pack(side='left')
+        update_area = tk.Frame(self.updates_tab, bg=self.PANEL,
+                               highlightbackground=self.BORDER, highlightthickness=1)
+        update_area.pack(fill='both', expand=True, padx=24, pady=22)
+        tk.Label(update_area, text='APPLICATION UPDATES', bg=self.PANEL,
+                 fg=self.MINT, font=('Segoe UI Semibold', 10)).pack(
+                     anchor='w', padx=24, pady=(25, 8))
+        tk.Label(update_area, text=f'TDS Macro  v{CURRENT_VERSION}',
+                 bg=self.PANEL, fg=self.TEXT, font=('Segoe UI Semibold', 24)).pack(
+                     anchor='w', padx=24)
+        tk.Label(update_area, text='Official stable releases from PracticalSwan/TDSMacro.',
+                 bg=self.PANEL, fg=self.MUTED, font=('Segoe UI', 11)).pack(
+                     anchor='w', padx=24, pady=(5, 20))
+        self.auto_updates = tk.BooleanVar(value=self.updater.enabled)
+        self.update_toggle = tk.Checkbutton(
+            update_area, text='Automatic updates  (ON / OFF)',
+            variable=self.auto_updates, command=self.toggle_updates,
+            bg=self.PANEL, fg=self.TEXT, selectcolor=self.FIELD,
+            activeforeground=self.TEXT, activebackground=self.PANEL,
+            font=('Segoe UI Semibold', 12), cursor='hand2',
+            takefocus=True)
+        self.update_toggle.pack(anchor='w', padx=24, pady=(0, 9))
+        tk.Label(update_area, text='Off by default. Checks at startup and every 6 hours.\nDownloads and installation wait until gameplay is stopped.\nThe previous version is backed up; the new GUI starts idle.',
+                 bg=self.PANEL, fg=self.MUTED, justify='left',
+                 font=('Segoe UI', 10)).pack(anchor='w', padx=27, pady=(0, 18))
+        self.update_message = tk.StringVar(value=self.updater.status)
+        tk.Label(update_area, textvariable=self.update_message,
+                 fg=self.MINT, bg=self.PANEL, anchor='w', justify='left',
+                 font=('Segoe UI', 11), wraplength=775).pack(
+                     fill='x', padx=24, pady=(0, 18))
+        updates_actions = tk.Frame(update_area, bg=self.PANEL)
+        updates_actions.pack(anchor='w', padx=24)
+        self.check_update_button = tk.Button(
+            updates_actions, text='Check now', command=self.check_updates,
+            bg=self.FIELD, fg=self.TEXT, relief='flat',
+            padx=20, pady=10, cursor='hand2', takefocus=True)
+        self.check_update_button.pack(side='left', padx=(0, 12))
+        self.install_update_button = tk.Button(
+            updates_actions, text='Install verified update', command=self.install_update,
+            bg=self.MINT, fg=self.BG, relief='flat', state='disabled',
+            padx=20, pady=10, cursor='hand2', takefocus=True)
+        self.install_update_button.pack(side='left')
+        self._button_hover(self.check_update_button, self.FIELD, self.BORDER)
+        self._button_hover(self.install_update_button, self.MINT, '#97f5d1')
         self._last_diagnostics = ''
         self.root.protocol('WM_DELETE_WINDOW', self.close)
         self.root.after(100, self.tick)
+
+    def toggle_updates(self):
+        try:
+            self.updater.set_enabled(self.auto_updates.get())
+            self.update_message.set(self.updater.status)
+        except OSError as exc:
+            self.auto_updates.set(self.updater.enabled)
+            self.update_message.set('Cannot save update preference: '+str(exc))
+
+    def check_updates(self):
+        # An explicit user request may retry a version that failed previously.
+        self.updater.clear_failed()
+        if self.updater.check_now():
+            self.update_message.set(self.updater.status)
+
+    def install_update(self):
+        # The update helper only starts when this GUI owns no live worker.
+        if self.controller.running:
+            self.update_message.set('Stop the current match safely before installing.')
+            return
+        if getattr(self,'closing',False) or getattr(self,'update_handoff',False):
+            return
+        if self.updater.busy:
+            self.update_message.set('Update verification is still running.')
+            return
+        if not self.updater.staged:
+            if self.updater.release is not None:
+                self.updater.prepare_now()
+                self.update_message.set(self.updater.status)
+            else:
+                self.update_message.set('Check for a new release first.')
+            return
+        try:
+            self.hotkeys.cancel_start_requests()
+            self.updater.launch_installer()
+        except (OSError,RuntimeError,ValueError) as exc:
+            self.update_message.set('Update handover failed: '+str(exc))
+            return
+        self.update_handoff=True
+        self.closing=True
+        self.hotkeys.close()
+        self.root.destroy()
+
+    def maintain_updates(self, running):
+        self.updater.poll()
+        if (not self.closing and self.updater.enabled and not self.updater.busy
+                and not self.updater.staged and not self.updater.error):
+            if time.monotonic()>=self.updater.next_check:
+                self.updater.check_now()
+            elif self.updater.release is not None and not running:
+                self.updater.prepare_now()
+        if (not self.closing and not running and self.updater.enabled
+                and self.updater.staged and not self.updater.busy):
+            self.install_update()
+            return
+        self.update_message.set(self.updater.status)
+        self.check_update_button.configure(
+            state='disabled' if self.updater.busy else 'normal')
+        self.install_update_button.configure(
+            text=('Install verified update' if self.updater.staged else 'Download update'),
+            state='normal' if self.updater.release and not running
+                  and not self.updater.busy else 'disabled')
 
     def _strategy_changed(self, _event=None):
         hardcore = STRATEGIES.get(self.strategy.get()) == PLAN_V2_ID
@@ -511,7 +622,7 @@ class App:
                 self.message.set('Diagnostics export failed: '+type(exc).__name__)
 
     def start(self, generation=None):
-        if self.closing:
+        if self.closing or self.update_handoff:
             return
         self.start_error = None
         if generation is None:
@@ -546,6 +657,9 @@ class App:
                 break
             self.start(generation) if action == 'start' else self.stop(cancel_pending=False)
         running = self.controller.running
+        self.maintain_updates(running)
+        if self.update_handoff:
+            return
         data = self.controller.status()
         self.message.set(status_text(data, running, self.controller.stop_requested, self.start_error))
         selected_hardcore = STRATEGIES.get(self.strategy.get()) == PLAN_V2_ID
@@ -614,13 +728,38 @@ def self_check(path):
     tcl_version = tk.Tcl().eval('info patchlevel')
     result = {'root': str(ROOT), 'frozen': bool(getattr(sys, 'frozen', False)), 'operations': len(strategy.steps), 'golden_candidate_actions': len(expanded.steps),
               'observer_states': len(observer.anchors), 'ocr_text': text, 'tcl': tcl_version, 'strategy_sha256': profile['strategy_sha256'],
-              'hardcore_phases': len(hardcore.phases), 'hardcore_plan_sha256': PLAN_SHA256}
+              'hardcore_phases': len(hardcore.phases), 'hardcore_plan_sha256': PLAN_SHA256, 'version': CURRENT_VERSION}
     Path(path).write_text(json.dumps(result, indent=2), encoding='utf-8')
     return 0
 
 
 def main(argv=None):
     args = list(sys.argv[1:] if argv is None else argv)
+    if args and args[0]=='--apply-update':
+        if len(args)!=4:
+            return 2
+        from .updates import apply_from_helper,settings_dir
+        try:
+            apply_from_helper(Path(args[1]),int(args[2]),args[3])
+            return 0
+        except (OSError,RuntimeError,ValueError) as exc:
+            error_path=settings_dir()/'last-update-error.txt'
+            try:
+                error_path.parent.mkdir(parents=True,exist_ok=True)
+                error_path.write_text(str(exc),encoding='utf-8')
+                (error_path.parent/'failed-update.json').write_text(
+                    json.dumps({'version':args[3], 'error':type(exc).__name__}),
+                    encoding='utf-8')
+            except OSError:
+                pass
+            old=Path(args[1])/'TDSMacro.exe'
+            if old.is_file():
+                try:
+                    subprocess.Popen([str(old)],cwd=old.parent,
+                                     creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
+                except OSError:
+                    pass
+            return 2
     if args and args[0] == '--engine':
         if sys.stdout is None and '--output' in args:
             output = Path(args[args.index('--output')+1])

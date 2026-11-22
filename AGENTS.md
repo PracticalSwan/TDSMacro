@@ -1,5 +1,8 @@
 # Project instructions — TDS Macro
 
+v0.4.0 UPDATE GATE (Nov 22 2026): Implement opt-in OFF-by-default GUI automatic updates. Check only official PracticalSwan/TDSMacro stable GitHub releases. Validate GitHub ZIP and checksum asset digests, exact version/package paths and frozen self-check. Store preference outside installation. Never download or install while gameplay worker runs, stop Roblox for updating, or resume gameplay automatically. New staged helper waits for GUI exit and preserves prior installation/captures with rollback. Retain v0.3.4 release and current live worker until safe handover. Full source, hosted CI, frozen UI and disposable transaction tests plus native gameplay are required before releasing 0.4.0.
+
+
 **v0.3.4 accepted native evidence — 2026-11-22 ICT:** From the separate frozen v0.3.4 GUI, `app_20261122_193520_325192/attempt_001/hardcore_cycle_001/result.json` records a natural wave-30 Defeat, all 75/75 actions, all required levels, 137 displayed Gems, and zero recoveries. The same worker performed guarded Restart Match and began cycle 2 with positively verified actions. Standard `dist/TDSMacro` now matches the tested EXE SHA-256 `bd3ee1817cfbe90ca62bee0072de4814e004690aa77ebf477c655e489b74654e`; frozen self-check passed. Preserve the continuing worker and previous v0.3.3 install; additional cycles remain subject to bounded recovery.
 
 

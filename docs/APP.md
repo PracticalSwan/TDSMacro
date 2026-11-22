@@ -1,5 +1,8 @@
 # Windows application
 
+v0.4.0 UPDATES (candidate): Open the Updates tab to toggle Automatic updates ON/OFF (default OFF). Enabled checks run on app startup and every six hours. Check now queries GitHub manually even when OFF. If a newer stable official release is available, Download update verifies and stages it; Install verified update applies it after the worker is idle. With auto-update ON, preparation and install occur automatically once idle. Continuous gameplay is never interrupted to update. Settings live in LOCALAPPDATA/TDSMacro/settings.json, outside the application. The old installation/captures are preserved as a timestamped backup; the new GUI starts idle. Unknown versions, invalid digests/archives, failed self-checks and installation errors stop without replacing the old version.
+
+
 **v0.3.4 GUI verified (2026-11-22):** Current standard installation is `dist/TDSMacro` and the v0.3.4 Desktop shortcut targets that application. The frozen GUI verified the exact three-tower loadout, one complete 75-action wave-30 Defeat with 137 Gems displayed and automatic direct Restart Match into cycle 2, with zero recoveries at the accepted result. Auto-Equip remains disabled; the session is continuous until safe stop, an uncertain state or bounded recovery termination.
 
 

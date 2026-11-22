@@ -67,6 +67,52 @@ class AppTests(unittest.TestCase):
         button.events['<Leave>'](None)
         self.assertEqual(button.color,'hover')
 
+    def test_update_install_never_starts_when_game_worker_running(self):
+        from tds_auto.app import App
+        from unittest.mock import Mock
+        panel=App.__new__(App)
+        panel.controller=Mock(running=True)
+        panel.updater=Mock(staged=Path('verified'),busy=False)
+        panel.update_message=Mock()
+        panel.install_update()
+        panel.updater.launch_installer.assert_not_called()
+        panel.update_message.set.assert_called()
+
+    def test_update_install_handover_starts_only_when_idle(self):
+        from tds_auto.app import App
+        from unittest.mock import Mock
+        panel=App.__new__(App)
+        panel.controller=Mock(running=False)
+        panel.updater=Mock(staged=Path('verified'),busy=False)
+        panel.updater.launch_installer.return_value=object()
+        panel.update_message=Mock()
+        panel.hotkeys=Mock()
+        panel.root=Mock()
+        panel.closing=False
+        panel.update_handoff=False
+        panel.install_update()
+        self.assertTrue(panel.update_handoff)
+        panel.updater.launch_installer.assert_called_once()
+        panel.root.destroy.assert_called_once()
+        panel.controller.stop.assert_not_called()
+
+    def test_auto_update_poll_does_not_download_or_handover_while_running(self):
+        from tds_auto.app import App
+        from unittest.mock import Mock
+        panel=App.__new__(App)
+        panel.closing=False
+        panel.updater=Mock(enabled=True,busy=False,staged=None,error=None,
+                           release=object(),next_check=10**15,status='Waiting')
+        panel.update_message=Mock()
+        panel.check_update_button=Mock()
+        panel.install_update_button=Mock()
+        panel.install_update=Mock()
+        panel.maintain_updates(True)
+        panel.updater.prepare_now.assert_not_called()
+        panel.install_update.assert_not_called()
+        panel.maintain_updates(False)
+        panel.updater.prepare_now.assert_called_once()
+
     def test_one_strategy_starts_one_explicit_continuous_guarded_worker(self):
         self.assertTrue(self.controller.start(next(iter(STRATEGIES))))
         self.assertFalse(self.controller.start(next(iter(STRATEGIES))))
