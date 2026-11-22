@@ -558,6 +558,22 @@ class HardcoreCandidateV2Tests(unittest.TestCase):
             frame.paste(crop, (1270, 934))
         self.assertEqual(reader.read(frame).tower_count, 0)
 
+    def test_hardcore_count_eighteen_from_native_text_glyph_not_ocr_guess(self):
+        from PIL import Image, ImageChops
+        from tds_auto.resources import HudReader, parse_count
+
+        frame = Image.new('RGB', (1920, 991))
+        with Image.open(ROOT/'tests/fixtures/hardcore_wave19_count18_native.png') as label:
+            frame.paste(label, (1274, 940))
+        reader = HudReader(hardcore=True)
+        self.assertIsNone(parse_count('18140'))
+        self.assertIsNone(parse_count('18 1 40'))
+        self.assertEqual(reader.count_from_pixels(frame), 18)
+        self.assertEqual(reader.read(frame).tower_count, 18)
+        self.assertIsNone(HudReader().count_from_pixels(frame))
+        self.assertIsNone(reader.count_from_pixels(ImageChops.offset(frame,24,0)))
+        self.assertIsNone(reader.count_from_pixels(ImageChops.offset(frame,0,24)))
+
     def test_farm_upgrade_reuses_selection_but_checks_for_a_changed_quote_before_click(self):
         from tds_auto.hardcore_match import HardcoreMatch
         from tds_auto.resources import Hud

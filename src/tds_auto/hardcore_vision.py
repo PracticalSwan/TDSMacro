@@ -105,19 +105,36 @@ class WretchedRoute:
             abs(a-b) <= 1 for a,b in zip(fits[0][3], fits[1][3]))
 
     @staticmethod
-    def _matching_pinned_pair(gray, landmarks):
-        # One-pixel camera settling tolerance; both independent rock regions
-        # must agree on direction, so larger terrain shifts fail closed.
-        left = cv2.matchTemplate(gray[0][23:49, 5:31],
-                                 landmarks[0][24:48, 6:30],
-                                 cv2.TM_CCOEFF_NORMED)
+    def _matching_pinned_pair(gray, landmarks, checkpoint):
+        # Preserve both independent terrain regions and their offset agreement.
         right = cv2.matchTemplate(gray[1][63:85, 35:57],
                                   landmarks[1][64:84, 36:56],
                                   cv2.TM_CCOEFF_NORMED)
-        _, left_score, _, left_xy = cv2.minMaxLoc(left)
         _, right_score, _, right_xy = cv2.minMaxLoc(right)
-        return (left_score >= .94 and right_score >= .90
-                and all(abs(a-b) <= 1 for a, b in zip(left_xy, right_xy)))
+        if right_score < .90:
+            return False
+
+        left = cv2.matchTemplate(gray[0][23:49, 5:31],
+                                 landmarks[0][24:48, 6:30],
+                                 cv2.TM_CCOEFF_NORMED)
+        _, left_score, _, left_xy = cv2.minMaxLoc(left)
+        if (left_score >= .94
+                and all(abs(a-b) <= 1 for a,b in zip(left_xy, right_xy))):
+            return True
+
+        # Checkpoint 6 has moving road arrows; checkpoint 7's main left crop
+        # differs slightly on fresh clients. These independently recorded
+        # static patches keep the original right rock, score and offset gates.
+        static_patches = {6: (37, 11), 7: (34, 34)}
+        point = static_patches.get(checkpoint)
+        if point is None:
+            return False
+        x, y = point
+        static = cv2.matchTemplate(gray[0][y:y+26, x:x+26],
+                                   landmarks[0][y+1:y+25, x+1:x+25],
+                                   cv2.TM_CCOEFF_NORMED)
+        _, score, _, offset = cv2.minMaxLoc(static)
+        return score >= .94 and all(abs(a-b) <= 1 for a,b in zip(offset, right_xy))
 
     def matching_steps(self, frame, checkpoints):
         if frame.size != (1920, 991):
@@ -134,7 +151,7 @@ class WretchedRoute:
             elif self.legacy:
                 if any(self._matching_pair(edges, landmarks, 4, .65) for landmarks in self.views[index]):
                     matches.append(index)
-            elif any(self._matching_pinned_pair(gray, landmarks)
+            elif any(self._matching_pinned_pair(gray, landmarks, index)
                      for landmarks in self.gray_views[index]):
                 matches.append(index)
         return matches
@@ -177,9 +194,16 @@ class WretchedCamera:
                 raise ValueError('Wretched camera requires multiple landmarks in the supported viewport.')
             boxes = [tuple(box) for box in profile['landmarks']]
             self.first_alternate = None
+            self.first_rock_static = None
             if plan.profile_id == 'wretched_front_hardcore_v2':
                 original = boxes[0]
                 self.first_alternate = (original, np.asarray(scene.crop(original).convert('L')))
+                # The moving wave-28 range effect briefly obscures the broad
+                # original first-rock template. This smaller adjacent STATIC
+                # rock patch matches both independent right rocks on native
+                # wave-27/28 and full-match frames; no tolerances are changed.
+                static=(515,770,555,796)
+                self.first_rock_static=(static,np.asarray(scene.crop(static).convert('L')))
                 # Late-wave moving range rings can shift the match within both
                 # the broad tile and its former tall rock crop. The small lower
                 # fixed rock edge matches all observed wave-22/27/28 frames.
@@ -218,6 +242,8 @@ class WretchedCamera:
             if any(item is None for item in other):
                 return None
             candidates = [offsets[0], locate(self.first_alternate)]
+            if self.first_rock_static is not None:
+                candidates.append(locate(self.first_rock_static))
             def consensus(candidate):
                 if candidate is None:
                     return False
@@ -316,9 +342,12 @@ def wretched_ready(frame, ocr):
         title, wide_title, ImageOps.invert(title.convert('RGB')), ImageOps.invert(wide_title.convert('RGB')),
         ink(frame.crop((830, 158, 935, 193)))))
     count = frame.crop((820, 195, 951, 220))
+    # With four pre-Ready Farms, the old tight crop can OCR 0/1 as p/l.
+    # A native-verified wider crop retains the full 0/1 Required label.
+    wide_count = frame.crop((812, 195, 947, 230))
     button = frame.crop((984, 194, 1081, 218))
     return (caption and any(ocr.read(sample).casefold().strip().rstrip('!').split() == ['0/1', 'required']
-                            for sample in (count, ink(count)))
+                            for sample in (count, ink(count), wide_count, ink(wide_count)))
             and any(ocr.read(sample).casefold() == 'ready' for sample in (button, ink(button))))
 
 

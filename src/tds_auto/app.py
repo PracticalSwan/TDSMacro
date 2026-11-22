@@ -235,14 +235,15 @@ def status_text(data, running, stopping=False, start_error=None):
 class App:
     """Compact, keyboard-friendly control panel; Roblox input remains in Controller."""
 
-    BG = '#0c1322'
-    PANEL = '#162238'
-    FIELD = '#202f48'
-    BORDER = '#344561'
-    TEXT = '#eff5ff'
-    MUTED = '#a5b4ce'
-    MINT = '#75e4b9'
-    ROSE = '#ff99a4'
+    BG = '#0a101c'
+    PANEL = '#151f30'
+    FIELD = '#202d40'
+    BORDER = '#334156'
+    TEXT = '#f2f6fa'
+    MUTED = '#a6b5c9'
+    MINT = '#6ee5b7'
+    ROSE = '#ff9198'
+    SUBTLE = '#101929'
 
     def __init__(self):
         import tkinter as tk
@@ -251,136 +252,217 @@ class App:
         self.hotkeys = Hotkeys()
         self.controller = Controller()
         self.root = tk.Tk()
-        self.root.title('TDS Macro')
-        self.root.geometry('790x680')
+        self.root.title('TDS Macro  •  Command Center')
+        self.root.geometry('960x690')
+        self.root.minsize(890, 690)
         self.root.resizable(True, True)
-        self.root.minsize(760,610)
         self.root.configure(bg=self.BG)
         self.closing = False
         self.start_error = None
 
         style = ttk.Style(self.root)
         style.theme_use('clam')
-        style.configure('Modern.TCombobox', font=('Segoe UI', 11), padding=11,
+        style.configure('Modern.TCombobox', font=('Segoe UI', 11), padding=10,
                         foreground=self.TEXT, fieldbackground=self.FIELD,
-                        background=self.FIELD, arrowcolor=self.MINT, bordercolor=self.BORDER,
-                        lightcolor=self.FIELD, darkcolor=self.FIELD)
-        style.map('Modern.TCombobox', fieldbackground=[('readonly', self.FIELD)],
+                        background=self.FIELD, arrowcolor=self.MINT,
+                        bordercolor=self.BORDER, lightcolor=self.FIELD,
+                        darkcolor=self.FIELD)
+        style.map('Modern.TCombobox',
+                  fieldbackground=[('readonly', self.FIELD)],
                   foreground=[('readonly', self.TEXT)])
+        style.configure('Mint.Horizontal.TProgressbar', troughcolor=self.FIELD,
+                        background=self.MINT, borderwidth=0, thickness=6)
         style.configure('Dark.TNotebook', background=self.BG, borderwidth=0)
-        style.configure('Dark.TNotebook.Tab', background=self.FIELD, foreground=self.TEXT,
-                        padding=(22,10), font=('Segoe UI Semibold',11))
-        style.map('Dark.TNotebook.Tab', background=[('selected',self.PANEL)],
-                  foreground=[('selected',self.MINT)])
-        self.tabs=ttk.Notebook(self.root,style='Dark.TNotebook')
-        self.overview=tk.Frame(self.tabs,bg=self.BG)
-        self.diagnostics=tk.Frame(self.tabs,bg=self.BG)
-        self.tabs.add(self.overview,text='Overview')
-        self.tabs.add(self.diagnostics,text='Diagnostics')
-        self.tabs.pack(fill='both',expand=True,padx=13,pady=(12,10))
+        style.configure('Dark.TNotebook.Tab', background=self.BG, foreground=self.MUTED,
+                        padding=(23, 12), font=('Segoe UI Semibold', 10))
+        style.map('Dark.TNotebook.Tab',
+                  background=[('selected', self.PANEL)],
+                  foreground=[('selected', self.MINT)])
+
+        self.tabs = ttk.Notebook(self.root, style='Dark.TNotebook')
+        self.overview = tk.Frame(self.tabs, bg=self.BG)
+        self.diagnostics = tk.Frame(self.tabs, bg=self.BG)
+        self.tabs.add(self.overview, text='Overview')
+        self.tabs.add(self.diagnostics, text='Diagnostics')
+        self.tabs.pack(fill='both', expand=True, padx=18, pady=(15, 12))
 
         header = tk.Frame(self.overview, bg=self.BG)
-        header.pack(fill='x', padx=30, pady=(24, 0))
-        tk.Label(header, text='TDS  /  MACRO', bg=self.BG, fg=self.MINT,
-                 font=('Segoe UI Semibold', 11)).pack(side='left', anchor='w')
-        self.state_label = tk.Label(header, text='●  READY', bg=self.FIELD, fg=self.MUTED,
-                                    font=('Segoe UI Semibold', 10), padx=12, pady=6)
+        header.pack(fill='x', padx=24, pady=(20, 0))
+        tk.Label(header, text='TDS  /  OPERATIONS', fg=self.MINT, bg=self.BG,
+                 font=('Segoe UI Semibold', 10)).pack(side='left')
+        self.state_label = tk.Label(header, text='●  READY', fg=self.MUTED,
+                                    bg=self.FIELD, padx=13, pady=7,
+                                    font=('Segoe UI Semibold', 10))
         self.state_label.pack(side='right')
-        tk.Label(self.overview, text='Tower defense, on autopilot.', bg=self.BG,
-                 fg=self.TEXT, font=('Segoe UI Semibold', 22)).pack(anchor='w', padx=30, pady=(12, 2))
-        tk.Label(self.overview, text='Golden Scout and Hardcore verified on TDS v2.20.3.',
-                 bg=self.BG, fg=self.MUTED, font=('Segoe UI', 10)).pack(anchor='w', padx=31)
+        tk.Label(self.overview, text='Mission control', bg=self.BG, fg=self.TEXT,
+                 font=('Segoe UI Semibold', 27)).pack(anchor='w', padx=24, pady=(9, 0))
+        tk.Label(self.overview, text='Launch guarded strategies, track progress, and stop safely.',
+                 bg=self.BG, fg=self.MUTED, font=('Segoe UI', 10)).pack(
+                     anchor='w', padx=25, pady=(1, 0))
 
-        settings = tk.Frame(self.overview, bg=self.PANEL, highlightbackground=self.BORDER,
-                            highlightthickness=1, padx=19, pady=14)
-        settings.pack(fill='x', padx=30, pady=(20, 0))
-        tk.Label(settings, text='STRATEGY', bg=self.PANEL, fg=self.MUTED,
+        body = tk.Frame(self.overview, bg=self.BG)
+        body.pack(fill='both', expand=True, padx=24, pady=(20, 0))
+        body.grid_columnconfigure(0, weight=6, uniform='panels')
+        body.grid_columnconfigure(1, weight=5, uniform='panels')
+        body.grid_rowconfigure(0, weight=1)
+
+        setup = tk.Frame(body, bg=self.PANEL, highlightbackground=self.BORDER,
+                         highlightthickness=1)
+        setup.grid(row=0, column=0, sticky='nsew', padx=(0, 9))
+        live = tk.Frame(body, bg=self.PANEL, highlightbackground=self.BORDER,
+                        highlightthickness=1)
+        live.grid(row=0, column=1, sticky='nsew', padx=(9, 0))
+        tk.Frame(setup, bg=self.MINT, height=3).pack(fill='x')
+        tk.Frame(live, bg=self.FIELD, height=3).pack(fill='x')
+        left = tk.Frame(setup, bg=self.PANEL)
+        left.pack(fill='both', expand=True, padx=19, pady=(15, 10))
+        right = tk.Frame(live, bg=self.PANEL)
+        right.pack(fill='both', expand=True, padx=19, pady=(15, 10))
+
+        tk.Label(left, text='RUN CONFIGURATION', bg=self.PANEL, fg=self.MUTED,
                  font=('Segoe UI Semibold', 10)).pack(anchor='w')
-        self.strategy = tk.StringVar(value=next(iter(STRATEGIES)))
-        self.selector = ttk.Combobox(settings, textvariable=self.strategy,
-                                    values=list(STRATEGIES), state='readonly',
-                                    style='Modern.TCombobox', takefocus=True)
-        self.selector.pack(fill='x', pady=(8, 9))
+        tk.Label(left, text='Strategy', bg=self.PANEL, fg=self.TEXT,
+                 font=('Segoe UI Semibold', 12)).pack(anchor='w', pady=(15, 1))
+        self.strategy = tk.StringVar(value=next(
+            name for name, plan in STRATEGIES.items() if plan == PLAN_V2_ID))
+        self.selector = ttk.Combobox(left, textvariable=self.strategy,
+                                     values=list(STRATEGIES), state='readonly',
+                                     style='Modern.TCombobox', takefocus=True)
+        self.selector.pack(fill='x', pady=(8, 10))
+        self.selector.bind('<<ComboboxSelected>>', self._strategy_changed)
+        self.loadout_summary = tk.StringVar()
+        tk.Label(left, textvariable=self.loadout_summary, bg=self.SUBTLE,
+                 fg=self.TEXT, justify='left', anchor='w',
+                 font=('Segoe UI', 10), padx=12, pady=11,
+                 wraplength=360).pack(fill='x', pady=(4, 12))
+        self._strategy_changed()
+
         self.auto_recover = tk.BooleanVar(value=True)
         self.recover_toggle = tk.Checkbutton(
-            settings, text='Recover from game failures (up to 3 restarts)',
-            variable=self.auto_recover, bg=self.PANEL, fg=self.MUTED,
+            left, text='Recover game failures  ·  max 3 restarts',
+            variable=self.auto_recover, bg=self.PANEL, fg=self.TEXT,
             selectcolor=self.FIELD, activebackground=self.PANEL,
             activeforeground=self.TEXT, highlightthickness=0,
             cursor='hand2', font=('Segoe UI', 10), takefocus=True)
-        self.recover_toggle.pack(anchor='w', pady=(1, 0))
-        self.auto_equip=tk.BooleanVar(value=False)
-        self.equip_toggle=tk.Checkbutton(
-            settings,text='Auto Equip (unavailable on current TDS UI)',
-            variable=self.auto_equip,bg=self.PANEL,fg=self.MUTED,
-            selectcolor=self.FIELD,activebackground=self.PANEL,
-            activeforeground=self.TEXT,highlightthickness=0,
-            cursor='arrow',font=('Segoe UI',10),state='disabled',takefocus=False)
-        self.equip_toggle.pack(anchor='w',pady=(3,0))
-        tk.Label(settings,text='Equip manually. Empty slots lack the required EMPTY text.',
-                 bg=self.PANEL,fg=self.ROSE,font=('Segoe UI',9)).pack(anchor='w')
+        self.recover_toggle.pack(anchor='w', pady=(4, 4))
+        self.auto_equip = tk.BooleanVar(value=False)
+        self.equip_toggle = tk.Checkbutton(
+            left, text='Auto-Equip  ·  unavailable on this game UI',
+            variable=self.auto_equip, bg=self.PANEL, fg=self.MUTED,
+            selectcolor=self.FIELD, activebackground=self.PANEL,
+            activeforeground=self.MUTED, highlightthickness=0,
+            cursor='arrow', font=('Segoe UI', 10), state='disabled')
+        self.equip_toggle.pack(anchor='w', pady=(1, 2))
+        tk.Label(left, text='Equip manually. Empty slots cannot be verified by text.',
+                 bg=self.PANEL, fg=self.MUTED, font=('Segoe UI', 9),
+                 justify='left', wraplength=345).pack(anchor='w', pady=(1, 0))
+
+        tk.Label(right, text='LIVE SESSION', bg=self.PANEL, fg=self.MUTED,
+                 font=('Segoe UI Semibold', 10)).pack(anchor='w')
+        self.stats = tk.StringVar(value='0 cycles  ·  0 gems displayed')
+        tk.Label(right, textvariable=self.stats, bg=self.PANEL, fg=self.TEXT,
+                 font=('Segoe UI Semibold', 16), anchor='w',
+                 wraplength=315, justify='left').pack(fill='x', pady=(12, 12))
+        tk.Frame(right, bg=self.BORDER, height=1).pack(fill='x')
+        metrics = tk.Frame(right, bg=self.PANEL)
+        metrics.pack(fill='x', pady=(13, 11))
+        for col in range(3):
+            metrics.grid_columnconfigure(col, weight=1)
+        for column, title in enumerate(('WAVE', 'ACTIONS', 'RECOVERIES')):
+            cell = tk.Frame(metrics, bg=self.PANEL)
+            cell.grid(row=0, column=column, sticky='nw')
+            tk.Label(cell, text=title, bg=self.PANEL, fg=self.MUTED,
+                     font=('Segoe UI Semibold', 8)).pack(anchor='w')
+            variable = tk.StringVar(value='—' if column < 2 else '0')
+            if column == 0:
+                self.wave_display = variable
+            elif column == 1:
+                self.action_display = variable
+            else:
+                self.recoveries_display = variable
+            tk.Label(cell, textvariable=variable, bg=self.PANEL, fg=self.TEXT,
+                     font=('Segoe UI Semibold', 17)).pack(anchor='w', pady=(3, 0))
+        self.progress_bar = ttk.Progressbar(right, orient='horizontal',
+                                            style='Mint.Horizontal.TProgressbar',
+                                            mode='determinate', maximum=75, value=0)
+        self.progress_bar.pack(fill='x', pady=(0, 14))
+        tk.Frame(right, bg=self.BORDER, height=1).pack(fill='x', pady=(0, 12))
+        tk.Label(right, text='CURRENT ACTIVITY', bg=self.PANEL, fg=self.MUTED,
+
+                 font=('Segoe UI Semibold', 9)).pack(anchor='w')
+        self.message = tk.StringVar(value='Ready — open the TDS lobby, then press F1.')
+        tk.Label(right, textvariable=self.message, bg=self.PANEL, fg=self.TEXT,
+                 justify='left', anchor='nw', font=('Segoe UI', 10),
+                 wraplength=305).pack(fill='x', pady=(8, 0))
 
         actions = tk.Frame(self.overview, bg=self.BG)
-        actions.pack(fill='x', padx=30, pady=(16, 0))
+        actions.pack(fill='x', padx=24, pady=(16, 0))
         self.start_button = tk.Button(
-            actions, text='Start   F1', command=self.start, cursor='hand2',
-            bg=self.MINT, fg='#10291e', activebackground='#9af2ce',
-            activeforeground='#10291e', font=('Segoe UI Semibold', 12),
+            actions, text='Start run    F1', command=self.start, cursor='hand2',
+            bg=self.MINT, fg=self.BG, activebackground='#97f5d1',
+            activeforeground=self.BG, font=('Segoe UI Semibold', 12),
             relief='flat', bd=0, pady=11, takefocus=True,
             highlightthickness=2, highlightbackground=self.BG,
             highlightcolor='#ffffff')
-        self.start_button.pack(side='left', fill='x', expand=True, padx=(0, 7))
+        self.start_button.pack(side='left', fill='x', expand=True, padx=(0, 8))
         self.stop_button = tk.Button(
-            actions, text='Stop   F2', command=self.stop, cursor='hand2',
-            state='disabled', bg=self.FIELD, fg=self.ROSE, activebackground='#3a2638',
-            activeforeground='#ffd7dc', font=('Segoe UI Semibold', 12),
-            relief='flat', bd=0, pady=11, takefocus=True,
-            highlightthickness=2, highlightbackground=self.BG,
-            highlightcolor='#ffffff')
-        self.stop_button.pack(side='left', fill='x', expand=True, padx=(7, 0))
-        self._button_hover(self.start_button, self.MINT, '#9af2ce')
-        self._button_hover(self.stop_button, self.FIELD, '#3a2638')
+            actions, text='Stop safely    F2', command=self.stop, cursor='hand2',
+            state='disabled', bg=self.FIELD, fg=self.ROSE,
+            activebackground='#403044', activeforeground='#ffe2e3',
+            font=('Segoe UI Semibold', 12), relief='flat', bd=0, pady=11,
+            takefocus=True, highlightthickness=2,
+            highlightbackground=self.BG, highlightcolor='#ffffff')
+        self.stop_button.pack(side='left', fill='x', expand=True, padx=(8, 0))
+        self._button_hover(self.start_button, self.MINT, '#97f5d1')
+        self._button_hover(self.stop_button, self.FIELD, '#403044')
 
-        activity = tk.Frame(self.overview, bg=self.PANEL, highlightbackground=self.BORDER,
-                            highlightthickness=1, padx=20, pady=14)
-        activity.pack(fill='x', padx=30, pady=(18, 0))
-        tk.Label(activity, text='SESSION', bg=self.PANEL, fg=self.MUTED,
-                 font=('Segoe UI Semibold', 10)).pack(anchor='w')
-        self.stats = tk.StringVar(value='0 wins   ·   0 coins')
-        tk.Label(activity, textvariable=self.stats, bg=self.PANEL, fg=self.TEXT,
-                 font=('Segoe UI Semibold', 17)).pack(anchor='w', pady=(6, 0))
-        self.message = tk.StringVar(value='Ready — open the TDS lobby, then press F1.')
-        tk.Label(activity, textvariable=self.message, bg=self.PANEL, fg=self.MUTED,
-                 font=('Segoe UI', 10), anchor='w', justify='left',
-                 wraplength=610).pack(fill='x', anchor='w', pady=(7, 0))
+        footer = tk.Frame(self.overview, bg=self.BG)
+        footer.pack(fill='x', padx=25, pady=(10, 15))
+        tk.Label(footer, text='F8 / Esc  emergency stop', bg=self.BG,
+                 fg=self.MUTED, font=('Segoe UI', 9)).pack(side='left')
+        tk.Label(footer, text='Roblox foreground  ·  1920 × 991  ·  120 DPI',
+                 bg=self.BG, fg=self.MUTED, font=('Segoe UI', 9)).pack(side='right')
 
-        tk.Label(self.overview, text='F1 Start  |  F2 Stop  |  F8 / Esc Emergency stop', bg=self.BG, fg=self.MUTED,
-                 font=('Segoe UI', 9), justify='left').pack(anchor='w', padx=31, pady=(14, 0))
-        tk.Label(self.overview, text='Keep Roblox foreground at 1920 x 991 pixels and 120 DPI.',
-                 bg=self.BG, fg=self.MUTED, font=('Segoe UI', 9),
-                 justify='left').pack(anchor='w', padx=31, pady=(2, 0))
-        tk.Label(self.diagnostics,text='Session diagnostics',bg=self.BG,fg=self.TEXT,
-                 font=('Segoe UI Semibold',19)).pack(anchor='w',padx=24,pady=(24,3))
-        tk.Label(self.diagnostics,text='Sanitized read-only events. No command execution or private screenshots.',
-                 bg=self.BG,fg=self.MUTED,font=('Segoe UI',10)).pack(anchor='w',padx=24)
-        self.diag_text=tk.Text(self.diagnostics,wrap='word',height=18,bg=self.PANEL,
-                              fg=self.TEXT,insertbackground=self.TEXT,relief='flat',
-                              padx=16,pady=12,font=('Consolas',10),takefocus=True)
-        self.diag_text.pack(fill='both',expand=True,padx=24,pady=(15,10))
-        self.diag_text.insert('1.0','No session has started.')
+        diag_header = tk.Frame(self.diagnostics, bg=self.BG)
+        diag_header.pack(fill='x', padx=24, pady=(23, 10))
+        tk.Label(diag_header, text='Execution log', bg=self.BG, fg=self.TEXT,
+                 font=('Segoe UI Semibold', 24)).pack(anchor='w')
+        tk.Label(diag_header, text='Read-only, sanitized session details. Never includes screenshots.',
+                 bg=self.BG, fg=self.MUTED, font=('Segoe UI', 10)).pack(anchor='w')
+        self.diag_text = tk.Text(self.diagnostics, wrap='word', height=18,
+                                bg=self.PANEL, fg=self.TEXT,
+                                insertbackground=self.TEXT, relief='flat',
+                                padx=18, pady=14, font=('Consolas', 10),
+                                selectbackground=self.FIELD, takefocus=True,
+                                highlightthickness=1,
+                                highlightbackground=self.BORDER)
+        self.diag_text.pack(fill='both', expand=True, padx=24, pady=(9, 14))
+        self.diag_text.insert('1.0', 'No session has started.')
         self.diag_text.configure(state='disabled')
-        commands=tk.Frame(self.diagnostics,bg=self.BG)
-        commands.pack(fill='x',padx=24,pady=(0,20))
-        tk.Button(commands,text='Copy diagnostics',command=self.copy_diagnostics,
-                  bg=self.MINT,fg=self.BG,relief='flat',padx=15,pady=9,
-                  cursor='hand2').pack(side='left',padx=(0,8))
-        tk.Button(commands,text='Export .txt',command=self.export_diagnostics,
-                  bg=self.FIELD,fg=self.TEXT,relief='flat',padx=15,pady=9,
-                  cursor='hand2').pack(side='left')
-        self._last_diagnostics=''
+        commands = tk.Frame(self.diagnostics, bg=self.BG)
+        commands.pack(fill='x', padx=24, pady=(0, 20))
+        tk.Button(commands, text='Copy diagnostics', command=self.copy_diagnostics,
+                  bg=self.MINT, fg=self.BG, relief='flat', padx=18, pady=10,
+                  cursor='hand2', takefocus=True).pack(side='left', padx=(0, 9))
+        tk.Button(commands, text='Export sanitized .txt', command=self.export_diagnostics,
+                  bg=self.FIELD, fg=self.TEXT, relief='flat', padx=18, pady=10,
+                  cursor='hand2', takefocus=True).pack(side='left')
+        self._last_diagnostics = ''
         self.root.protocol('WM_DELETE_WINDOW', self.close)
         self.root.after(100, self.tick)
 
+    def _strategy_changed(self, _event=None):
+        hardcore = STRATEGIES.get(self.strategy.get()) == PLAN_V2_ID
+        if hardcore:
+            self.loadout_summary.set(
+                'WRETCHED FRONT  /  HARDCORE SOLO\n'
+                '1 Boomerang   ·   2 Crook Boss   ·   3 Farm\n'
+                'Slots 4–5 must be empty for the 3-tower run.')
+        else:
+            self.loadout_summary.set(
+                'DEAD AHEAD  /  EASY SOLO\n'
+                'Golden Scout in slot 1; other slots empty.\n'
+                'The loadout is verified before gameplay.')
     @staticmethod
     def _button_hover(button, normal, hovered):
         """Pointer and keyboard feedback without a separate UI dependency."""
@@ -465,12 +547,25 @@ class App:
         selected_hardcore = STRATEGIES.get(self.strategy.get()) == PLAN_V2_ID
         hardcore = data.get('strategy_id') == PLAN_V2_ID if data else selected_hardcore
         if hardcore:
-            self.stats.set(f"{data.get('gem_cycles', 0)} verified results     ·     {data.get('gems_total', 0):,} gems displayed")
+            self.stats.set(f"{data.get('gem_cycles', 0)} cycles  ·  {data.get('gems_total', 0):,} gems displayed")
         else:
-            self.stats.set(f"{data.get('wins', 0)} wins     ·     {data.get('coins_total', 0):,} coins")
+            self.stats.set(f"{data.get('wins', 0)} wins  ·  {data.get('coins_total', 0):,} coins")
+        wave = data.get('wave')
+        actions = data.get('confirmed_actions')
+        self.wave_display.set(f"{wave}/{45 if hardcore else 20}" if isinstance(wave, int) else '—')
+        self.action_display.set(f"{actions}/{75 if hardcore else 50}" if isinstance(actions, int) else '—')
+        self.recoveries_display.set(str(data.get('recoveries', 0)))
+        self.progress_bar.configure(maximum=75 if hardcore else 50,
+                                    value=actions if isinstance(actions, int) else 0)
         if running:
-            state = '●  STOPPING' if self.controller.stop_requested else '●  RUNNING'
-            color = self.ROSE if self.controller.stop_requested else self.MINT
+            if self.controller.stop_requested:
+                state, color = '●  STOPPING', self.ROSE
+            elif data.get('phase') == 'recovering':
+                state, color = '●  RECOVERING', self.ROSE
+            elif data.get('phase') in {'starting', 'lobby_popup_check'}:
+                state, color = '●  STARTING', self.MINT
+            else:
+                state, color = '●  RUNNING', self.MINT
         elif self.controller.stop_requested or self.start_error or data.get('reason'):
             state, color = '●  STOPPED', self.ROSE
         else:

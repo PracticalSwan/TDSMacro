@@ -1,5 +1,8 @@
 TDS Macro - Windows v0.3.1
 
+**NATIVE UPDATE — 2026-11-22 ICT, three-tower frozen GUI verified:** Frozen candidate `dist/v031-hardcore-three-tower-count18-fix-20261122/TDSMacro` on TDS v2.20.3, session `app_20261122_131050_068517`, first fresh Solo Wretched Front cycle: **75/75 ordered confirmed actions**, **18 tower placements**, exact end levels **10 Farms L3 + 3 Boomerangs L4 + 5 Crook Bosses L3**, wave-30 natural Defeat, **137 Gems displayed**, no optional XP tower and **0 recoveries**. An independent file audit checked all 75 monotonic action IDs and `result.json`, SHA-256 `afa6038d3266c297b8b896ca4da182bd0f808ee7ef379be10c2c498a61935056`. The game displayed the result, not an independently audited wallet deposit. Direct Restart Match proceeded to **cycle 2** in the same continuous frozen worker (at least nine separately confirmed actions), still running when checked. Full source **626/626** tests, compile and diff checks passed; frozen --self-check and packaged game asset/pinned plan hashes matched. Keep max-three bounded auto-recovery and exact pre-action safety checks. Public v0.3.1 release and hosted CI remain pending until reviewed Git commit, clean package/privacy checks, and verified CI; current run is not proof of infinite failure-free behavior.
+
+
 Keep TDSMacro.exe, _internal, assets, calibrations, strategies and docs
 together in the extracted folder. Do not run it inside the ZIP.
 
@@ -23,8 +26,10 @@ Golden Scout (ten maximum-level Scouts):
 Hardcore Gem Grind:
   Wretched Front / Hardcore / Solo; Boomerang slot 1, regular
   Crook Boss slot 2, Farm slot 3, slot 5 empty.
-  Three-tower 75-action baseline was verified on game v2.20.0;
-  newer game camera layouts may require recalibration.
+  For the current three-tower GUI run, leave slots 4 AND 5 empty.
+  Three-tower source guards include native-tested v2.20.3 route
+  checkpoints and a corrected exact 18/40 HUD text template.
+  A complete new 75-action GUI result is pending verification.
   An optional evolution tower may be placed in slot 4 once,
   without upgrades, only when its exact tooltip is verified.
   Its exact price must be readable between $200 and $10,000.

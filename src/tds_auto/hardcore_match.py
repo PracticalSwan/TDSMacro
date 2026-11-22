@@ -180,7 +180,10 @@ class HardcoreMatch:
 
         # Moving scenery may obscure a stationary route landmark for several
         # frames. Extend only passive observations; never move on uncertainty.
-        deadline = self.session.now() + 8
+        # Native checkpoint 6 matched the pinned terrain in the final frame,
+        # but animated scenery prevented two consecutive timely samples.
+        # Wait longer without moving; require both fresh matches unchanged.
+        deadline = self.session.now() + 16
         previous_ready, previous_pose, previous_index = False, None, None
         previous_disconnect = False
         while True:

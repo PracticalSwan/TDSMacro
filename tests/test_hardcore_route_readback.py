@@ -37,12 +37,20 @@ class RouteReadbackTests(unittest.TestCase):
         self.assertGreaterEqual(driver.time,5.6)
         self.assertLess(driver.time,8)
         self.assertEqual(driver.moves,[])
+    def test_animated_checkpoint_sometimes_matches_only_after_eight_seconds(self):
+        worker,route,driver=self.worker(10.4)
+        frame,pose,index,ready=worker.settled_camera_view(route,(2,))
+        self.assertEqual((frame,pose,index,ready),("terrain",None,2,True))
+        self.assertGreaterEqual(driver.time,10.6)
+        self.assertLess(driver.time,16)
+        self.assertEqual(driver.moves,[])
+
     def test_persistently_unknown_terrain_stops_after_bounded_passive_reads(self):
         worker,route,driver=self.worker(30)
         frame,pose,index,ready=worker.settled_camera_view(route,(2,))
         self.assertEqual((frame,pose,index,ready),("terrain",None,None,True))
-        self.assertGreaterEqual(driver.time,8)
-        self.assertLess(driver.time,8.5)
+        self.assertGreaterEqual(driver.time,16)
+        self.assertLess(driver.time,16.5)
         self.assertEqual(driver.moves,[])
 if __name__=="__main__":
     unittest.main()

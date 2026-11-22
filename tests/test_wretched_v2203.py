@@ -79,6 +79,62 @@ class WretchedV2203Tests(unittest.TestCase):
                 self.assertEqual(route.matching_steps(ImageChops.offset(frame, 0, 24),
                                                       range(11)), [])
 
+    def test_gui_stopped_checkpoint_six_is_exact_pinned_terrain_not_a_wrong_pose(self):
+        from tds_auto.hardcore_vision import WretchedRoute, ROUTE_SIDES, ROUTE_TILE_SIZE
+        route=WretchedRoute('wretched_front_hardcore_v2')
+        frame=Image.new('L',(1920,991))
+        with Image.open(ROOT/'tests/fixtures/wretched_v031_gui_checkpoint6_stop_tiles.png') as tiles:
+            for i,(x0,y0,x1,y1) in enumerate(ROUTE_SIDES):
+                part=tiles.crop((i*66,0,(i+1)*66,90))
+                frame.paste(part.resize((x1-x0,y1-y0),Image.Resampling.NEAREST),(x0,y0))
+        self.assertEqual(route.matching_steps(frame,range(11)),[6])
+        self.assertEqual(route.matching_steps(ImageChops.offset(frame,24,0),range(11)),[])
+        self.assertEqual(route.matching_steps(ImageChops.offset(frame,0,24),range(11)),[])
+
+    def test_animated_gui_checkpoint_six_requires_static_left_and_original_right_rock(self):
+        from tds_auto.hardcore_vision import WretchedRoute, ROUTE_SIDES, ROUTE_TILE_SIZE
+        route=WretchedRoute('wretched_front_hardcore_v2')
+        frame=Image.new('L',(1920,991))
+        with Image.open(ROOT/'tests/fixtures/wretched_gui_stage6_animated_replay_static_tiles.png') as tiles:
+            for i,(x0,y0,x1,y1) in enumerate(ROUTE_SIDES):
+                part=tiles.crop((i*66,0,(i+1)*66,90))
+                frame.paste(part.resize((x1-x0,y1-y0),Image.Resampling.NEAREST),(x0,y0))
+        self.assertEqual(route.matching_steps(frame,range(11)),[6])
+        self.assertEqual(route.matching_steps(ImageChops.offset(frame,24,0),range(11)),[])
+        self.assertEqual(route.matching_steps(ImageChops.offset(frame,0,24),range(11)),[])
+        removed_right=frame.copy()
+        from PIL import ImageDraw
+        ImageDraw.Draw(removed_right).rectangle((1180,290,1510,740),fill=0)
+        self.assertEqual(route.matching_steps(removed_right,range(11)),[])
+
+    def test_four_opening_farms_ready_caption_read_from_wider_verified_crop(self):
+        from tds_auto.hardcore_vision import wretched_ready
+        from tds_auto.resources import LocalOCR
+        frame=Image.new('RGB',(1920,991),color='black')
+        with Image.open(ROOT/'tests/fixtures/wretched_ready_four_farms_header.png') as sample:
+            frame.paste(sample,(805,150))
+        self.assertTrue(wretched_ready(frame,LocalOCR()))
+        from PIL import ImageDraw
+        bad=frame.copy()
+        ImageDraw.Draw(bad).rectangle((810,192,970,233),fill=(0,0,0))
+        self.assertFalse(wretched_ready(bad,LocalOCR()))
+
+    def test_native_checkpoint_seven_static_rock_keeps_two_independent_gates(self):
+        from tds_auto.hardcore_vision import WretchedRoute, ROUTE_SIDES
+        route=WretchedRoute('wretched_front_hardcore_v2')
+        frame=Image.new('L',(1920,991))
+        with Image.open(ROOT/'tests/fixtures/wretched_gui_checkpoint7_static_rock_tiles.png') as tiles:
+            for i,(x0,y0,x1,y1) in enumerate(ROUTE_SIDES):
+                part=tiles.crop((i*66,0,(i+1)*66,90))
+                frame.paste(part.resize((x1-x0,y1-y0),Image.Resampling.NEAREST),(x0,y0))
+        self.assertEqual(route.matching_steps(frame,range(11)),[7])
+        self.assertEqual(route.matching_steps(ImageChops.offset(frame,24,0),range(11)),[])
+        self.assertEqual(route.matching_steps(ImageChops.offset(frame,0,24),range(11)),[])
+        right_missing=frame.copy()
+        from PIL import ImageDraw
+        ImageDraw.Draw(right_missing).rectangle((1180,290,1510,740),fill=0)
+        self.assertEqual(route.matching_steps(right_missing,range(11)),[])
+
     def test_native_checkpoint_nine_left_transition_same_pose_needs_exact_second_view(self):
         from tds_auto.hardcore_vision import WretchedRoute, ROUTE_SIDES, ROUTE_TILE_SIZE
         route=WretchedRoute('wretched_front_hardcore_v2')
@@ -102,6 +158,21 @@ class WretchedV2203Tests(unittest.TestCase):
             self.assertTrue(camera.check(after))
             self.assertFalse(camera.check(ImageChops.offset(after,24,0)))
             self.assertFalse(camera.check(ImageChops.offset(after,0,24)))
+
+    def test_native_wave28_rock_effect_does_not_invalidate_stationary_three_landmark_consensus(self):
+        from tds_auto.hardcore_plan_v2 import load_hardcore_plan_v2
+        from tds_auto.hardcore_vision import WretchedCamera
+        camera=WretchedCamera(load_hardcore_plan_v2())
+        with Image.open(ROOT/'tests/fixtures/wretched_gui_wave27_prior_static_rocks.png') as prior:
+            self.assertEqual(camera.estimate(prior),(-37,27))
+            self.assertTrue(camera.bind(prior))
+        with Image.open(ROOT/'tests/fixtures/wretched_gui_wave28_unverified_static_rocks.png') as wave28:
+            self.assertEqual(camera.estimate(wave28),(-37,27))
+            self.assertTrue(camera.check(wave28))
+            self.assertFalse(camera.check(ImageChops.offset(wave28,3,0)))
+            self.assertFalse(camera.check(ImageChops.offset(wave28,0,3)))
+            self.assertFalse(camera.check(ImageChops.offset(wave28,24,0)))
+            self.assertFalse(camera.check(ImageChops.offset(wave28,0,24)))
 
     def test_same_three_rock_gate_and_cross_frame_drift_on_native_pose(self):
         from tds_auto.hardcore_plan_v2 import load_hardcore_plan_v2
