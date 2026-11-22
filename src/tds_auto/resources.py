@@ -55,7 +55,9 @@ def read_hardcore_wave(frame, ocr):
     # polarity. Two differently bounded crops both read 14 / 45 exactly.
     # Require agreement, not a guessed digit correction, before using it.
     broad = parse_wave(ocr.read(frame.crop((542, 69, 700, 133))), 45)
-    tight = parse_wave(ocr.read(ink(frame.crop((549, 81, 674, 117)))), 45)
+    # Keep the full numerator and /45 suffix in this second, smaller region.
+    # The old overly tight crop lost the native wave-11 fraction.
+    tight = parse_wave(ocr.read(ink(frame.crop((542, 70, 696, 126)))), 45)
     if broad is not None and broad == tight:
         return broad
     # In another native wave-14 frame, the broad plain crop was empty while

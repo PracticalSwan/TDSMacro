@@ -117,6 +117,16 @@ class ResourceTests(unittest.TestCase):
         for text in ("Cost: 150", "Level: I", "Level: 99", ""):
             self.assertIsNone(parse_level(text))
 
+    def test_hardcore_wave11_requires_two_independently_valid_crops(self):
+        from tds_auto.resources import read_hardcore_wave
+        with Image.open(ROOT/'tests/fixtures/hardcore_wave11_native_ui_crop.png') as crop:
+            frame=Image.new('RGB',(1920,991))
+            frame.paste(crop,(542,69))
+        ocr=HudReader(hardcore=True).ocr
+        self.assertEqual(read_hardcore_wave(frame,ocr),11)
+        frame.paste('black',(595,83,669,117))
+        self.assertIsNone(read_hardcore_wave(frame,ocr))
+
     def test_live_easy_wave_fraction_is_read_without_confusing_total(self):
         with Image.open(ROOT / "tests/fixtures/hud_wave4.png") as frame:
             self.assertEqual(HudReader().read(frame).wave, 4)

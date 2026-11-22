@@ -912,6 +912,104 @@ class HardcoreCandidateV2Tests(unittest.TestCase):
         self.assertEqual(pick(500), 1)
         self.assertIsNone(pick(100))
 
+    def test_hardcore_wave_transition_confirmation_has_bounded_passive_settle(self):
+        from tds_auto.hardcore_match import HardcoreMatchV2
+        from tds_auto.resources import Hud
+        worker=HardcoreMatchV2.__new__(HardcoreMatchV2)
+        worker.session=Mock()
+        worker.session.now.side_effect=[0,5.1]
+        worker.driver=Mock()
+        worker.frame=Mock(side_effect=['first_wave12','second_wave12'])
+        worker.reader=Mock()
+        worker.reader.read.return_value=Hud(cash=3594,tower_count=7,wave=12)
+        worker.opening=False
+        worker.plan=SimpleNamespace(finish_wave=30)
+        worker.last_wave=11
+        worker.next_wave=None
+        worker.completed=26
+        worker.target_observations=0
+        frame,hud=worker.read({7})
+        self.assertEqual((frame,hud.wave),('second_wave12',12))
+        self.assertEqual(worker.last_wave,12)
+        worker.driver.wait.assert_called_once_with(.15)
+        worker.session.save_frame.assert_not_called()
+
+    def test_hardcore_persistent_wave_unknown_stops_after_bounded_settle(self):
+        from tds_auto.hardcore_match import HardcoreMatchV2
+        from tds_auto.resources import Hud
+        from tds_auto.control import StopRun
+        worker=HardcoreMatchV2.__new__(HardcoreMatchV2)
+        worker.session=Mock()
+        worker.session.now.side_effect=[0,1,3,5.5,7.2]
+        worker.driver=Mock()
+        worker.frame=Mock(return_value='unknown_wave')
+        worker.reader=Mock()
+        worker.reader.read.return_value=Hud(cash=3594,tower_count=7,wave=None)
+        worker.opening=False
+        worker.plan=SimpleNamespace(finish_wave=30)
+        worker.last_wave=11
+        worker.next_wave=None
+        worker.target_observations=0
+        with self.assertRaisesRegex(StopRun,'unreadable'):
+            worker.read({7})
+        worker.session.save_frame.assert_called_once_with(
+            'unknown_wave','hardcore_hud_unreadable.png')
+
+    def test_wave_advance_at_hud_read_deadline_gets_one_passive_confirmation(self):
+        # Native late wave-12 evidence was valid at the exact timeout but
+        # needed a second fresh frame to satisfy the monotonic wave gate.
+        from tds_auto.hardcore_match import HardcoreMatchV2
+        from tds_auto.resources import Hud
+        worker = HardcoreMatchV2.__new__(HardcoreMatchV2)
+        worker.plan = SimpleNamespace(finish_wave=30)
+        worker.session = Mock()
+        worker.session.now.side_effect = [0, 5, 5]
+        worker.frame = Mock(side_effect=['wave12_first', 'wave12_second'])
+        worker.reader = Mock()
+        worker.reader.read.side_effect = [
+            Hud(cash=3594, tower_count=7, wave=12),
+            Hud(cash=3594, tower_count=7, wave=12)]
+        worker.driver = Mock()
+        worker.opening = False
+        worker.last_wave = 11
+        worker.next_wave = None
+        worker.completed = 26
+        worker.target_observations = 0
+        worker.min_target_observations = 2
+        frame,hud = worker.read({7},29)
+        self.assertEqual((frame,hud.wave),('wave12_second',12))
+        self.assertEqual(worker.last_wave,12)
+        worker.driver.wait.assert_called_once_with(.15)
+        worker.session.save_frame.assert_not_called()
+        worker.driver.click.assert_not_called()
+
+    def test_wave_advance_confirmation_does_not_accept_lost_evidence(self):
+        from tds_auto.control import StopRun
+        from tds_auto.hardcore_match import HardcoreMatchV2
+        from tds_auto.resources import Hud
+        worker = HardcoreMatchV2.__new__(HardcoreMatchV2)
+        worker.plan = SimpleNamespace(finish_wave=30)
+        worker.session = Mock()
+        worker.session.now.side_effect = [0, 5, 7.2]
+        worker.frame = Mock(side_effect=['wave12_first','unreadable'])
+        worker.reader = Mock()
+        worker.reader.read.side_effect = [
+            Hud(cash=3594, tower_count=7, wave=12),
+            Hud(cash=3594, tower_count=7, wave=None)]
+        worker.driver = Mock()
+        worker.opening = False
+        worker.last_wave = 11
+        worker.next_wave = None
+        worker.completed = 26
+        worker.target_observations = 0
+        worker.min_target_observations = 2
+        with self.assertRaisesRegex(StopRun,'unreadable'):
+            worker.read({7},29)
+        self.assertEqual(worker.last_wave,11)
+        worker.driver.wait.assert_called_once_with(.15)
+        worker.session.save_frame.assert_called_once_with('unreadable','hardcore_hud_unreadable.png')
+        worker.driver.click.assert_not_called()
+
     def test_purchase_guard_accepts_overdue_wave_but_stops_at_thirty(self):
         from tds_auto.hardcore_match import HardcoreMatchV2, TargetWaveReached
         from tds_auto.resources import Hud

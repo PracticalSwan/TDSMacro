@@ -23,6 +23,12 @@ class HardcoreWave14OCRTests(unittest.TestCase):
             frame.paste(fragment,(542,69))
         self.assertEqual(read_hardcore_wave(frame,self.ocr),14)
 
+    def test_native_wave12_fraction_remains_exact(self):
+        with Image.open(ROOT/'tests/fixtures/hardcore_wave12_fraction_native_20261122.png') as fragment:
+            frame=Image.new('RGB',(1920,991),'black')
+            frame.paste(fragment,(542,69))
+        self.assertEqual(read_hardcore_wave(frame,self.ocr),12)
+
     def test_second_native_wave14_missing_total_is_rejected(self):
         with Image.open(ROOT/'tests/fixtures/hardcore_wave14_ocr_variant_20261120.png') as fragment:
             frame=Image.new('RGB',(1920,991),'black')

@@ -304,7 +304,10 @@ class HardcoreMatch:
         return True
 
     def read(self, counts, stage=None):
-        deadline = self.session.now() + READ_SECONDS
+        # Two consecutive wave readings are mandatory after an animation.
+        # A wave-12 native capture arrived at the previous 5-second boundary;
+        # allow two extra seconds of passive observation, never extra input.
+        deadline = self.session.now() + READ_SECONDS + 2
         while True:
             frame = self.frame()
             hud = self.reader.read(frame)

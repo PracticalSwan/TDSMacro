@@ -1,9 +1,13 @@
-TDS Macro - Windows v0.3.3
+TDS Macro - Windows v0.3.4
 
 This patch addresses a documented early-Defeat stop after 29 complete
 three-tower Hardcore cycles. Two consecutive verified early Defeats may
 trigger direct Restart Match; a third consecutive one stops for review.
 Early results do not count as complete cycles or full-cycle Gems.
+A native wave-11 OCR ambiguity now requires agreement between exact,
+independently bounded text crops. Hardcore HUD verification allows up to
+7 seconds of passive rereading across wave changes, without any inputs
+or guesses; persistent unknown values still stop safely.
 The 960x690 Overview/Diagnostics GUI defaults to Wretched Front Hardcore Solo.
 Equip Boomerang 1, regular Crook Boss 2, Farm 3; leave slots 4 and 5 EMPTY.
 Auto-Equip remains disabled. A frozen candidate completed 75/75 actions,

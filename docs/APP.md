@@ -1,5 +1,11 @@
 # Windows application
 
+**Unreleased post-v0.3.3 HUD correction:** The next candidate retains the same three-tower GUI and controls; only wave-fraction sampling and the existing no-input wait are adjusted. Live v0.3.3 evidence includes two complete 75/75 wave-30 results followed by a safely recovered wave-11/12 HUD timeout. Current public v0.3.3 is unchanged; new frozen/native acceptance is required before deploying the candidate.
+
+
+**v0.3.4 candidate correction:** The Hardcore reader can require up to seven seconds of passive observation when cash/count/wave evidence is initially unreadable; a second exact wave reading is still mandatory. New wave-11 OCR fallback requires agreement between two bounded crops. Unknown HUD beyond this period, uncertain tower/cash and camera/focus loss still stop safely. This is not present in released v0.3.3.
+
+
 **v0.3.3 GUI behavior (November 22, 2026):** For continuous three-tower Hardcore only, a verified early Defeat can show `Restart Match 1/2` or `2/2`; these are not counted in Gem-cycle totals. Three consecutive early Defeats stop instead of looping. Normal three-client-relaunch recovery remains separate; uncertain results and purchases remain terminal. This behavior is new in v0.3.3; the original v0.3.2 package is preserved.
 
 
