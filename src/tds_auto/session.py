@@ -604,7 +604,7 @@ class Session:
                     and 1<=result['result_wave']<self.hardcore_plan.finish_wave
                     and result.get('target_wave_verified') is False
                     and type(result.get('confirmed_actions')) is int
-                    and 0<=result['confirmed_actions']<75
+                    and 0<=result['confirmed_actions']<=75
                     and type(result.get('displayed_gems')) is int
                     and result['displayed_gems']>=0)
                 if verified_early_defeat:

@@ -1170,18 +1170,20 @@ class SessionTests(unittest.TestCase):
                'target_wave_verified':False,'confirmed_actions':74,'displayed_gems':127}
         success={'status':'result_verified','outcome':'defeat','result_wave':30,
                  'confirmed_actions':75,'displayed_gems':137}
+        early_after_all={**early,'result_wave':29,'confirmed_actions':75,
+                         'displayed_gems':132}
         with patch('tds_auto.hardcore_match.HardcoreMatchV2') as candidate:
-            candidate.return_value.run.side_effect=[early,success,
+            candidate.return_value.run.side_effect=[early,success,early_after_all,success,
                                                     {'status':'stopped','reason':'test stop'}]
             result=session.play_hardcore_v2(1,continuous=True)
         self.assertEqual(result['status'],'stopped')
-        self.assertEqual(result['early_results'],1)
+        self.assertEqual(result['early_results'],2)
         self.assertEqual((result['gem_cycles'],result['gems_total'],result['matches_completed']),
-                         (1,137,1))
-        self.assertEqual(session.transition.call_count,2)
-        self.assertEqual(session.prepare_hardcore_match.call_count,3)
+                         (2,274,2))
+        self.assertEqual(session.transition.call_count,4)
+        self.assertEqual(session.prepare_hardcore_match.call_count,5)
         self.assertEqual([match['status'] for match in result['matches']],
-                         ['early_result','result_verified','stopped'])
+                         ['early_result','result_verified','early_result','result_verified','stopped'])
 
     def test_continuous_hardcore_caps_consecutive_early_defeats(self):
         from unittest.mock import Mock
