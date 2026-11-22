@@ -1,5 +1,8 @@
 # Windows application
 
+**v0.4.1 Hardcore result fix:** The native three-tower Wretched Front Solo session now tolerates a small exact list of observed map-label OCR glyph variants on the completed wave-30 screen. Reward credit still requires correct Hardcore mode/difficulty, verified wave and duration, and one readable Gems amount. This does not send new inputs or alter 75-action strategy. The GUI ran a complete 75/75-action wave-30 result and direct Restart Match with zero client recoveries after one bounded early-Defeat retry. Automatic updates are still user-controlled, OFF by default, and wait for idle gameplay.
+
+
 **v0.4.1 corrective candidate, November 23 2026:** After 38 verified wave-30 results (5,206 Gems displayed), one further full 75-action natural wave-30 Defeat was not credited because native Wretched Front map-label OCR returned `Mretched Froni`. The saved result visibly contained 137 Gems and strict mode/difficulty/wave/duration/reward text, but existing map recognition rejected the label. Extend only the exact map-label OCR allowlist to the native-observed `Mretched Froni`, `Mretched Frond`, `Nretched Frond` variants, keeping the existing two map-template fallbacks and all result checks. New sanitized panel-only native screenshot fixture reproduces this failure (red before fix, green after fix), with map masking negative. No synthetic credit for old unverified result. Separate Roblox error-277 disconnect occurred after the stopped session and requires normal client recovery. Full regression, frozen build, GUI/native loop and CI gate release; protect old versions and untracked calibration.
 
 

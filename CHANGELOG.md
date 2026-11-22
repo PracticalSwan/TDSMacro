@@ -1,5 +1,8 @@
 # Changelog
 
+**v0.4.1 accepted correction, 2026-11-23:** Exact OCR variants from one native Wretched Front wave-30 result are recognized instead of failing reward verification; no route, loadout, purchase, deadline, recovery or auto-update changes. A sanitized native result regression failed before the fix and passes after. 657/657 local tests, feature Windows CI and frozen v0.4.1 self-check pass. Native test had one valid bounded wave-12 early-Defeat restart, then completed 75/75 actions, all final levels, natural wave-30 result with 137 Gems displayed and zero client recoveries, followed by direct Restart Match and positive cycle-3 purchases. Pending final main/release asset verification.
+
+
 **v0.4.1 corrective candidate, November 23 2026:** After 38 verified wave-30 results (5,206 Gems displayed), one further full 75-action natural wave-30 Defeat was not credited because native Wretched Front map-label OCR returned `Mretched Froni`. The saved result visibly contained 137 Gems and strict mode/difficulty/wave/duration/reward text, but existing map recognition rejected the label. Extend only the exact map-label OCR allowlist to the native-observed `Mretched Froni`, `Mretched Frond`, `Nretched Frond` variants, keeping the existing two map-template fallbacks and all result checks. New sanitized panel-only native screenshot fixture reproduces this failure (red before fix, green after fix), with map masking negative. No synthetic credit for old unverified result. Separate Roblox error-277 disconnect occurred after the stopped session and requires normal client recovery. Full regression, frozen build, GUI/native loop and CI gate release; protect old versions and untracked calibration.
 
 
