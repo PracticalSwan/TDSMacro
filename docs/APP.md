@@ -1,6 +1,6 @@
 # Windows application
 
-**CURRENT RELEASE TARGET — v0.3.2, 2026-11-22 ICT:** Public **v0.3.1 is already published** at commit `1439ee91` and must remain immutable. The subsequent three-tower Wretched Front/GUI fixes are in reviewed commit `951ac6c`; hosted Windows CI run `44993592295` succeeded. The exact frozen candidate independently completed **two consecutive 75/75-action, 18-tower, wave-30 Solo Hardcore results**, each displaying **137 Gems** (274 total), with **zero recoveries** and automatic Restart Match into cycle 3. Required loadout is **Boomerang slot 1 / regular Crook Boss slot 2 / Farm slot 3 / slots 4 and 5 empty**; no optional XP tower is used. Auto-Equip stays disabled because TDS does not expose all five explicit EMPTY labels. Preserve independent text, terrain, focus, cash, tower and confirmation guards; max-three recovery remains bounded, not an indefinite failure-free guarantee. These fixes require a distinct **v0.3.2 patch release**, never a replacement for existing v0.3.1 tag/assets. Displayed Gems are not independently wallet-audited.
+**POST-RELEASE STATUS — v0.3.2 published and locally installed (November 22, 2026 ICT):** Published https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.3.2 at source commit `9ff56b6` after passing Windows CI `44994210171`. The public ZIP (1,213 files; SHA-256 `9b95424ab5dffc87259f101ca82bba7103b416c17318904be9d655f74197691a`) and its published checksum were downloaded back and matched; the native-accepted executable SHA-256 is `ae5ccbec12c03a8ca56618e4a614f49f77219e9a19e2ee91828c736cc038e080`. Standard local `dist/TDSMacro` now holds v0.3.2, has passing frozen self-check and a new Desktop shortcut; v0.3.1 was preserved as `dist/TDSMacro-previous-v0.3.1-20261122` with its shortcut redirected. Public v0.3.1/v0.3.0 tags and assets were not modified. The separate continuously running three-tower Hardcore worker has three independently verified complete 75/75-action natural wave-30 results, 137 displayed Gems each (411 total), no recoveries and native Restart Match into cycle 4. At last read-only observation cycle 4 was on wave 14 with 41 actions and no stop marker. The worker is running from its original isolated native-verified build and was not interrupted by installation. Auto-Equip remains intentionally disabled; strictly bounded max-three recovery is not guaranteed failure-free forever, and displayed rewards were not wallet-audited.
 
 
 
@@ -10,8 +10,8 @@
 
 ## Version status
 
-- **Published stable:** v0.3.1, with Golden ten and optional XP features; current three-tower reliability corrections will be in v0.3.2.
-- **Local v0.3.2 patch candidate (not yet published):** 960x690 Overview/Diagnostics GUI, native-tested ten-Scout Golden route, guarded three-tower Hardcore baseline and optional XP capability (unused for the current three-tower run).
+- **Published stable:** v0.3.2, with the redesigned GUI and repaired three-tower Hardcore checks. v0.3.1 is preserved.
+- **Published v0.3.2 patch:** 960x690 Overview/Diagnostics GUI, native-tested ten-Scout Golden route, guarded three-tower Hardcore baseline and optional XP capability (unused for the current three-tower run).
 - The ten-Scout route has **16 independently verified 50/50-action wave-20 Victories on TDS v2.20.3** (7,200 Coins displayed).
 - A v2.20.3 native Hardcore 75+1 optional Minigunner match previously reached wave 30 with 137 Gems and +106 XP displayed. That earlier wave-19 count bug is now fixed; the new frozen GUI completed **two consecutive 75/75-action wave-30 three-tower results** (274 Gems displayed) with zero recoveries, and automatically began cycle 3.
 
