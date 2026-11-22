@@ -495,7 +495,8 @@ class App:
         self.check_update_button.pack(side='left', padx=(0, 12))
         self.install_update_button = tk.Button(
             updates_actions, text='Install verified update', command=self.install_update,
-            bg=self.MINT, fg=self.BG, relief='flat', state='disabled',
+            bg=self.FIELD, fg=self.MUTED, disabledforeground=self.MUTED,
+            relief='flat', state='disabled',
             padx=20, pady=10, cursor='hand2', takefocus=True)
         self.install_update_button.pack(side='left')
         self._button_hover(self.check_update_button, self.FIELD, self.BORDER)
@@ -561,10 +562,12 @@ class App:
         self.update_message.set(self.updater.status)
         self.check_update_button.configure(
             state='disabled' if self.updater.busy else 'normal')
+        can_install=bool(self.updater.release and not running and not self.updater.busy)
         self.install_update_button.configure(
             text=('Install verified update' if self.updater.staged else 'Download update'),
-            state='normal' if self.updater.release and not running
-                  and not self.updater.busy else 'disabled')
+            state='normal' if can_install else 'disabled',
+            bg=self.MINT if can_install else self.FIELD,
+            fg=self.BG if can_install else self.MUTED)
 
     def _strategy_changed(self, _event=None):
         hardcore = STRATEGIES.get(self.strategy.get()) == PLAN_V2_ID
