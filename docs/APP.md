@@ -1,5 +1,8 @@
 # Windows application
 
+**v0.4.1 available:** The current [stable Windows ZIP](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.4.1) fixes exact native Wretched Front wave30 map-label OCR misreads without weakening other result checks. From v0.4.0, use Updates -> Check now and Download/Install only when the gameplay worker is idle; Automatic updates can be enabled manually and remain OFF by default. The official ZIP was independently validated and installed at the standard location without interrupting the separate active three-tower worker. Old v0.4.0 is preserved under the timestamped backup folder and its Desktop shortcut remains available.
+
+
 **v0.4.1 Hardcore result fix:** The native three-tower Wretched Front Solo session now tolerates a small exact list of observed map-label OCR glyph variants on the completed wave-30 screen. Reward credit still requires correct Hardcore mode/difficulty, verified wave and duration, and one readable Gems amount. This does not send new inputs or alter 75-action strategy. The GUI ran a complete 75/75-action wave-30 result and direct Restart Match with zero client recoveries after one bounded early-Defeat retry. Automatic updates are still user-controlled, OFF by default, and wait for idle gameplay.
 
 

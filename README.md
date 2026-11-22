@@ -1,5 +1,8 @@
 # TDS Macro
 
+**[v0.4.1 released](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.4.1) — November 23, 2026:** Fixes a reproducible Wretched Front map-label OCR variation that prevented crediting an otherwise complete Hardcore wave-30 result. Strict wave/mode/difficulty/duration and reward verification remain. All 657 local tests, hosted main Windows CI, native v0.4.1 frozen self-check, clean public ZIP re-download and official updater installation passed. The running three-tower GUI subsequently verified two complete 75-action, 137-displayed-Gem cycles with automatic Restart Match. Auto-Equip remains disabled; Automatic updates remain user-controlled and OFF by default. See [verification](docs/verification.md).
+
+
 **v0.4.1 corrective verification (November 23, 2026):** A rare wave-30 Wretched Front map-label OCR misread after 38 verified matches is corrected with an exact native-observed label allowlist, not relaxed result/reward verification. The result screenshot was sanitized for a regression test. All 657 local tests, feature Windows CI and frozen self-check passed; the corrected GUI completed one 75/75-action wave-30 natural Defeat (137 Gems displayed, zero client recoveries) and restarted into the next match. Older published v0.4.0 remains available until v0.4.1 publication. See [verification](docs/verification.md).
 
 

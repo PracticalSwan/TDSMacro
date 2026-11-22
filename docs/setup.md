@@ -1,5 +1,8 @@
 # Setup
 
+**Verified v0.4.1 installation (November 23 2026):** The official [v0.4.1 Windows release](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.4.1) was downloaded via the built-in updater, verified against GitHub ZIP SHA256 and sidecar, staged, frozen self-checked, and installed over the idle standard v0.4.0 folder. The old application and captures remain preserved at `dist/TDSMacro-previous-before-v0.4.1-20261123_031226-19464`. The standard v0.4.1 executable passed self-check. The continuous Hardcore worker remains in a separate native-verified candidate folder to avoid duplicate controllers; open only one GUI to play.
+
+
 **Current installation:** v0.4.0 is the latest published version. Extract the complete [Windows ZIP](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.4.0); previous versions require one manual installation before opt-in updates become available in the Updates tab. An idle-only updater preserves the previous app as backup. The tested standard Windows installation was upgraded from v0.3.4 to v0.4.0 via the actual published GitHub ZIP and passed frozen self-check.
 
 

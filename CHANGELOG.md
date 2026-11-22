@@ -1,5 +1,8 @@
 # Changelog
 
+**v0.4.1 released November 23, 2026:** Exact Wretched Front result-label OCR correction from native wave30 screenshot, retaining strict reward metadata and the unchanged three-tower 75-action strategy. Sanitized regression red/green, 657 local Python tests, Windows feature/main CI, frozen self-check and privacy-clean 1,271-file public ZIP CRC/SHA256 and re-download passed. Current native session safely restarted after one wave-12 early Defeat and then completed two consecutive full wave-30 results (137 Gems displayed each), automatic Restart Match, zero client recoveries. Published official ZIP installed through the existing verified updater; prior v0.4.0 install/captures and Desktop shortcut preserved.
+
+
 **v0.4.1 accepted correction, 2026-11-23:** Exact OCR variants from one native Wretched Front wave-30 result are recognized instead of failing reward verification; no route, loadout, purchase, deadline, recovery or auto-update changes. A sanitized native result regression failed before the fix and passes after. 657/657 local tests, feature Windows CI and frozen v0.4.1 self-check pass. Native test had one valid bounded wave-12 early-Defeat restart, then completed 75/75 actions, all final levels, natural wave-30 result with 137 Gems displayed and zero client recoveries, followed by direct Restart Match and positive cycle-3 purchases. Pending final main/release asset verification.
 
 
