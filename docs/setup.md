@@ -1,5 +1,8 @@
 # Setup
 
+**Single Desktop shortcut:** `TDS Macro.lnk` points to the latest standard installation `dist/TDSMacro/TDSMacro.exe`. Nine obsolete versioned `.lnk` files were removed, but older installations and captures were preserved. Future releases should not recreate versioned Desktop links. For upcoming four-slot Hardcore + XP: equip Boomerang (1), regular Crook Boss (2), Farm (3), Juggernaut (4) and leave slot5 empty. Choose the XP entry from Overview (the default three-tower entry explicitly requires slots4 and5 empty). Tower4 price is read live, not assumed, in the $200-$10,000 range. If the next required upgrade cannot be protected, optional placement is deferred without sacrificing the Gem run. The current published version remains v0.4.1 until the candidate passes full acceptance.
+
+
 **Verified v0.4.1 installation (November 23 2026):** The official [v0.4.1 Windows release](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.4.1) was downloaded via the built-in updater, verified against GitHub ZIP SHA256 and sidecar, staged, frozen self-checked, and installed over the idle standard v0.4.0 folder. The old application and captures remain preserved at `dist/TDSMacro-previous-before-v0.4.1-20261123_031226-19464`. The standard v0.4.1 executable passed self-check. The continuous Hardcore worker remains in a separate native-verified candidate folder to avoid duplicate controllers; open only one GUI to play.
 
 

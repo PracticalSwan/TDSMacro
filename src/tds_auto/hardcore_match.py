@@ -7,6 +7,7 @@ from PIL import Image
 
 from .control import StopRun
 from .hardcore_plan import PROFILE_ID, ROOT
+from .hardcore_plan_v2 import XP_PLAN_ID
 from .hardcore_vision import (
     WRETCHED_TRAVEL_PITCH, WretchedCamera, WretchedRoute, wretched_hover, wretched_preview,
     wretched_match_ready, wretched_price, wretched_ready,
@@ -60,6 +61,23 @@ def affordable_purchase(pending, levels, price_for, cash):
         if price is None and unread_price is None:
             unread_price = index
     return unread_price
+
+
+# XP mode protects every fully funded early-game defense and all ten L3
+# Farms, plus wave-20 survival upgrades. Only the final five expensive
+# wave-25..29 upgrades are allowed to slip when buying a $10k XP tower.
+XP_CRITICAL_LEVELS = (
+    *((f'F{i}', 3) for i in range(1, 11)),
+    ('B1', 4), ('B2', 3), ('B3', 3),
+    ('C1', 3), ('C2', 3), ('C3', 2), ('C4', 2), ('C5', 2),
+)
+
+
+def optional_placement_budget(price, cash, reserve, wave):
+    """Do not consume cash required for the next mandatory core upgrade."""
+    return (all(type(v) is int for v in (price, cash, reserve, wave))
+            and 200 <= price <= 10_000 and 20 <= wave < 30
+            and reserve >= 0 and cash >= price + reserve)
 
 
 class MatchEnded(Exception):
@@ -673,6 +691,40 @@ class HardcoreMatchV2(HardcoreMatch):
 
         return price
 
+    def next_core_price(self, price_for):
+        """Read the next uncompleted mandatory late-phase upgrade quote."""
+        for phase in self.plan.phases:
+            if phase.step < 13:
+                continue
+            for action in phase.actions:
+                if not action.optional and not self.completed_action(action):
+                    return price_for(action, self.levels.get(action.tower_id))
+        return 0
+
+    def xp_critical_defense_verified(self):
+        return all(self.levels.get(tower_id, -1) >= level
+                   for tower_id, level in XP_CRITICAL_LEVELS)
+
+    def try_optional_placement(self, frame, hud, price_for):
+        """XP variant buys after all core milestones; Gem mode is unchanged."""
+        if not self.optional_tower or 'X1' in self.levels or self.completed < 70:
+            return False
+        xp_mode = getattr(getattr(self,'session',None),'strategy_id',None) == XP_PLAN_ID
+        if xp_mode and not self.xp_critical_defense_verified():
+            return False
+        price = price_for(self.plan_actions['X1', 0], None)
+        # The separate XP mode may defer only late wave-25..29 upgrades,
+        # after every critical L2/L3 defense and Farm has been verified.
+        reserve = 0 if xp_mode else self.next_core_price(price_for)
+        if not optional_placement_budget(price, hud.cash, reserve, hud.wave):
+            return False
+        if self.place(self.towers['X1'], self.plan.finish_wave - 1):
+            self.session.status('hardcore_optional_placed', tower=self.optional_tower,
+                                cost=price, reserved_core_cash=reserve,
+                                wave=self.last_wave, confirmed_actions=self.completed)
+            return True
+        return False
+
     def execution_phases(self):
         # Phase 12 is the single optional window: after 70 core purchases,
         # before the five late upgrades. Three native baseline results reached
@@ -693,6 +745,13 @@ class HardcoreMatchV2(HardcoreMatch):
             self.session.pause(self.frame)
             frame = self.frame()
             self.observe_wave(read_hardcore_wave(frame, self.ocr), frame)
+            if self.optional_tower and 'X1' not in self.levels and self.completed >= 75:
+                try:
+                    fresh, hud = self.read({len(self.levels)}, self.plan.finish_wave - 1)
+                except TargetWaveReached:
+                    pass
+                else:
+                    self.try_optional_placement(fresh, hud, self.v2_price_for(fresh))
             self.driver.wait(.35)
         raise StopRun('Timed out waiting for the natural Hardcore result.')
 
@@ -756,8 +815,16 @@ class HardcoreMatchV2(HardcoreMatch):
     def play_phase(self, phase, deadline):
         actions = list(phase.actions)
         self.session.status('hardcore_purchase_phase', step=phase.step)
-        if actions and actions[0].optional and (not self.optional_tower or 'X1' not in self.camera.points):
-            self.session.status('hardcore_optional_skipped', step=phase.step, reason='tower_or_point_unverified')
+        if actions and actions[0].optional:
+            if not self.optional_tower or 'X1' not in self.camera.points:
+                raise StopRun('XP tower or placement point was not verified.',kind='setup')
+            frame, hud = self.read({len(self.levels)}, self.plan.finish_wave - 1)
+            if self.try_optional_placement(frame, hud, self.v2_price_for(frame)):
+                self.session.status('hardcore_phase_complete', step=phase.step,
+                                    wave=self.last_wave, confirmed_actions=self.completed)
+            else:
+                self.session.status('hardcore_optional_deferred', step=phase.step,
+                                    wave=hud.wave, cash=hud.cash)
             return
         while actions and self.session.now() < deadline:
             actions = [action for action in actions if not self.completed_action(action)]
@@ -770,6 +837,9 @@ class HardcoreMatchV2(HardcoreMatch):
                                     reason='wave24_to_26_window_missed',wave=hud.wave)
                 return
             price_for = self.v2_price_for(frame)
+            if (phase.step >= 13 and getattr(self,'optional_tower',None) and 'X1' not in self.levels
+                    and self.try_optional_placement(frame, hud, price_for)):
+                continue
             due, action, defense_price = self.urgent_defense(hud.wave, price_for, hud.cash)
             if due is not None and hud.wave > due and due not in self.missed_defense_deadlines:
                 self.missed_defense_deadlines.add(due)
@@ -830,6 +900,9 @@ class HardcoreMatchV2(HardcoreMatch):
         result['required_levels_verified'] = all(
             self.levels.get(tower_id) == level for tower_id, level in dict(self.plan.final_required_levels).items()
         )
+        xp_mode = getattr(self.session,'strategy_id',None) == XP_PLAN_ID
+        result['xp_critical_defense_verified'] = (self.xp_critical_defense_verified()
+                                                   if xp_mode else None)
         result['optional_xp_tower'] = self.optional_tower
         result['optional_tower_placed'] = (self.levels.get('X1') == 0) if self.optional_tower else None
         deadline = self.session.now() + RESULT_CONFIRM_SECONDS
@@ -845,11 +918,11 @@ class HardcoreMatchV2(HardcoreMatch):
                 if receipt.wave != self.plan.finish_wave:
                     result['status'] = ('early_result' if receipt.wave < self.plan.finish_wave
                                         else 'late_result')
-                elif (result['target_wave_verified'] and result['required_levels_verified']
+                elif (result['target_wave_verified']
+                      and (result['required_levels_verified']
+                           or (xp_mode and result['xp_critical_defense_verified']))
                       and receipt.displayed_gems == 137 and receipt.status == 'defeat'):
-                    result['status'] = ('result_verified' if
-                                        self.optional_tower is None or result['optional_tower_placed']
-                                        else 'optional_tower_not_placed')
+                    result['status'] = 'result_verified'
                 return result
             previous = receipt
             self.driver.wait(.4)

@@ -22,7 +22,7 @@ from .loadout import (HARDCORE_HOTBAR_POINTS,INVENTORY_EQUIP_BUTTON,INVENTORY_LI
 from .maps import Board,read_boards,find_target,read_headers,visible_target,vip_target_matches,vote_prompt,map_vote_screen,badge_is_one,spawn_board_row,voting_floor,_vip_prompt_evidence,vote_players
 from .navigation import Navigator,MENU_ROUTE,HARDCORE_MENU_ROUTE
 from .hardcore_plan import PLAN_ID,load_hardcore_plan
-from .hardcore_plan_v2 import PLAN_ID as PLAN_V2_ID,load_hardcore_plan_v2
+from .hardcore_plan_v2 import PLAN_ID as PLAN_V2_ID,XP_PLAN_ID as PLAN_V2_XP_ID,is_hardcore_v2,load_hardcore_plan_v2
 from .hardcore_vision import wretched_match_ready,wretched_price
 from .observer import Observer
 from .phase1 import capture,locate_roblox,BlankCapture,Window
@@ -100,7 +100,7 @@ class Session:
             self.profile_path=None
             self.profile=self.strategy=None
             self.hardcore_plan=load_hardcore_plan()
-        elif strategy_id==PLAN_V2_ID:
+        elif is_hardcore_v2(strategy_id):
             self.profile_path=None
             self.profile=self.strategy=None
             self.hardcore_plan=load_hardcore_plan_v2()
@@ -492,6 +492,7 @@ class Session:
                 raise StopRun(f'Native name tooltip at slot {slot} did not verify twice.',kind='setup')
 
         optional=None
+        xp_mode=self.strategy_id==PLAN_V2_XP_ID
         # Neither an image-edge occupancy classifier nor a blank inventory
         # tile can claim a fourth tower. Detect only exact in-match name text.
         # An unrecognized priced slot stops rather than guessing tower identity.
@@ -513,7 +514,9 @@ class Session:
                 price=wretched_price(frame,slot,self.ocr)
                 if slot==5 and name is not None:
                     raise StopRun('Slot 5 has a tower tooltip; leave slot 5 empty.',kind='setup')
-                if slot==4 and name is not None and name==prior:
+                if slot==4 and name is not None and not xp_mode:
+                    raise StopRun('Slot 4 contains a tower; select the separate Hardcore + XP strategy.',kind='setup')
+                if slot==4 and name is not None and name==prior and price is not None:
                     optional=OPTIONAL_EXP_TOWERS[name]
                     found[3]=name
                     self.save_frame(frame,'hardcore_hotbar_slot_4.png')
@@ -529,9 +532,12 @@ class Session:
             else:
                 self.save_frame(self.frame(),f'hardcore_hotbar_slot_{slot}_unverified.png')
                 raise StopRun(f'Slot {slot} has unknown name or nonempty price text; check loadout manually.',kind='setup')
+        if xp_mode and optional is None:
+            raise StopRun('XP strategy requires the exact slot-4 tower name and a $200–$10,000 quote.',kind='setup')
         self.hardcore_optional_tower=optional
         self.hardcore_optional_slot_occupied=bool(optional)
-        if verify_hardcore_loadout(tuple(found),optional_tower=optional.casefold() if optional else None):
+        if verify_hardcore_loadout(tuple(found),optional_tower=optional.casefold() if optional else None,
+                                   require_optional=xp_mode):
             raise StopRun('Required Hardcore hotbar slot names did not verify.',kind='setup')
         self.driver.move(1500,500)
         self.status('hardcore_loadout_verified',confirmed_loadout=found,
@@ -541,7 +547,7 @@ class Session:
     def confirm_hardcore_inventory(self):
         """Require two matching unobstructed inventory reads, without input."""
         expected={(True,True,True,False,False)}
-        if self.strategy_id==PLAN_V2_ID:
+        if self.strategy_id==PLAN_V2_XP_ID:
             expected.add((True,True,True,True,False))
         deadline=self.now()+8
         previous=None
@@ -571,6 +577,9 @@ class Session:
         self.totals.setdefault('early_results',0)
         self.totals.setdefault('gems_total',0)
         self.totals.setdefault('gem_cycles',0)
+        if self.strategy_id==PLAN_V2_XP_ID:
+            self.totals.setdefault('xp_placement_cycles',0)
+            self.totals.setdefault('xp_unplaced_cycles',0)
         try:
             index=1
             while continuous or index<=matches:
@@ -604,7 +613,7 @@ class Session:
                     and 1<=result['result_wave']<self.hardcore_plan.finish_wave
                     and result.get('target_wave_verified') is False
                     and type(result.get('confirmed_actions')) is int
-                    and 0<=result['confirmed_actions']<=75
+                    and 0<=result['confirmed_actions']<=(76 if self.strategy_id==PLAN_V2_XP_ID else 75)
                     and type(result.get('displayed_gems')) is int
                     and result['displayed_gems']>=0)
                 if verified_early_defeat:
@@ -620,6 +629,11 @@ class Session:
                     self.totals['gems_total']+=137
                     self.totals['gem_cycles']+=1
                     self.totals['matches_completed']+=1
+                    if self.strategy_id==PLAN_V2_XP_ID:
+                        if result.get('optional_tower_placed'):
+                            self.totals['xp_placement_cycles']+=1
+                        else:
+                            self.totals['xp_unplaced_cycles']+=1
                     result['reward_verification']='result_screen_only'
                 elif result['status']=='result_verified':
                     result['status']='reward_mismatch'
@@ -1187,7 +1201,7 @@ class Session:
             prepared=self.prepare_hardcore_match()
             self.verify_hardcore_hotbar()
             return prepared
-        if self.strategy_id==PLAN_V2_ID:
+        if is_hardcore_v2(self.strategy_id):
             return self.play_hardcore_v2(matches,prepare_only=prepare_only,continuous=continuous)
         self.preflight()
         self.choose_map()
@@ -1262,7 +1276,7 @@ def main(argv=None):
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--confirm-start',action='store_true')
     parser.add_argument('--profile',type=Path,default=ROOT/'calibrations/dead_ahead_vertical_nine_v4.json')
-    parser.add_argument('--strategy',choices=('golden_scout',PLAN_ID,PLAN_V2_ID),default='golden_scout')
+    parser.add_argument('--strategy',choices=('golden_scout',PLAN_ID,PLAN_V2_ID,PLAN_V2_XP_ID),default='golden_scout')
     parser.add_argument('--expected-window',help=argparse.SUPPRESS)
     parser.add_argument('--matches',type=int,default=1)
     parser.add_argument('--continuous',action='store_true',help='Explicit Solo grind until stopped, a guard fails or disk space is low')
@@ -1302,7 +1316,7 @@ def main(argv=None):
         parser.error('Hardcore wave execution is locked until LIVE-00 calibration is complete; use --prepare-only.')
     if args.strategy==PLAN_ID and (args.auto_recover or args.continuous or args.idle_lobby_seconds):
         parser.error('Hardcore prepare-only does not allow continuous play or recovery automation.')
-    if args.strategy==PLAN_V2_ID and args.idle_lobby_seconds:
+    if is_hardcore_v2(args.strategy) and args.idle_lobby_seconds:
         parser.error('The one-time idle lobby trial is only supported for Golden Scout.')
     session=None
     platform=None

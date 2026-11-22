@@ -254,9 +254,11 @@ def read_hardcore_hotbar_name(frame,slot,ocr=None,*,optional=False):
     return None
 
 
-def verify_hardcore_loadout(slots, *, optional_tower=None):
+def verify_hardcore_loadout(slots, *, optional_tower=None, require_optional=None):
     if not isinstance(slots,tuple) or len(slots)!=5:
         return 'All five equipped slots must be readable.'
+    if (require_optional is not None and require_optional != bool(optional_tower)) or (optional_tower and optional_tower not in OPTIONAL_EXP_TOWERS):
+        return 'XP strategy requires a known tower in slot 4; three-tower strategy requires slot 4 empty.'
     expected=(HARDCORE_LOADOUT[:3]+(optional_tower,'')) if optional_tower else HARDCORE_LOADOUT
     if slots!=expected:
         return 'Require Boomerang, regular Crook Boss, Farm and the verified optional slot state.'

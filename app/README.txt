@@ -1,4 +1,14 @@
-TDS Macro - Windows v0.4.1
+TDS Macro - Windows v0.5.0
+
+Version 0.5.0 adds a separate Wretched Front Hardcore Gems + Tower XP mode.
+Choose it only with a known XP tower (such as Juggernaut) equipped in
+slot 4; slots 1–3 remain Boomerang, regular Crook Boss, Farm, slot 5 empty.
+Optional placement requires a fresh $200–$10,000 quote and surplus cash
+after reserving the next mandatory defense upgrade. Defer if unsafe;
+continue earning Gems and record whether slot 4 was placed at the result.
+The normal 3-tower strategy still requires empty slots 4–5.
+The only Windows Desktop shortcut is TDS Macro, pointing to the current
+standard installation; historical installations stay inside dist.
 
 This patch accepts a strictly bounded, native-tested Wretched Front
 map label OCR variant on the Hardcore wave-30 results screen. Other

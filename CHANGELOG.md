@@ -1,5 +1,11 @@
 # Changelog
 
+**v0.5.0 XP budget clarification (candidate):** After 70 required initial placements/upgrades and verified critical defenses, the four-tower XP mode can spend up to $10,000 for one level-zero XP tower before the final five expensive optional-for-XP upgrades, instead of waiting for an unachievable $10k+next-upgrade surplus. Gems are credited only when the game actually shows the required wave30/137 result and all XP-mode critical levels, regardless of which final upgrades remained affordable. Original 3-tower 75/75 policy unchanged; native wave30 with Juggernaut not yet verified.
+
+
+**Unreleased v0.5.0 candidate:** Separate selectable Hardcore Gem Grind (3 towers) and Hardcore Gems + Tower XP (optional slot4), sharing the pinned 75-action Wretched Front defense schedule. Text-only slot4 Juggernaut/other known tower and $200-$10,000 price checks, next-upgrade cash reservation, later surplus reassessment, XP-placement and XP-unplaced counters, original safe Gem credit when XP cannot be afforded. Auto-Equip still disabled and exact camera/terrain/input/reward checks unchanged. Nine obsolete Desktop version shortcuts were replaced with one stable latest-install shortcut; old folders untouched. Native four-tower placement/XP evidence, full regression, frozen GUI, hosted CI and publication are pending.
+
+
 **v0.4.1 released November 23, 2026:** Exact Wretched Front result-label OCR correction from native wave30 screenshot, retaining strict reward metadata and the unchanged three-tower 75-action strategy. Sanitized regression red/green, 657 local Python tests, Windows feature/main CI, frozen self-check and privacy-clean 1,271-file public ZIP CRC/SHA256 and re-download passed. Current native session safely restarted after one wave-12 early Defeat and then completed two consecutive full wave-30 results (137 Gems displayed each), automatic Restart Match, zero client recoveries. Published official ZIP installed through the existing verified updater; prior v0.4.0 install/captures and Desktop shortcut preserved.
 
 

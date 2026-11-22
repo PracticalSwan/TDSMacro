@@ -13,7 +13,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 from ctypes import wintypes
-from .hardcore_plan_v2 import PLAN_ID as PLAN_V2_ID
+from .hardcore_plan_v2 import PLAN_ID as PLAN_V2_ID, XP_PLAN_ID as PLAN_V2_XP_ID, is_hardcore_v2
 from .calibration import GOLDEN_V031_ACCEPTED_SHA
 from .updates import CURRENT_VERSION, UpdateError, UpdateService
 
@@ -21,7 +21,8 @@ ROOT = Path(__file__).resolve().parents[2]
 STRATEGIES = {
     'Golden Scout — 10 Max / Dead Ahead / Easy': 'dead_ahead_vertical_ten_v031_v2202_trial.json',
     'Golden Scout — 9 Scouts (legacy fallback)': 'dead_ahead_vertical_nine_v4.json',
-    'Hardcore Gem Grind — Wretched Front / Solo': PLAN_V2_ID,
+    'Hardcore Gem Grind — 3 Towers / Solo': PLAN_V2_ID,
+    'Hardcore Gems + Tower XP — Slot 4 / Solo': PLAN_V2_XP_ID,
 }
 
 
@@ -137,7 +138,7 @@ class Controller:
         if auto_equip:
             raise RuntimeError('Auto Equip is unavailable: TDS does not expose five verified EMPTY slot labels. Equip manually.')
         selection = STRATEGIES[strategy]
-        hardcore = selection == PLAN_V2_ID
+        hardcore = is_hardcore_v2(selection)
         if cancelled is not None and cancelled():
             raise RuntimeError('Roblox start preflight cancelled.')
         preflight_window = self.preflight(cancelled=cancelled, allow_recovery=auto_recover)
@@ -156,7 +157,7 @@ class Controller:
         command = [*entry, '--engine', 'start', '--confirm-start', '--continuous',
                    '--startup-delay', '5', '--output', str(self.output)]
         if hardcore:
-            command.extend(['--strategy', PLAN_V2_ID])
+            command.extend(['--strategy', selection])
         else:
             command.extend(['--profile', str(self.root/'calibrations'/selection)])
         if preflight_window is not None:
@@ -570,12 +571,15 @@ class App:
             fg=self.BG if can_install else self.MUTED)
 
     def _strategy_changed(self, _event=None):
-        hardcore = STRATEGIES.get(self.strategy.get()) == PLAN_V2_ID
+        selection = STRATEGIES.get(self.strategy.get())
+        hardcore = is_hardcore_v2(selection)
         if hardcore:
             self.loadout_summary.set(
                 'WRETCHED FRONT  /  HARDCORE SOLO\n'
                 '1 Boomerang   ·   2 Crook Boss   ·   3 Farm\n'
-                'Slots 4–5 must be empty for the 3-tower run.')
+                + ('4 XP tower (e.g. Juggernaut)   ·   5 empty\n'
+                 'Place only with verified spare cash.' if selection == PLAN_V2_XP_ID
+                 else 'Slots 4–5 must be empty for the 3-tower run.'))
         else:
             self.loadout_summary.set(
                 'DEAD AHEAD  /  EASY SOLO\n'
@@ -665,18 +669,22 @@ class App:
             return
         data = self.controller.status()
         self.message.set(status_text(data, running, self.controller.stop_requested, self.start_error))
-        selected_hardcore = STRATEGIES.get(self.strategy.get()) == PLAN_V2_ID
-        hardcore = data.get('strategy_id') == PLAN_V2_ID if data else selected_hardcore
+        selected_hardcore = is_hardcore_v2(STRATEGIES.get(self.strategy.get()))
+        hardcore = is_hardcore_v2(data.get('strategy_id')) if data else selected_hardcore
         if hardcore:
-            self.stats.set(f"{data.get('gem_cycles', 0)} cycles  ·  {data.get('gems_total', 0):,} gems displayed")
+            stat=f"{data.get('gem_cycles', 0)} cycles  ·  {data.get('gems_total', 0):,} gems displayed"
+            if data.get('strategy_id') == PLAN_V2_XP_ID:
+                stat+=f"  ·  {data.get('xp_placement_cycles', 0)} XP placements"
+            self.stats.set(stat)
         else:
             self.stats.set(f"{data.get('wins', 0)} wins  ·  {data.get('coins_total', 0):,} coins")
         wave = data.get('wave')
         actions = data.get('confirmed_actions')
         self.wave_display.set(f"{wave}/{45 if hardcore else 20}" if isinstance(wave, int) else '—')
-        self.action_display.set(f"{actions}/{75 if hardcore else 50}" if isinstance(actions, int) else '—')
+        target=76 if (data.get('strategy_id') if data else STRATEGIES.get(self.strategy.get())) == PLAN_V2_XP_ID else (75 if hardcore else 50)
+        self.action_display.set(f"{actions}/{target}" if isinstance(actions, int) else '—')
         self.recoveries_display.set(str(data.get('recoveries', 0)))
-        self.progress_bar.configure(maximum=75 if hardcore else 50,
+        self.progress_bar.configure(maximum=target,
                                     value=actions if isinstance(actions, int) else 0)
         if running:
             if self.controller.stop_requested:

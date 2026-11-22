@@ -1,5 +1,11 @@
 # TDS Macro
 
+**v0.5.0 XP-only cash-flow variant (unreleased):** The $10,000 Juggernaut typically cannot be purchased while simultaneously preserving cash for the final five expensive baseline upgrades. The new XP selection protects all ten max-level Farms and the proven early Boomerang/Crook Boss defense milestones, then allows Juggernaut placement before some optional late upgrades. The baseline Gem-only strategy still targets all 75 actions. Native result verification must confirm wave30 and actual 137 Gems; XP placements and XP-reward claims are separate. Until accepted in game, this is not a guaranteed Gem+XP strategy.
+
+
+**Under development: v0.5.0 Hardcore + XP mode.** Overview offers separate Wretched Front Solo Gem-only (Boomerang, regular Crook Boss, Farm; slots 4 and 5 empty) and Gem + Tower XP (the same three plus a text-verified tower such as Juggernaut in slot4; slot5 empty). Dynamic slot4 price must be readable between $200 and $10,000. Place at level0 only with verified surplus above the next mandatory defense; never delay a protected upgrade or blindly spend. Gem-only results and XP tower placements are tracked separately. The current stable release remains [v0.4.1](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.4.1) until frozen/native acceptance and CI pass. Windows Desktop uses only one stable TDS Macro shortcut to the current dist/TDSMacro/TDSMacro.exe; old installations are retained without versioned Desktop links.
+
+
 **[v0.4.1 released](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.4.1) — November 23, 2026:** Fixes a reproducible Wretched Front map-label OCR variation that prevented crediting an otherwise complete Hardcore wave-30 result. Strict wave/mode/difficulty/duration and reward verification remain. All 657 local tests, hosted main Windows CI, native v0.4.1 frozen self-check, clean public ZIP re-download and official updater installation passed. The running three-tower GUI subsequently verified two complete 75-action, 137-displayed-Gem cycles with automatic Restart Match. Auto-Equip remains disabled; Automatic updates remain user-controlled and OFF by default. See [verification](docs/verification.md).
 
 

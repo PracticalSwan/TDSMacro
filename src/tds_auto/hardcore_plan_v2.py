@@ -8,6 +8,12 @@ from .hardcore_plan import MAX_PLAN_BYTES, ROOT, HardcoreOperation, HardcorePlan
 
 
 PLAN_ID = 'hardcore_gem_grind_wretched_front_v2'
+XP_PLAN_ID = 'hardcore_gem_xp_wretched_front_v2'
+HARDCORE_V2_IDS = frozenset((PLAN_ID, XP_PLAN_ID))
+
+def is_hardcore_v2(strategy_id):
+    return strategy_id in HARDCORE_V2_IDS
+
 PROFILE_ID = 'wretched_front_hardcore_v2'
 PLAN_PATH = Path('strategies/hardcore_wretched_front_boomerang_crook_farm_v2.json')
 PLAN_SHA256 = '3bc8761073a85cab3e14d68a547cc8777085c5910459400bd91d85432ef1e1ef'

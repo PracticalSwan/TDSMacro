@@ -328,6 +328,12 @@ def wretched_price(frame, slot, ocr):
     # green-only mask can misread the digit 1 as 7. Never infer a price.
     text = ocr.read(region if slot == 4 else green_ink(region))
     price = parse_cash(text) if text.startswith('$') else None
+    if slot == 4 and price is None:
+        # Native Juggernaut $10,000 quote extends outside the old tight
+        # price crop. Re-read a single wider bounded region, with the same
+        # strict currency parser. This adds no input or inferred digits.
+        wide_text = ocr.read(frame.crop((1000, 940, 1140, 988)))
+        price = parse_cash(wide_text) if wide_text.startswith('$') else None
     if slot == 4 and (price is None or not OPTIONAL_SLOT_PRICE_RANGE[0] <= price <= OPTIONAL_SLOT_PRICE_RANGE[1]):
         return None  # Unknown quote: no optional tower purchase.
     return price

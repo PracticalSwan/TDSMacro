@@ -335,9 +335,9 @@ def restart_client(control,platform,report,*,locate=locate_client,close=close_cl
 
 def supervise(output,platform,profile,*,attempt=None,restart=None,locate=locate_client,max_recoveries=3,
               idle_lobby_seconds=0,initial_expected=None,strategy_id='golden_scout',auto_equip=False):
-    from .hardcore_plan_v2 import PLAN_ID as HARDCORE_ID
+    from .hardcore_plan_v2 import is_hardcore_v2
 
-    hardcore=strategy_id==HARDCORE_ID
+    hardcore=is_hardcore_v2(strategy_id)
     if type(idle_lobby_seconds) is not int or (idle_lobby_seconds and not 1200<=idle_lobby_seconds<=1800):
         raise StopRun('AFK lobby monitoring is bounded to 1200..1800 seconds.',kind='setup')
     output=Path(output)
