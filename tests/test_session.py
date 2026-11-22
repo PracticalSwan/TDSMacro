@@ -1153,6 +1153,90 @@ class SessionTests(unittest.TestCase):
                 self.assertEqual(result['gem_cycles'],0)
                 session.transition.assert_not_called()
 
+    def test_continuous_hardcore_restarts_verified_early_defeat_without_gem_credit(self):
+        from unittest.mock import Mock
+        from tds_auto.hardcore_plan_v2 import PLAN_ID
+        output=self.path/'hardcore_verified_early'
+        output.mkdir()
+        session=Session(self.driver,output,read_frame=self.session.capture,
+                        now=self.platform.now,strategy_id=PLAN_ID)
+        session.preflight_hardcore=Mock()
+        session.choose_map=Mock()
+        session.prepare_hardcore_match=Mock()
+        session.verify_hardcore_hotbar=Mock()
+        session.transition=Mock(return_value='match_ready')
+        session.status=Mock()
+        early={'status':'early_result','outcome':'defeat','result_wave':28,
+               'target_wave_verified':False,'confirmed_actions':74,'displayed_gems':127}
+        success={'status':'result_verified','outcome':'defeat','result_wave':30,
+                 'confirmed_actions':75,'displayed_gems':137}
+        with patch('tds_auto.hardcore_match.HardcoreMatchV2') as candidate:
+            candidate.return_value.run.side_effect=[early,success,
+                                                    {'status':'stopped','reason':'test stop'}]
+            result=session.play_hardcore_v2(1,continuous=True)
+        self.assertEqual(result['status'],'stopped')
+        self.assertEqual(result['early_results'],1)
+        self.assertEqual((result['gem_cycles'],result['gems_total'],result['matches_completed']),
+                         (1,137,1))
+        self.assertEqual(session.transition.call_count,2)
+        self.assertEqual(session.prepare_hardcore_match.call_count,3)
+        self.assertEqual([match['status'] for match in result['matches']],
+                         ['early_result','result_verified','stopped'])
+
+    def test_continuous_hardcore_caps_consecutive_early_defeats(self):
+        from unittest.mock import Mock
+        from tds_auto.hardcore_plan_v2 import PLAN_ID
+        output=self.path/'hardcore_verified_early_limit'
+        output.mkdir()
+        session=Session(self.driver,output,read_frame=self.session.capture,
+                        now=self.platform.now,strategy_id=PLAN_ID)
+        session.preflight_hardcore=Mock()
+        session.choose_map=Mock()
+        session.prepare_hardcore_match=Mock()
+        session.verify_hardcore_hotbar=Mock()
+        session.transition=Mock(return_value='match_ready')
+        session.status=Mock()
+        early={'status':'early_result','outcome':'defeat','result_wave':28,
+               'target_wave_verified':False,'confirmed_actions':74,'displayed_gems':127}
+        with patch('tds_auto.hardcore_match.HardcoreMatchV2') as candidate:
+            candidate.return_value.run.side_effect=[dict(early) for _ in range(3)]
+            result=session.play_hardcore_v2(1,continuous=True)
+        self.assertEqual(result['status'],'early_result')
+        self.assertEqual(result['stop_kind'],'strategy')
+        self.assertIn('consecutive',result['reason'])
+        self.assertEqual(result['early_results'],3)
+        self.assertEqual(result['gem_cycles'],0)
+        self.assertEqual(session.transition.call_count,2)
+        self.assertEqual(session.prepare_hardcore_match.call_count,3)
+
+    def test_continuous_hardcore_never_restarts_an_unverified_early_result(self):
+        from unittest.mock import Mock
+        from tds_auto.hardcore_plan_v2 import PLAN_ID
+        for index, outcome in enumerate((
+                {'status':'early_result','outcome':'defeat','result_wave':28,
+                 'target_wave_verified':False,'confirmed_actions':74,'displayed_gems':None},
+                {'status':'early_result','outcome':'unknown','result_wave':28,
+                 'target_wave_verified':False,'confirmed_actions':74,'displayed_gems':127},
+                {'status':'unverified_reward','outcome':'defeat','result_wave':30,
+                 'target_wave_verified':True,'confirmed_actions':75,'displayed_gems':None})):
+            with self.subTest(outcome=outcome):
+                output=self.path/f'hardcore_early_unverified_{index}'
+                output.mkdir()
+                session=Session(self.driver,output,read_frame=self.session.capture,
+                                now=self.platform.now,strategy_id=PLAN_ID)
+                session.preflight_hardcore=Mock()
+                session.choose_map=Mock()
+                session.prepare_hardcore_match=Mock()
+                session.verify_hardcore_hotbar=Mock()
+                session.transition=Mock()
+                session.status=Mock()
+                with patch('tds_auto.hardcore_match.HardcoreMatchV2') as candidate:
+                    candidate.return_value.run.return_value=outcome
+                    result=session.play_hardcore_v2(1,continuous=True)
+                self.assertEqual(result['status'],outcome['status'])
+                session.transition.assert_not_called()
+                self.assertEqual(result['gem_cycles'],0)
+
     def test_hardcore_prepare_reuses_one_hud_reader_for_all_polls(self):
         self.state='match_ready'
         self.session.strategy_id='hardcore_gem_grind_wretched_front'

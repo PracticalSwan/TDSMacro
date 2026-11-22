@@ -210,6 +210,10 @@ def status_text(data, running, stopping=False, start_error=None):
             return 'Hardcore stopped — the result did not qualify as a credited cycle.'
         return 'Ready — open the TDS lobby, then press F1.'
     phase = data.get('phase', 'starting')
+    if phase == 'hardcore_early_result_retry':
+        return (f"Verified wave-{data.get('wave', '?')} early Defeat · "
+                f"Restart Match {data.get('consecutive_early_defeats', 1)}/2 · "
+                "no full-cycle Gems counted.")
     if phase=='recovering':
         if data.get('stage')=='awaiting_foreground':
             return 'Input stopped · waiting up to 5 seconds for Roblox to return naturally · F2 cancels.'

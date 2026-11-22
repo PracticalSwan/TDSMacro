@@ -210,6 +210,13 @@ class AppTests(unittest.TestCase):
         self.assertEqual(status_text({},False,start_error='Roblox foreground was not verified.'),
                          'Start stopped: Roblox foreground was not verified.')
 
+    def test_verified_early_defeat_gui_explains_bounded_direct_restart(self):
+        text=status_text({'phase':'hardcore_early_result_retry','wave':28,
+                          'consecutive_early_defeats':1},True)
+        self.assertIn('wave-28',text)
+        self.assertIn('1/2',text)
+        self.assertIn('no full-cycle Gems counted',text)
+
     def test_passive_focus_wait_explains_natural_return_and_stop(self):
         text=status_text({'phase':'recovering','stage':'awaiting_foreground','recoveries':0},True)
         self.assertIn('5 seconds',text)

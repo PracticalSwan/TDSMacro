@@ -567,6 +567,8 @@ class Session:
 
         root=self.output
         completed=[]
+        consecutive_early_defeats=0
+        self.totals.setdefault('early_results',0)
         self.totals.setdefault('gems_total',0)
         self.totals.setdefault('gem_cycles',0)
         try:
@@ -593,7 +595,26 @@ class Session:
                     return prepared
                 self.totals['attempts']+=1
                 result=runner.run()
+                # Native result OCR was already confirmed in two fresh frames.
+                # Only a known early Defeat may retry; unknown results remain terminal.
+                verified_early_defeat=(
+                    result.get('status')=='early_result'
+                    and result.get('outcome')=='defeat'
+                    and type(result.get('result_wave')) is int
+                    and 1<=result['result_wave']<self.hardcore_plan.finish_wave
+                    and result.get('target_wave_verified') is False
+                    and type(result.get('confirmed_actions')) is int
+                    and 0<=result['confirmed_actions']<75
+                    and type(result.get('displayed_gems')) is int
+                    and result['displayed_gems']>=0)
+                if verified_early_defeat:
+                    consecutive_early_defeats+=1
+                    self.totals['early_results']+=1
+                    if consecutive_early_defeats>2:
+                        result.update(stop_kind='strategy',
+                                      reason='Three consecutive verified early defeats; no further match restart.')
                 if result['status']=='result_verified' and result.get('displayed_gems')==137:
+                    consecutive_early_defeats=0
                     # These are verified result-screen rewards, not a direct
                     # account-wallet audit. No lobby trip is necessary.
                     self.totals['gems_total']+=137
@@ -607,13 +628,24 @@ class Session:
                 if continuous and len(completed)>10:
                     completed.pop(0)
                 self.status(result['status'],result=result)
-                if result['status']!='result_verified':
+                retry_early=(continuous and verified_early_defeat
+                             and consecutive_early_defeats<=2)
+                if result['status']!='result_verified' and not retry_early:
                     break
+                if retry_early:
+                    self.status('hardcore_early_result_retry',
+                                wave=result['result_wave'],
+                                consecutive_early_defeats=consecutive_early_defeats,
+                                early_results=self.totals['early_results'])
                 if not continuous and index>=matches:
                     break
                 self.transition('restart_match')
                 index+=1
-            return {'status':completed[-1]['status'],'matches':completed,**self.totals}
+            summary={'status':completed[-1]['status'],'matches':completed,**self.totals}
+            if completed[-1].get('stop_kind'):
+                summary.update(stop_kind=completed[-1]['stop_kind'],
+                               reason=completed[-1]['reason'])
+            return summary
         finally:
             self.output=root
 
