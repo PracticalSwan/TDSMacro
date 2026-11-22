@@ -1,5 +1,8 @@
 # Project instructions — TDS Macro
 
+**v0.4.0 released/installed (November 22, 2026):** Stable tag `v0.4.0` at `1d321822` passed hosted Windows CI `45031060770`, frozen self-check, 656 local tests, native UI toggle/manual check, disposable end-to-end updater/rollback, and two live 75/75 wave-30 result/restart cycles with zero recoveries. Public ZIP SHA256 `3698a93f3e9e150e4701e6af10475a32eebebbc39e907107bb66ee06e8327252` (published re-download verified); EXE SHA256 `70a349444165f71cae7988482f1fa04acc73fe6d95854ab21b0cf01b9beba5ac`. Standard install v0.4.0; preserved v0.3.4 folder/shortcut; continuous candidate worker remains active separately. Do not disturb private experimental calibration or re-enable Auto-Equip.
+
+
 **v0.4.0 release gate (2026-11-22):** Source passed all 656 local tests, feature Windows CI and native three-tower 75/75 wave-30 reward/restart with zero recoveries. Updater GUI preference, GitHub check, verified ZIP staging and disposable rollback succeeded. Preserve live worker, v0.3.4 and the private untracked calibration. Main CI and published-asset verification are final gates. See `docs/verification.md`.
 
 

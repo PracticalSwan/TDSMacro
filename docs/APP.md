@@ -1,5 +1,8 @@
 # Windows application
 
+**v0.4.0 now released:** Download [v0.4.0](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.4.0). In Updates, check the OFF-by-default Automatic updates switch to enable stable-release checks (startup and every six hours) or press Check now. The updater verifies official ZIP/checksum and installs only when the gameplay worker is idle; the prior app/captures are backed up. The new GUI starts idle, never restarting Roblox automatically. Manual first install required from pre-v0.4.0 versions.
+
+
 **v0.4.0 GUI acceptance:** Native Updates tab renders without clipping; OFF→ON→OFF persisted correctly and Check now returned Up to date. A verified update is deferred while any gameplay worker runs. The frozen GUI also passed a 75-action Hardcore match and direct Restart Match. See `verification.md` for evidence; future over-the-network upgrades remain to be observed when a newer release exists.
 
 

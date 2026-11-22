@@ -1,5 +1,8 @@
 # Setup
 
+**Current installation:** v0.4.0 is the latest published version. Extract the complete [Windows ZIP](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.4.0); previous versions require one manual installation before opt-in updates become available in the Updates tab. An idle-only updater preserves the previous app as backup. The tested standard Windows installation was upgraded from v0.3.4 to v0.4.0 via the actual published GitHub ZIP and passed frozen self-check.
+
+
 **v0.4.0 installation acceptance:** The packaged frozen app passed self-check and a disposable update over an old installation preserved its backup and captures. Enable Automatic updates from the Updates tab (OFF by default) or check manually. All install actions are idle-only, official SHA-256 verified, and never resume Roblox automatically. See `verification.md` for release evidence.
 
 

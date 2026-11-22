@@ -1,5 +1,8 @@
 # Changelog
 
+**v0.4.0 PUBLISHED — November 22, 2026:** First opt-in auto-updater, manual update check/installation, official GitHub release SHA256+checksum verification, staged self-check, safe idle-only install and rollback; no gameplay input changes. 656 local tests, Windows CI, frozen GUI, disposable installer and 2 native 75-action Hardcore result/restart cycles verified with zero recoveries. Official ZIP and checksum re-downloaded and matched. Prior v0.3.4 installation/release preserved.
+
+
 **v0.4.0 accepted candidate, 2026-11-22:** OFF-by-default update switch, official release verification, idle-only staged installation and rollback passed full 656-test regression, Windows feature CI, frozen/GUI and disposable install tests. The unchanged three-tower strategy completed 75/75 actions, natural wave-30 Defeat, 137 Gems displayed and direct Restart Match, with zero recoveries. Main CI/public asset verification remain.
 
 

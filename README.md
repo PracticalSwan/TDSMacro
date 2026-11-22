@@ -1,5 +1,8 @@
 # TDS Macro
 
+**Latest stable: [v0.4.0](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.4.0)** (November 22, 2026). Adds OFF-by-default Automatic updates switch, Check now, secure verified downloads and idle-only installation with old-install backup. Full tests/CI, frozen GUI, official asset re-download and native Hardcore reward/restart passed. Users on older versions install v0.4.0 once from the ZIP, then can enable updates in the Updates tab. Details: [Windows app](docs/APP.md) and [verification](docs/verification.md).
+
+
 **v0.4.0 acceptance:** Updates tab OFF-by-default automatic updates, manual check/download/install, official SHA-256 checks and idle-only backup-and-rollback are verified. Full Python tests, hosted feature CI and a native 75-action Hardcore wave-30 result/direct Restart Match passed. See [verification](docs/verification.md) and [Updates instructions](docs/APP.md). Public release awaits final main CI.
 
 
