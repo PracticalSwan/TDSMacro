@@ -1,5 +1,8 @@
 # Changelog
 
+**v0.4.0 pre-release acceptance, November 22 2026:** Feature HEAD `32d01ff` passed hosted Windows CI `45028616562` and **656/656** local Python tests. Frozen EXE SHA-256 `70a349444165f71cae7988482f1fa04acc73fe6d95854ab21b0cf01b9beba5ac`; privacy-clean 1,271-file ZIP SHA-256 `db5c5334772b3d947b14e838d7df940e7cdde9faf7a7d2d3183c6daaac654423`, CRC valid. Live Tk Updates tab rendered, saved OFF→ON→OFF and correctly checked GitHub. Full ZIP+SHA256SUMS+tree-integrity staging, frozen self-check, disposable upgrade with preserved old captures and installed self-check passed. Native `app_20261122_205026_149605/attempt_001/hardcore_cycle_001/result.json` verifies 75/75 actions, all required levels, natural wave-30 Defeat and 137 Gems displayed with zero recoveries, followed by direct Restart Match and cycle-2 purchases. No fourth tower, wallet audit, or altered purchase guards. Release remains gated on final main-branch CI and published-asset re-download; actual future online v0.4.1 upgrade is untestable until that release exists.
+
+
 v0.4.0 CANDIDATE (2026-11-22): User-controlled persistent automatic updates, OFF by default, and manual check/install in new Updates tab. Stable official release verification uses both GitHub SHA-256 asset digests and matching SHA256SUMS, strict ZIP/version validation, frozen pre-install self-check, and deferred install while gameplay runs. Separate helper waits for old GUI shutdown, backs up complete previous installation/captures and rolls back failed swap. No gameplay action, route, OCR or purchase changes. Release requires full tests, native Windows GUI/transaction acceptance, CI and archive privacy review.
 
 
