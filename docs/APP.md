@@ -1,6 +1,7 @@
 # Windows application
 
-**NATIVE UPDATE — 2026-11-22 ICT, three-tower frozen GUI verified:** Frozen candidate `dist/v031-hardcore-three-tower-count18-fix-20261122/TDSMacro` on TDS v2.20.3, session `app_20261122_131050_068517`, first fresh Solo Wretched Front cycle: **75/75 ordered confirmed actions**, **18 tower placements**, exact end levels **10 Farms L3 + 3 Boomerangs L4 + 5 Crook Bosses L3**, wave-30 natural Defeat, **137 Gems displayed**, no optional XP tower and **0 recoveries**. An independent file audit checked all 75 monotonic action IDs and `result.json`, SHA-256 `afa6038d3266c297b8b896ca4da182bd0f808ee7ef379be10c2c498a61935056`. The game displayed the result, not an independently audited wallet deposit. Direct Restart Match proceeded to **cycle 2** in the same continuous frozen worker (at least nine separately confirmed actions), still running when checked. Full source **626/626** tests, compile and diff checks passed; frozen --self-check and packaged game asset/pinned plan hashes matched. Keep max-three bounded auto-recovery and exact pre-action safety checks. Public v0.3.1 release and hosted CI remain pending until reviewed Git commit, clean package/privacy checks, and verified CI; current run is not proof of infinite failure-free behavior.
+**CURRENT RELEASE TARGET — v0.3.2, 2026-11-22 ICT:** Public **v0.3.1 is already published** at commit `1439ee91` and must remain immutable. The subsequent three-tower Wretched Front/GUI fixes are in reviewed commit `951ac6c`; hosted Windows CI run `44993592295` succeeded. The exact frozen candidate independently completed **two consecutive 75/75-action, 18-tower, wave-30 Solo Hardcore results**, each displaying **137 Gems** (274 total), with **zero recoveries** and automatic Restart Match into cycle 3. Required loadout is **Boomerang slot 1 / regular Crook Boss slot 2 / Farm slot 3 / slots 4 and 5 empty**; no optional XP tower is used. Auto-Equip stays disabled because TDS does not expose all five explicit EMPTY labels. Preserve independent text, terrain, focus, cash, tower and confirmation guards; max-three recovery remains bounded, not an indefinite failure-free guarantee. These fixes require a distinct **v0.3.2 patch release**, never a replacement for existing v0.3.1 tag/assets. Displayed Gems are not independently wallet-audited.
+
 
 
 **FINAL OWNER v0.3.1 DECISION (2026-11-21 17:44 ICT; supersedes earlier conditional OCR proposals):** **Remove automatic game-version OCR completely, now.** v0.3.1 must use **one fixed Wretched Front candidate route**, never select or retry routes from version text and never perform even one-time version detection. It is still **NOT an accepted route** until the native proof of **RIGHT onto rock tops → DOWN across the pale/white boulder beside the old gate → DOWN ends ON path → LEFT to original placement pose**, plus two fresh-spawn guarded repetitions and unchanged three-rock camera/drift checks. Terrain mismatch, lost foreground/client identity, unknown Ready/zero-tower state or failed placement checks must stop; non-version gameplay OCR stays. The candidate source has removed version-OCR route dispatch; **no live match, optional XP, final build, CI or release success is claimed**. This instruction now authorizes implementation and native calibration in separate guarded batches, not weakening safety or changing published v0.3.0.
@@ -9,10 +10,10 @@
 
 ## Version status
 
-- **Published stable:** v0.3.0, with the original nine-Scout fallback and v2.20.0-era three-slot Hardcore route.
-- **Local v0.3.1 candidate (not yet published):** 960x690 Overview/Diagnostics GUI, native-tested ten-Scout Golden route, guarded three-tower Hardcore baseline and optional XP capability (unused for the current three-tower run).
-- The ten-Scout route has **three verified native wins on TDS v2.20.2**. The live game later displayed v2.20.3, which has not yet received the same acceptance run.
-- A v2.20.3 native Hardcore 75+1 optional Minigunner match previously reached wave 30 with 137 Gems and +106 XP displayed. The subsequent requested three-tower GUI run reached wave 19 with 64 actions but stopped safely on a misread 18/40 tower counter; full three-tower replay and unattended repeatability remain pending.
+- **Published stable:** v0.3.1, with Golden ten and optional XP features; current three-tower reliability corrections will be in v0.3.2.
+- **Local v0.3.2 patch candidate (not yet published):** 960x690 Overview/Diagnostics GUI, native-tested ten-Scout Golden route, guarded three-tower Hardcore baseline and optional XP capability (unused for the current three-tower run).
+- The ten-Scout route has **16 independently verified 50/50-action wave-20 Victories on TDS v2.20.3** (7,200 Coins displayed).
+- A v2.20.3 native Hardcore 75+1 optional Minigunner match previously reached wave 30 with 137 Gems and +106 XP displayed. That earlier wave-19 count bug is now fixed; the new frozen GUI completed **two consecutive 75/75-action wave-30 three-tower results** (274 Gems displayed) with zero recoveries, and automatically began cycle 3.
 
 ## Start and controls
 
@@ -28,10 +29,10 @@ The **SESSION** area shows actions, match count, displayed results, status, and 
 
 | Choice | Required manual equipment | What has actually been verified |
 |---|---|---|
-| Golden 10 Max | Golden Scout slot 1, slots 2–5 empty | Ten placements and forty once-only E-key upgrades; all ten level 4; wave-20 Victory in three v2.20.2 native matches |
+| Golden 10 Max | Golden Scout slot 1, slots 2–5 empty | Ten placements and forty once-only E-key upgrades; all ten level 4; wave-20 Victory in 16 native v2.20.3 continuous matches |
 | Golden 9 legacy | Golden Scout slot 1, slots 2–5 empty | Original 44-action fallback from the published v0.3.0 |
-| Hardcore Gem Grind | Boomerang slot 1, regular Crook Boss slot 2, Farm slot 3, slots 4–5 empty for the requested run | Baseline 75-action result verified historically; current GUI three-tower replay after wave-19 OCR fix pending |
-| Hardcore optional XP | Above Hardcore equipment plus a supported, independently verified evolution tower in slot 4 | Implemented only as a guarded branch; **not yet live accepted**. Placement and actual XP gain must not be assumed |
+| Hardcore Gem Grind | Boomerang slot 1, regular Crook Boss slot 2, Farm slot 3, slots 4–5 empty for the requested run | Two v2.20.3 GUI three-tower native 75/75 results, 137 Gems displayed each, auto Restart Match |
+| Hardcore optional XP | Above Hardcore equipment plus a supported, independently verified evolution tower in slot 4 | A v2.20.3 $1,850 Minigunner X1 native run recorded 76/76 core+optional actions, wave30, +106 XP displayed; the requested three-tower run leaves slot 4 empty |
 
 The Golden 10 profile uses a separately calibrated v2.20.2 scene. It stops if map, camera, hover, price, funds, tower identity, count, or upgrade result cannot be verified. The legacy nine-Scout profile remains separate.
 

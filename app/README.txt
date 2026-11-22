@@ -1,6 +1,14 @@
-TDS Macro - Windows v0.3.1
+TDS Macro - Windows v0.3.2
 
-**NATIVE UPDATE — 2026-11-22 ICT, three-tower frozen GUI verified:** Frozen candidate `dist/v031-hardcore-three-tower-count18-fix-20261122/TDSMacro` on TDS v2.20.3, session `app_20261122_131050_068517`, first fresh Solo Wretched Front cycle: **75/75 ordered confirmed actions**, **18 tower placements**, exact end levels **10 Farms L3 + 3 Boomerangs L4 + 5 Crook Bosses L3**, wave-30 natural Defeat, **137 Gems displayed**, no optional XP tower and **0 recoveries**. An independent file audit checked all 75 monotonic action IDs and `result.json`, SHA-256 `afa6038d3266c297b8b896ca4da182bd0f808ee7ef379be10c2c498a61935056`. The game displayed the result, not an independently audited wallet deposit. Direct Restart Match proceeded to **cycle 2** in the same continuous frozen worker (at least nine separately confirmed actions), still running when checked. Full source **626/626** tests, compile and diff checks passed; frozen --self-check and packaged game asset/pinned plan hashes matched. Keep max-three bounded auto-recovery and exact pre-action safety checks. Public v0.3.1 release and hosted CI remain pending until reviewed Git commit, clean package/privacy checks, and verified CI; current run is not proof of infinite failure-free behavior.
+Current patch: v0.3.2 (public v0.3.1 is preserved).
+The 960x690 Overview/Diagnostics GUI defaults to Solo Wretched Front Hardcore.
+Equip Boomerang 1, regular Crook Boss 2, Farm 3; leave slots 4 and 5 EMPTY.
+Auto-Equip is unavailable: the game does not expose 5 confirmed EMPTY labels.
+Two native 75-action wave-30 results displayed 137 Gems each (274 total);
+result-screen amounts are not a verified wallet balance. Automatic Restart
+Match is enabled, recovery is bounded to three attempts, and unknown
+terrain, focus, prices or selected towers stop safely.
+
 
 
 Keep TDSMacro.exe, _internal, assets, calibrations, strategies and docs
