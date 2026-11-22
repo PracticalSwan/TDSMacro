@@ -27,7 +27,7 @@ foreach ($name in @('LICENSE','NOTICE.md')) {
     Copy-Item -LiteralPath (Join-Path $projectRoot $name) -Destination $appPath
 }
 [void](New-Item -ItemType Directory -Path (Join-Path $appPath 'docs') -Force)
-foreach ($name in @('setup.md','APP.md','diagnostic-data.md','troubleshooting.md','strategies.md')) {
+foreach ($name in @('setup.md','APP.md','diagnostic-data.md','troubleshooting.md','strategies.md','verification.md')) {
     Copy-Item -LiteralPath (Join-Path $projectRoot ('docs\'+$name)) -Destination (Join-Path $appPath 'docs')
 }
 & $pythonPath (Join-Path $projectRoot 'scripts\collect-licenses.py') $appPath

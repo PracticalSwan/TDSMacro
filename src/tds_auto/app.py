@@ -288,7 +288,7 @@ class App:
         self.state_label.pack(side='right')
         tk.Label(self.overview, text='Tower defense, on autopilot.', bg=self.BG,
                  fg=self.TEXT, font=('Segoe UI Semibold', 22)).pack(anchor='w', padx=30, pady=(12, 2))
-        tk.Label(self.overview, text='Golden 10 verified on v2.20.2; Hardcore needs current-map recalibration.',
+        tk.Label(self.overview, text='Golden Scout and Hardcore verified on TDS v2.20.3.',
                  bg=self.BG, fg=self.MUTED, font=('Segoe UI', 10)).pack(anchor='w', padx=31)
 
         settings = tk.Frame(self.overview, bg=self.PANEL, highlightbackground=self.BORDER,

@@ -13,7 +13,7 @@ Golden Scout (nine-tower fallback):
   may not match later game updates.
 
 Golden Scout (ten maximum-level Scouts):
-  Experimental v2.20.2 camera calibration, Dead Ahead / Easy / Solo.
+  Native-tested v2.20.3 profile, Dead Ahead / Easy / Solo.
   Requires Golden Scout in slot 1 and slots 2-5 empty.
   Ten placements and forty E-key upgrades, individually verified.
   Native win and repeat evidence: see docs/verification.md.
@@ -27,6 +27,10 @@ Hardcore Gem Grind:
   newer game camera layouts may require recalibration.
   An optional evolution tower may be placed in slot 4 once,
   without upgrades, only when its exact tooltip is verified.
+  Its exact price must be readable between $200 and $10,000.
+  Price/cash are checked again before purchase. Unknown or
+  unaffordable prices skip the optional tower; core 75 actions
+  continue. No price is assumed from tower name or icons.
   Native v2.20.3 optional Minigunner: 76/76 actions, wave30,
   137 Gems and +106 tower XP displayed in result screenshot.
   XP is not guaranteed by mere equipment; the tower must remain

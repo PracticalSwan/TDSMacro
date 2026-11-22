@@ -24,6 +24,9 @@ PRICE_BOXES = {
     5: (1118, 948, 1205, 973),
 }
 
+# Only the optional slot's base placement quote is bounded by this price range.
+OPTIONAL_SLOT_PRICE_RANGE = (200, 10_000)
+
 ROUTE_SIDES = ((430, 290, 760, 740), (1180, 290, 1510, 740))
 ROUTE_TILE_SIZE = (66, 90)
 WRETCHED_TRAVEL_PITCH = -350
@@ -298,7 +301,10 @@ def wretched_price(frame, slot, ocr):
     # Optional-slot native prices read correctly as visible text; their
     # green-only mask can misread the digit 1 as 7. Never infer a price.
     text = ocr.read(region if slot == 4 else green_ink(region))
-    return parse_cash(text) if text.startswith('$') else None
+    price = parse_cash(text) if text.startswith('$') else None
+    if slot == 4 and (price is None or not OPTIONAL_SLOT_PRICE_RANGE[0] <= price <= OPTIONAL_SLOT_PRICE_RANGE[1]):
+        return None  # Unknown quote: no optional tower purchase.
+    return price
 
 
 def wretched_ready(frame, ocr):

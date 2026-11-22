@@ -125,6 +125,99 @@ class HardcoreCandidateV2Tests(unittest.TestCase):
                     frame.paste(crop,PRICE_BOXES[4][:2])
                 self.assertEqual(wretched_price(frame,4,ocr),1850)
 
+    def test_optional_price_range_200_through_10000_is_exact_and_fail_closed(self):
+        from tds_auto.hardcore_vision import wretched_price
+        from PIL import Image
+        frame=Image.new('RGB',(1920,991))
+        class StubOCR:
+            text=''
+            def read(self, _image):
+                return self.text
+        ocr=StubOCR()
+        for text,expected in (
+            ('$200',200), ('$2,000',2000), ('$10,000',10000),
+            ('$10000',10000), ('$199',None), ('$10,001',None),
+            ('$0',None), ('10,000',None), ('$1O,000',None),
+            ('$10,000 extra',None), ('',None)
+        ):
+            with self.subTest(ocr=text):
+                ocr.text=text
+                self.assertEqual(wretched_price(frame,4,ocr),expected)
+        # No optional-slot cap is imposed on the three verified core slots.
+        ocr.text='$14,000'
+        self.assertEqual(wretched_price(frame,3,ocr),14000)
+
+    def test_optional_affordable_low_and_high_prices_enter_same_guarded_path(self):
+        from tds_auto.hardcore_match import HardcoreMatch
+        from tds_auto.resources import Hud
+        for price in (200,10000):
+            with self.subTest(price=price):
+                worker=HardcoreMatch.__new__(HardcoreMatch)
+                worker.levels={}
+                worker.recorded_wait=set()
+                worker.camera=Mock()
+                worker.camera.point.return_value=(1120,660)
+                worker.driver=Mock()
+                worker.ocr=Mock()
+                worker.session=Mock()
+                worker.read=Mock(return_value=(None,Hud(cash=price,tower_count=0,wave=24)))
+                worker.commit_placement=Mock(return_value=True)
+                tower=SimpleNamespace(tower_id='X1',tower_type='Scout',slot=4,optional=True)
+                with patch('tds_auto.hardcore_match.wretched_price',return_value=price):
+                    self.assertTrue(worker.place(tower,29))
+                worker.driver.key.assert_called_once_with('4')
+                worker.commit_placement.assert_called_once_with(tower,29,(1120,660),0,price)
+
+    def test_optional_10000_unaffordable_never_arms_the_slot(self):
+        from tds_auto.hardcore_match import HardcoreMatch
+        from tds_auto.resources import Hud
+        worker=HardcoreMatch.__new__(HardcoreMatch)
+        worker.levels={}
+        worker.recorded_wait=set()
+        worker.camera=Mock()
+        worker.camera.point.return_value=(1120,660)
+        worker.driver=Mock()
+        worker.ocr=Mock()
+        worker.session=Mock()
+        worker.read=Mock(return_value=(None,Hud(cash=9999,tower_count=0,wave=24)))
+        worker.commit_placement=Mock()
+        tower=SimpleNamespace(tower_id='X1',tower_type='Scout',slot=4,optional=True)
+        with patch('tds_auto.hardcore_match.wretched_price',return_value=10000):
+            self.assertFalse(worker.place(tower,29))
+        worker.driver.key.assert_not_called()
+        worker.commit_placement.assert_not_called()
+        worker.session.status.assert_called_once()
+        self.assertEqual(worker.levels,{})
+
+    def test_optional_10000_quote_is_reverified_in_a_new_frame_before_click(self):
+        from tds_auto.hardcore_match import HardcoreMatch
+        from tds_auto.resources import Hud
+        from tds_auto.control import StopRun
+        worker=HardcoreMatch.__new__(HardcoreMatch)
+        worker.levels={}
+        worker.recorded_wait=set()
+        worker.camera=Mock()
+        worker.camera.point.return_value=(1120,660)
+        worker.driver=Mock()
+        worker.ocr=Mock()
+        worker.session=Mock()
+        worker.session.now.side_effect=[0,3]
+        worker.frame=Mock(return_value=None)
+        worker.read=Mock(side_effect=[
+            (None,Hud(cash=10000,tower_count=0,wave=24)),
+            (None,Hud(cash=10000,tower_count=0,wave=24)),
+        ])
+        worker.click=Mock(side_effect=lambda point, guard: guard())
+        worker.confirm=Mock()
+        tower=SimpleNamespace(tower_id='X1',tower_type='Scout',slot=4,optional=True)
+        with patch('tds_auto.hardcore_match.wretched_price',side_effect=[10000,1000]):
+            with self.assertRaisesRegex(StopRun,'Placement price or cash changed'):
+                worker.place(tower,29)
+        self.assertEqual([item.args for item in worker.driver.key.call_args_list],[('4',),('Q',)])
+        worker.confirm.assert_not_called()
+        worker.session.save_frame.assert_called_once()
+        self.assertEqual(worker.levels,{})
+
     def test_farm_preview_accepts_one_pixel_caption_registration_only_with_white_footprint(self):
         from PIL import Image,ImageDraw
         from tds_auto.hardcore_vision import wretched_preview
