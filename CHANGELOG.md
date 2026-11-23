@@ -1,5 +1,8 @@
 # Changelog
 
+**v0.5.0 slot-4 quote fix:** Add consensus-based fallback of two bounded green-only OCR crops when the original raw slot-4 price text is unreadable or out of the $200-$10,000 allowed range. Fixes a native late-wave Juggernaut $10,000 quote misread as $10,099. Both crops agree on $10,000 across 92 recorded native frames; normal $1,850 path remains unchanged. The previous diagnostic run earned 2,466 displayed Gems across 18 verified wave-30 cycles but no confirmed XP placements; publication is gated on a native successful optional placement and Gem result.
+
+
 **v0.5.0 XP budget clarification (candidate):** After 70 required initial placements/upgrades and verified critical defenses, the four-tower XP mode can spend up to $10,000 for one level-zero XP tower before the final five expensive optional-for-XP upgrades, instead of waiting for an unachievable $10k+next-upgrade surplus. Gems are credited only when the game actually shows the required wave30/137 result and all XP-mode critical levels, regardless of which final upgrades remained affordable. Original 3-tower 75/75 policy unchanged; native wave30 with Juggernaut not yet verified.
 
 

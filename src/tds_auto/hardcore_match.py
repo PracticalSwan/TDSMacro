@@ -716,7 +716,19 @@ class HardcoreMatchV2(HardcoreMatch):
         # The separate XP mode may defer only late wave-25..29 upgrades,
         # after every critical L2/L3 defense and Farm has been verified.
         reserve = 0 if xp_mode else self.next_core_price(price_for)
-        if not optional_placement_budget(price, hud.cash, reserve, hud.wave):
+        affordable = optional_placement_budget(price, hud.cash, reserve, hud.wave)
+        if xp_mode:
+            # Record one passive cash/quote decision per wave and affordability
+            # transition. This does not send input or loosen the buy gate.
+            key = ('xp_budget', hud.wave, affordable)
+            if key not in self.recorded_wait:
+                self.recorded_wait.add(key)
+                self.session.status('hardcore_optional_budget', wave=hud.wave,
+                                    cash=hud.cash, price=price, reserve=reserve,
+                                    affordable=affordable, confirmed_actions=self.completed)
+                if hud.cash >= 10_000 and not affordable:
+                    self.session.save_frame(frame, f'hardcore_X1_budget_wave_{hud.wave}.png')
+        if not affordable:
             return False
         if self.place(self.towers['X1'], self.plan.finish_wave - 1):
             self.session.status('hardcore_optional_placed', tower=self.optional_tower,

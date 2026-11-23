@@ -1,5 +1,8 @@
 # Troubleshooting
 
+**Juggernaut $10,000 live quote (v0.5.0):** A correctly equipped slot-4 Juggernaut can show a visually clear $10,000 price while raw OCR reports `$10,099` (outside the supported $200-$10,000 cap). New fallback reads two bounded green-text price crops and accepts an exact number only when both agree, never hardcoding $10,000 or forcing a placement. To investigate `hardcore_optional_budget` with `price=None`, retain native screenshot and compare strict raw and masked text; do not bypass the live cash, tower identity, camera, preview and placement-commit checks. Gem result counters and XP placement counters remain independent.
+
+
 **v0.5.0 XP candidate:** If Juggernaut occupies slot4 but you choose three-tower Gem Grind, the macro must stop at the loadout gate rather than silently switch strategies. If XP mode fails, verify slot4 has a native readable known tower tooltip and $200-$10,000 exact base quote, slot5 is empty, and slots1-3 are the required names. If `hardcore_optional_deferred` appears, cash could not cover both the XP placement and the next required upgrade; the Gem grind continues without claiming XP. A red preview, unknown price, wrong focus, camera or tower remains a fail-closed stop; never repeat placement inputs blindly. Run one TDSMacro GUI/worker only. There should be one stable latest-version Desktop shortcut, not a shortcut per version.
 
 

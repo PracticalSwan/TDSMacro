@@ -54,6 +54,15 @@ class XPVariantTests(unittest.TestCase):
             frame.paste(crop,(990,932))
         self.assertEqual(wretched_price(frame,4,LocalOCR()),10000)
 
+    def test_late_wave_slot4_quote_10000_falls_back_to_two_matching_green_masks(self):
+        from PIL import Image
+        from tds_auto.hardcore_vision import wretched_price
+        from tds_auto.resources import LocalOCR
+        with Image.open(Path('tests/fixtures/hardcore_slot4_juggernaut_10000_latewave_native_price.png')) as crop:
+            frame=Image.new('RGB',(1920,991))
+            frame.paste(crop,(1000,940))
+        self.assertEqual(wretched_price(frame,4,LocalOCR()),10000)
+
     def test_optional_cash_guard_protects_next_mandatory_upgrade(self):
         for price in (200,1850,10000):
             with self.subTest(price=price):
@@ -104,6 +113,7 @@ class XPVariantTests(unittest.TestCase):
         from tds_auto.hardcore_match import XP_CRITICAL_LEVELS
         runner=HardcoreMatchV2.__new__(HardcoreMatchV2)
         runner.session=SimpleNamespace(strategy_id=XP_PLAN_ID,status=Mock())
+        runner.recorded_wait=set()
         runner.levels=dict(XP_CRITICAL_LEVELS)
         runner.optional_tower='Juggernaut'
         runner.completed=70
