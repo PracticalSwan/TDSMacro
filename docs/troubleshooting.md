@@ -1,5 +1,8 @@
 # Troubleshooting
 
+**v0.5.0 near-path optional XP tower:** The only supported XP-mode point is `(976,580)` beside the character and central U-shaped strip, not `(1120,660)`. Live white/green native footprint and exact Place caption are required before any slot4 mouse-down; unknown terrain, changed camera, unreadable cash/price or focus loss stops/defer without a blind click. If a browser, scheduled app or user action steals foreground, the worker correctly fails closed; do not kill an unrelated process or loosen focus validation. Restore Roblox and use the normal verified lobby/restart path with one GUI/worker. In native acceptance, Juggernaut placed on wave25 and earned +106 Tower XP with 137 Gems on wave30, but the exact damage total is not yet measured.
+
+
 **Juggernaut $10,000 live quote (v0.5.0):** A correctly equipped slot-4 Juggernaut can show a visually clear $10,000 price while raw OCR reports `$10,099` (outside the supported $200-$10,000 cap). New fallback reads two bounded green-text price crops and accepts an exact number only when both agree, never hardcoding $10,000 or forcing a placement. To investigate `hardcore_optional_budget` with `price=None`, retain native screenshot and compare strict raw and masked text; do not bypass the live cash, tower identity, camera, preview and placement-commit checks. Gem result counters and XP placement counters remain independent.
 
 

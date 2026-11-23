@@ -1,6 +1,10 @@
 TDS Macro - Windows v0.5.0
 
 Version 0.5.0 adds a separate Wretched Front Hardcore Gems + Tower XP mode.
+The optional tower uses central ground (976,580) near the player and
+U-shaped strip, not the previous far-right rock (1120,660). In a native
+match Juggernaut placed on wave 25 and the wave-30 result showed 137 Gems
+and +106 Juggernaut Tower XP. Damage totals were not separately measured.
 Choose it only with a known XP tower (such as Juggernaut) equipped in
 slot 4; slots 1–3 remain Boomerang, regular Crook Boss, Farm, slot 5 empty.
 Slot 4 has a live $200–$10,000 placement quote (Juggernaut: $10,000).
