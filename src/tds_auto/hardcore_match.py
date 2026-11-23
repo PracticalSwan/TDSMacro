@@ -869,7 +869,9 @@ class HardcoreMatchV2(HardcoreMatch):
                 price = price_for(action, self.levels[action.tower_id])
                 if (price is None or hud.cash < price
                         or not self.upgrade(self.towers[action.tower_id], action.level, latest)):
-                    raise TargetWaveReached()
+                    # A deferral has sent no upgrade. Wait for a fresh quote
+                    # until the result or the existing last-wave guard wins.
+                    self.driver.wait(.3)
                 continue
             if (phase.step >= 13 and getattr(self,'optional_tower',None) and 'X1' not in self.levels
                     and self.try_optional_placement(frame, hud, price_for)):

@@ -75,3 +75,16 @@ class ResultTests(unittest.TestCase):
                     self.assertEqual(read_hardcore_result(frame, Observer(), LocalOCR()),
                                      HardcoreResult('defeat',wave,duration,gems))
                     self.assertIsNone(ResultReader().read(frame))
+
+    def test_native_xp_result_reads_exact_clipped_wretched_fron(self):
+        from tds_auto.observer import Observer
+        from tds_auto.resources import LocalOCR
+        from tds_auto.results import HardcoreResult, read_hardcore_result
+
+        observer, ocr = Observer(), LocalOCR()
+        with Image.open(ROOT/'tests/fixtures/hardcore_result_map_fron_native.png') as source:
+            frame = source.convert('RGB')
+        self.assertEqual(read_hardcore_result(frame, observer, ocr),
+                         HardcoreResult('defeat', 30, 451, 137))
+        frame.paste('black', (1090, 473, 1281, 501))
+        self.assertIsNone(read_hardcore_result(frame, observer, ocr))

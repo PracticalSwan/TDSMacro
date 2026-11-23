@@ -79,7 +79,7 @@ HARDCORE_MAP_BOX = (1138, 472, 1262, 507)
 # only the W/M/N first glyph and the terminal t/d/i. These exact variants
 # are independently bounded to the verified Wretched Front result panel.
 HARDCORE_MAP_LABELS_OCR = frozenset({
-    'Wretched Front', 'Wretched Fror',
+    'Wretched Front', 'Wretched Fror', 'Wretched Fron',
     'Mretched Froni', 'Mretched Frond', 'Nretched Frond',
 })
 

@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'src'))
 from tds_auto.app import Controller, STRATEGIES
@@ -30,6 +30,7 @@ class XPVariantTests(unittest.TestCase):
                 worker.towers = {tower.tower_id: tower for tower in plan.towers}
                 worker.last_wave = 30
                 worker.completed = 75 if placed else 74
+                worker.driver = Mock()
                 def read(_count, wave):
                     if wave != 30:
                         raise TargetWaveReached()
@@ -42,18 +43,23 @@ class XPVariantTests(unittest.TestCase):
                 worker.farm_economy_purchase = Mock(return_value=None)
 
                 def confirm(tower, level, _latest):
+                    if worker.upgrade.call_count == 1:
+                        return False  # First live quote deferred before pressing E.
                     worker.levels[tower.tower_id] = level
                     return True
 
                 worker.upgrade = Mock(side_effect=confirm)
                 if latest == 30:
                     worker.play_phase(plan.phases[-1], 10)
-                    worker.upgrade.assert_called_once_with(worker.towers['C5'], 3, 30)
+                    self.assertEqual(worker.upgrade.call_args_list,
+                                     [call(worker.towers['C5'], 3, 30)] * 2)
+                    worker.driver.wait.assert_called_once_with(.3)
+                    self.assertEqual(worker.read.call_count, 2)
                 else:
                     with self.assertRaises(TargetWaveReached):
                         worker.play_phase(plan.phases[-1], 10)
                     worker.upgrade.assert_not_called()
-                worker.read.assert_called_once_with({len(worker.levels)}, latest)
+                worker.read.assert_called_with({len(worker.levels)}, latest)
 
     def test_xp_placement_is_near_character_without_altering_core_calibration(self):
         from tds_auto.hardcore_match import XP_NEAR_PATH_POINT, HardcoreMatch

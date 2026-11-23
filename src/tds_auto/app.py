@@ -700,7 +700,8 @@ class App:
                 state, color = 'Starting', self.MINT
             else:
                 state, color = 'Running', self.MINT
-        elif self.controller.stop_requested or self.start_error or self.message.get().startswith('Stopped'):
+        elif (self.controller.stop_requested or self.start_error or self.message.get().startswith('Stopped')
+              or data.get('phase') in {'defeat', 'early_result', 'late_result', 'unverified_reward'}):
             state, color = 'Stopped', self.ROSE
         else:
             state, color = 'Ready', self.MUTED
