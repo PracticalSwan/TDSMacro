@@ -1,6 +1,8 @@
 # Setup
 
-**Latest v0.5.0 installation (November 23, 2026):** Download and extract the complete [official Windows ZIP](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.5.0), including `_internal`, then run `TDSMacro.exe`. Local standard `dist/TDSMacro` is installed and frozen self-checked; prior v0.4.1 is preserved at `dist/TDSMacro-previous-before-v0.5.0-20261123_082818`. Keep only one Desktop shortcut `TDS Macro.lnk` pointing at standard `dist/TDSMacro/TDSMacro.exe`. For four-slot XP farming equip Boomerang (1), regular Crook Boss (2), Farm (3), a supported XP tower like Juggernaut (4), and leave slot5 empty; choose **Hardcore Gems + Tower XP / Slot4 Solo**. For original 3-tower Gems leave 4 and 5 empty. Auto-Equip is disabled, automatic updates opt-in OFF, F1 Start/F2 Stop/F8 emergency stop.
+Extract the entire Windows ZIP, including `_internal`, and open `TDSMacro.exe`. The standard workspace installation is `dist/TDSMacro`, with one `TDS Macro.lnk` shortcut. Existing installations and captures are stored in their backup folders. [Official Windows release](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.5.1)
+
+For four-tower XP farming, equip Boomerang (1), regular Crook Boss (2), Farm (3), and Juggernaut (4), with slot 5 empty. Select **Hardcore Gems + Tower XP — Slot 4 / Solo** under **Run setup**. For the three-tower Gem mode, leave slots 4 and 5 empty. Use **F1** to start, **F2** to stop safely, and **F8 / Esc** for emergency stop. Auto-Equip is disabled, and automatic updates are opt-in.
 
 **v0.4.0 installation acceptance:** The packaged frozen app passed self-check and a disposable update over an old installation preserved its backup and captures. Enable Automatic updates from the Updates tab (OFF by default) or check manually. All install actions are idle-only, official SHA-256 verified, and never resume Roblox automatically. See `verification.md` for release evidence.
 

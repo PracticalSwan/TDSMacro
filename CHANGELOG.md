@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.5.1
+## v0.5.1 · November 23, 2026
 
 - Replaced the tab strip with a Windows strategy dashboard. Diagnostics and Updates open in separate utility windows. The selected strategy, required loadout, start and safe stop, and live counters are visible on the main screen.
 - Report the worker's recorded stop reason when it exits before publishing status. Unexpected exits without a result show an exit code and retain the last progress counters.

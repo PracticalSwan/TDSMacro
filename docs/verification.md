@@ -1,5 +1,19 @@
 # Verification
 
+## v0.5.1 dashboard and native regressions, November 23, 2026
+
+Release tag `v0.5.1` points to `7266ea5a580fdcacd37ef8b667af1a252b46b8ba`. All 678 local Windows tests and hosted Windows CI passed. The independently downloaded ZIP and checksum matched GitHub's asset digests. CRC passed, and all 1,271 packaged files matched the installed files. The staged and installed builds passed frozen self-check. ZIP SHA-256 `025e77dd670a70e7fcf9c1dc2060a30664bee279df805cd21777cb7fe0921ff0`. One Desktop shortcut targets the standard install. [Release](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.5.1) · [CI](https://github.com/PracticalSwan/TDSMacro/actions/runs/45100232448)
+
+From the standard installation, session `app_20261123_092728_066343` verified X1 at `(976,580)` on wave 25 with an exact $10,000 quote and 19 towers. The level-0 Juggernaut panel showed 70 damage during a passive sample. C5 reached level 3 at wave 30 with one verified $14,000 upgrade. The ledger records 76 actions and all 18 core levels, including ten Farms at L3, three Boomerangs at L4, and five regular Crook Bosses at L3. The native Defeat receipt showed 137 Gems, +106 Juggernaut Tower XP and +166 player XP. Restart Match opened the second cycle and confirmed fresh purchases. No client recoveries occurred in the accepted first cycle.
+
+The direct replay later stopped at the unconfirmed C1 level-2 upgrade in wave 12. The captured panel still showed C1 at level 1 with $8,675 cash. The worker sent no repeat upgrade, counted no additional reward, and performed one guarded relaunch into a positively verified fresh lobby. It retained the first completed cycle and continued with the same worker.
+
+The Windows dashboard opened Diagnostics and Updates from the header and launched the selected four-tower mode. Tests reproduced two false Ready states after a worker exit. The installed dashboard now reports the terminal reason or an exit code and preserves progress from the last snapshot.
+
+One installed trial confirmed two Farms but stopped because the first Farm title crop was empty. The existing contrast read recognized `Farm` in the same frame. The stop triggered one bounded client relaunch. Two separate setup stops at checkpoints 7 and 9 reproduced on terrain-only crops. The fixed search covers the measured offsets and rejects displaced or missing landmarks. The route and 14-phase plan hashes stayed the same.
+
+A later installed trial confirmed the $10,000 Juggernaut at wave 25, 19 towers, and 75 total actions. Its wave-30 result showed 137 Gems and +106 Juggernaut Tower XP. The worker excluded it because the map crop read `Wretched Fron`, and C5 stayed at level 2. The same sanitized panel fails with the previous allowlist and verifies with the observed exact label added. The final C5 action now waits through a pre-input quote deferral while wave 30 remains active.
+
 **v0.5.0 released and installed Nov 23, 2026:** Native session `app_20261123_080240_006238` completed 2/2 Hardcore Solo Wretched Front wave30 Defeats, each with wave25 Juggernaut X1 at `(976,580)`, 75 total confirmed actions, **137 Gems and +106 Tower XP**, zero recoveries. Local **672 tests**, hosted Windows main CI `45094236903`, 14-phase plan SHA `3bc8761073a85cab3e14d68a547cc8777085c5910459400bd91d85432ef1e1ef` unchanged. Official ZIP SHA256 `631a18f124c1b258dc36a4c1612b05d72a11d016b19fa83244a97bc85d515cec` independently re-downloaded and CRC checked, frozen EXE SHA256 `cf1fadd46d464890b76828bb45f220f5a9a29dacce8141f33c4ac759d3536057`. Standard v0.5.0 installed and self-checked, prior v0.4.1 backed up, exactly one Desktop shortcut confirmed. Official continuous GUI/worker started from standard install; focus/network safety stops can still interrupt operations.
 
 
