@@ -148,6 +148,23 @@ class WretchedV2203Tests(unittest.TestCase):
         self.assertEqual(route.matching_steps(ImageChops.offset(frame,24,0),range(11)),[])
         self.assertEqual(route.matching_steps(ImageChops.offset(frame,0,24),range(11)),[])
 
+    def test_native_route_offsets_match_one_checkpoint_with_both_terrain_views(self):
+        from tds_auto.hardcore_vision import WretchedRoute, ROUTE_SIDES, ROUTE_TILE_SIZE
+
+        route = WretchedRoute('wretched_front_hardcore_v2')
+        width, height = ROUTE_TILE_SIZE
+        for checkpoint, shift in ((7, (0, 24)), (9, (24, 0))):
+            with self.subTest(checkpoint=checkpoint):
+                frame = Image.new('L', (1920, 991))
+                with Image.open(ROOT/'tests/fixtures'/f'wretched_checkpoint{checkpoint}_native_two_tile_offset.png') as tiles:
+                    for i, (x0, y0, x1, y1) in enumerate(ROUTE_SIDES):
+                        tile = tiles.crop((i*width, 0, (i+1)*width, height))
+                        frame.paste(tile.resize((x1-x0, y1-y0), Image.Resampling.NEAREST), (x0, y0))
+                self.assertEqual(route.matching_steps(frame, range(11)), [checkpoint])
+                self.assertEqual(route.matching_steps(ImageChops.offset(frame, *shift), range(11)), [])
+                frame.paste(0, ROUTE_SIDES[1])
+                self.assertEqual(route.matching_steps(frame, range(11)), [])
+
     def test_selected_minigunner_range_ring_keeps_three_rock_camera_consensus(self):
         from tds_auto.hardcore_plan_v2 import load_hardcore_plan_v2
         from tds_auto.hardcore_vision import WretchedCamera

@@ -241,7 +241,7 @@ class HudReader:
                 count = parse_count(self.ocr.read(frame.crop((1270, 934, 1354, 977))))
         title_crop = frame.crop(self.title_box)
         title = self.ocr.read(title_crop)
-        if self.wave_total == 45 and title and title not in self.tower_names:
+        if self.wave_total == 45 and title not in self.tower_names:
             title = self.ocr.read(ink(title_crop))
         tower = title if title in self.tower_names else None
         if self.wave_total == 45:

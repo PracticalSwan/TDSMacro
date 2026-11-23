@@ -107,17 +107,22 @@ class WretchedRoute:
     @staticmethod
     def _matching_pinned_pair(gray, landmarks, checkpoint):
         # Preserve both independent terrain regions and their offset agreement.
-        right = cv2.matchTemplate(gray[1][63:85, 35:57],
-                                  landmarks[1][64:84, 36:56],
-                                  cv2.TM_CCOEFF_NORMED)
-        _, right_score, _, right_xy = cv2.minMaxLoc(right)
+        # Native offsets reached two tile pixels upward at checkpoint 7
+        # and to the right at checkpoint 9. Keep the other margins at one.
+        right_margin = 2 if checkpoint == 9 else 1
+        top_margin = 2 if checkpoint == 7 else 1
+
+        def fit(side, x, y, size):
+            actual = gray[side][y-top_margin:y+size+1, x-1:x+size+right_margin]
+            planned = landmarks[side][y:y+size, x:x+size]
+            _, score, _, offset = cv2.minMaxLoc(cv2.matchTemplate(actual, planned, cv2.TM_CCOEFF_NORMED))
+            return score, offset
+
+        right_score, right_xy = fit(1, 36, 64, 20)
         if right_score < .90:
             return False
 
-        left = cv2.matchTemplate(gray[0][23:49, 5:31],
-                                 landmarks[0][24:48, 6:30],
-                                 cv2.TM_CCOEFF_NORMED)
-        _, left_score, _, left_xy = cv2.minMaxLoc(left)
+        left_score, left_xy = fit(0, 6, 24, 24)
         if (left_score >= .94
                 and all(abs(a-b) <= 1 for a,b in zip(left_xy, right_xy))):
             return True
@@ -130,10 +135,7 @@ class WretchedRoute:
         if point is None:
             return False
         x, y = point
-        static = cv2.matchTemplate(gray[0][y:y+26, x:x+26],
-                                   landmarks[0][y+1:y+25, x+1:x+25],
-                                   cv2.TM_CCOEFF_NORMED)
-        _, score, _, offset = cv2.minMaxLoc(static)
+        score, offset = fit(0, x+1, y+1, 24)
         return score >= .94 and all(abs(a-b) <= 1 for a,b in zip(offset, right_xy))
 
     def matching_steps(self, frame, checkpoints):

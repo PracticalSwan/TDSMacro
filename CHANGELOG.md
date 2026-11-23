@@ -4,6 +4,8 @@
 
 - Replaced the tab strip with a Windows strategy dashboard. Diagnostics and Updates open in separate utility windows. The selected strategy, required loadout, start and safe stop, and live counters are visible on the main screen.
 - Report the worker's recorded stop reason when it exits before publishing status. Unexpected exits without a result show an exit code and retain the last progress counters.
+- Apply the existing exact Hardcore tower-title contrast read when the first OCR result is empty. A native Farm placement was visible and counted, but its blank first title read previously forced a safe stop.
+- At Wretched Front checkpoints 7 and 9, search one extra tile pixel along the axis measured in the saved native frames. Two agreeing terrain landmarks and the final three-landmark camera check remain required.
 - When Juggernaut or another supported XP tower is already placed, the sole pending C5 level-3 upgrade may use confirmed wave-30 cash. The purchase still needs the live tower, level, price, affordability, focus, and camera checks. The original three-tower mode retains its pre-wave-30 purchase cutoff.
 - Include the slot-4 Hardcore tests in hosted Windows checks.
 

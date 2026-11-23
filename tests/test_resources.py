@@ -45,6 +45,15 @@ class ResourceTests(unittest.TestCase):
             result=HudReader(hardcore=True).read(frame)
         self.assertEqual((result.tower_name,result.level),('Farm',1))
 
+    def test_hardcore_selected_farm_uses_mask_when_native_title_ocr_is_empty(self):
+        reader = HudReader(hardcore=True)
+        frame = Image.new('RGB', (1920, 991))
+        with Image.open(ROOT/'tests/fixtures/hardcore_farm_title_native_blank_ocr.png') as title:
+            frame.paste(title, reader.title_box[:2])
+        self.assertEqual(reader.read(frame).tower_name, 'Farm')
+        frame.paste('black', reader.title_box)
+        self.assertIsNone(reader.read(frame).tower_name)
+
     def test_hardcore_second_native_farm_level1_uses_bounded_variant(self):
         with Image.open(ROOT/'tests/fixtures/hardcore_f2_level1_offset_20261120.png') as frame:
             result=HudReader(hardcore=True).read(frame)
