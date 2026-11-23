@@ -1,5 +1,8 @@
 # TDS Macro
 
+**Pending final v0.5.0 position check:** The Gem + XP strategy now targets a central ground position next to the player and enemy-route bends for its optional slot-4 tower, instead of the original far-right rock. The 18 mandatory towers, three-tower Gem strategy and proven cash/preview guards are unchanged. First two native Juggernaut XP runs were successful with the *old* coordinate; the newly requested path-side placement requires its own live white-footprint/Place, tower-count and result acceptance before release.
+
+
 **v0.5.0 XP-only cash-flow variant (unreleased):** The $10,000 Juggernaut typically cannot be purchased while simultaneously preserving cash for the final five expensive baseline upgrades. The new XP selection protects all ten max-level Farms and the proven early Boomerang/Crook Boss defense milestones, then allows Juggernaut placement before some optional late upgrades. The baseline Gem-only strategy still targets all 75 actions. Native result verification must confirm wave30 and actual 137 Gems; XP placements and XP-reward claims are separate. Until accepted in game, this is not a guaranteed Gem+XP strategy.
 
 

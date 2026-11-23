@@ -12,6 +12,31 @@ from tds_auto.hardcore_match import HardcoreMatchV2, optional_placement_budget
 
 
 class XPVariantTests(unittest.TestCase):
+    def test_xp_placement_is_near_character_without_altering_core_calibration(self):
+        from tds_auto.hardcore_match import XP_NEAR_PATH_POINT, HardcoreMatch
+        from tds_auto.hardcore_plan_v2 import load_hardcore_plan_v2
+        from tds_auto.hardcore_vision import WretchedCamera
+        self.assertEqual(XP_NEAR_PATH_POINT,(976,580))
+        self.assertTrue(960-70 <= XP_NEAR_PATH_POINT[0] <= 960+70)
+        self.assertTrue(505+40 <= XP_NEAR_PATH_POINT[1] <= 505+110)
+        plan=load_hardcore_plan_v2()
+        expected=dict(WretchedCamera(plan).points)
+        self.assertNotIn('X1',expected)
+
+        def seed(runner,session):
+            runner.plan=plan
+            runner.towers={tower.tower_id:tower for tower in plan.towers}
+            runner.camera=WretchedCamera(plan)
+            runner.reader=SimpleNamespace(tower_names=set())
+
+        with patch.object(HardcoreMatch,'__init__',seed):
+            gem=HardcoreMatchV2(SimpleNamespace(hardcore_optional_tower=None))
+            xp=HardcoreMatchV2(SimpleNamespace(hardcore_optional_tower='Juggernaut'))
+        self.assertEqual(gem.camera.points,expected)
+        self.assertEqual({k:v for k,v in xp.camera.points.items() if k!='X1'},expected)
+        self.assertEqual(xp.camera.points['X1'],XP_NEAR_PATH_POINT)
+        self.assertEqual(len(set(xp.camera.points.values())),len(xp.camera.points))
+
     def test_two_explicit_hardcore_selectors_share_the_pinned_core_plan(self):
         self.assertTrue(is_hardcore_v2(PLAN_ID))
         self.assertTrue(is_hardcore_v2(XP_PLAN_ID))

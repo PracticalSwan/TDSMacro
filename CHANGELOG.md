@@ -1,5 +1,8 @@
 # Changelog
 
+**Unreleased v0.5.0 placement update:** Responding to player feedback, move optional XP tower X1 from distant `(1120,660)` to central-ground `(976,580)` beside stationary player and close to the U-shaped path, for potential coverage of more enemy route sections. Three-tower and all core coordinates unchanged; native green/white placement footprint, exact Place caption, live price/cash, focus/camera, and confirmed tower-count guards remain mandatory. Previous farther placement yielded two consecutive wave30 137 Gem results and 106 Juggernaut Tower XP on first card, but close-to-path location is **not yet native verified**; no release until validated.
+
+
 **v0.5.0 slot-4 quote fix:** Add consensus-based fallback of two bounded green-only OCR crops when the original raw slot-4 price text is unreadable or out of the $200-$10,000 allowed range. Fixes a native late-wave Juggernaut $10,000 quote misread as $10,099. Both crops agree on $10,000 across 92 recorded native frames; normal $1,850 path remains unchanged. The previous diagnostic run earned 2,466 displayed Gems across 18 verified wave-30 cycles but no confirmed XP placements; publication is gated on a native successful optional placement and Gem result.
 
 

@@ -1,5 +1,8 @@
 # Strategies and provenance
 
+**Path-side slot-4 placement (unreleased v0.5.0):** Four-slot XP mode changes only X1 camera-relative placement point from `(1120,660)` to `(976,580)`, beside the stationary player at approximately `(960,505)` in the verified camera, closer to the U-shaped central enemy strip. The XP tower is never moved or sold after purchase and is placed only if the unchanged strict native preview, name, cash, OCR quote, camera and tower-count checks approve. This position aims to improve coverage; actual damage/coverage remains to be proven in a live wave25 preview and wave30 result. Core 18 placements and three-tower mode remain pinned.
+
+
 **XP priority after mandatory defense milestones:** Historical 75-action runs spent nearly all cash on the final five expensive upgrades, leaving no reliable $10k+reserve opportunity for Juggernaut. XP selection therefore keeps all ten Farms L3, B1 L4, B2/B3 L3, C1/C2 L3, and C3/C4/C5 L2 as non-negotiable defense milestones before considering the fourth tower. Only the five later upgrades C3 L3, B2/B3 L4, C4/C5 L3 can be delayed in this distinct XP strategy; continue those upgrades with remaining cash, never send an unknown paid input. The game must still positively confirm Wretched Front Hardcore Solo, natural wave30, 137 Gems, and Juggernaut level0 placed for separate XP tracking. No numeric XP credit or Gem-wallet increments are inferred; game-native trial is required before claiming this XP strategy succeeds.
 
 

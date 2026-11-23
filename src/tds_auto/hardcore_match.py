@@ -66,6 +66,13 @@ def affordable_purchase(pending, levels, price_for, cash):
 # XP mode protects every fully funded early-game defense and all ten L3
 # Farms, plus wave-20 survival upgrades. Only the final five expensive
 # wave-25..29 upgrades are allowed to slip when buying a $10k XP tower.
+# Center-side ground beside the stationary player in the verified placement
+# camera (~960,505). Aim across the central U-shaped strip instead of the
+# far-right rock. Still requires native white footprint/Place, cash, price,
+# terrain, and tower-count checks; this coordinate grants no exemption.
+XP_NEAR_PATH_POINT = (976, 580)
+
+
 XP_CRITICAL_LEVELS = (
     *((f'F{i}', 3) for i in range(1, 11)),
     ('B1', 4), ('B2', 3), ('B3', 3),
@@ -672,11 +679,9 @@ class HardcoreMatchV2(HardcoreMatch):
         if self.optional_tower:
             self.towers['X1'] = replace(self.towers['X1'], tower_type=self.optional_tower)
             self.reader.tower_names.add(self.optional_tower)
-            # Native v2.20.3 no-purchase preview at (1120,660) showed a white
-            # outer ring and exact Place prompt; the previous (840,330)
-            # overlapped the path in two independent wave-24 failures. This
-            # coordinate still requires fresh green preview and spend guards.
-            self.camera.points['X1'] = (1120, 660)
+            # Slot-4 only: central path-side point beside the player; the
+            # existing safe native placement/camera guards remain mandatory.
+            self.camera.points['X1'] = XP_NEAR_PATH_POINT
 
     def v2_price_for(self, frame):
         placements = {}
@@ -726,8 +731,6 @@ class HardcoreMatchV2(HardcoreMatch):
                 self.session.status('hardcore_optional_budget', wave=hud.wave,
                                     cash=hud.cash, price=price, reserve=reserve,
                                     affordable=affordable, confirmed_actions=self.completed)
-                if hud.cash >= 10_000 and not affordable:
-                    self.session.save_frame(frame, f'hardcore_X1_budget_wave_{hud.wave}.png')
         if not affordable:
             return False
         if self.place(self.towers['X1'], self.plan.finish_wave - 1):
