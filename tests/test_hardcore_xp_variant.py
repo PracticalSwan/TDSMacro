@@ -1,17 +1,60 @@
 """Safe four-slot XP strategy contracts; no live Roblox inputs."""
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'src'))
 from tds_auto.app import Controller, STRATEGIES
-from tds_auto.hardcore_plan_v2 import PLAN_ID, XP_PLAN_ID, is_hardcore_v2
+from tds_auto.hardcore_plan_v2 import PLAN_ID, XP_PLAN_ID, is_hardcore_v2, load_hardcore_plan_v2
 from tds_auto.loadout import verify_hardcore_loadout
-from tds_auto.hardcore_match import HardcoreMatchV2, optional_placement_budget
+from tds_auto.hardcore_match import HardcoreMatchV2, TargetWaveReached, optional_placement_budget
 
 
 class XPVariantTests(unittest.TestCase):
+    def test_only_pending_c5_upgrade_with_x1_placed_uses_wave30_cash(self):
+        plan = load_hardcore_plan_v2()
+        for strategy, placed, latest in ((XP_PLAN_ID, True, 30),
+                                         (XP_PLAN_ID, False, 29), (PLAN_ID, False, 29)):
+            with self.subTest(strategy=strategy, placed=placed):
+                worker = HardcoreMatchV2.__new__(HardcoreMatchV2)
+                worker.plan = plan
+                worker.levels = {**dict(plan.final_required_levels), 'C5': 2}
+                worker.optional_tower = 'Juggernaut' if placed else None
+                if placed:
+                    worker.levels['X1'] = 0
+                worker.session = Mock(strategy_id=strategy)
+                worker.session.now.return_value = 1
+                worker.towers = {tower.tower_id: tower for tower in plan.towers}
+                worker.last_wave = 30
+                worker.completed = 75 if placed else 74
+                def read(_count, wave):
+                    if wave != 30:
+                        raise TargetWaveReached()
+                    return None, SimpleNamespace(wave=30, cash=16117)
+
+                worker.read = Mock(side_effect=read)
+                worker.v2_price_for = Mock(return_value=lambda *_: 14000)
+                worker.urgent_defense = Mock(return_value=(None, None, None))
+                worker.crook_upgrade_priority = Mock(return_value=(False, None))
+                worker.farm_economy_purchase = Mock(return_value=None)
+
+                def confirm(tower, level, _latest):
+                    worker.levels[tower.tower_id] = level
+                    return True
+
+                worker.upgrade = Mock(side_effect=confirm)
+                if latest == 30:
+                    worker.play_phase(plan.phases[-1], 10)
+                    worker.upgrade.assert_called_once_with(worker.towers['C5'], 3, 30)
+                else:
+                    with self.assertRaises(TargetWaveReached):
+                        worker.play_phase(plan.phases[-1], 10)
+                    worker.upgrade.assert_not_called()
+                worker.read.assert_called_once_with({len(worker.levels)}, latest)
+
     def test_xp_placement_is_near_character_without_altering_core_calibration(self):
         from tds_auto.hardcore_match import XP_NEAR_PATH_POINT, HardcoreMatch
         from tds_auto.hardcore_plan_v2 import load_hardcore_plan_v2

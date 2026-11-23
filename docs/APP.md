@@ -1,5 +1,9 @@
 # Windows application
 
+In v0.5.1, **Run setup** and **Live session** share one dashboard. The header opens **Diagnostics** and **Updates** in separate windows. If a worker exits during startup or before a final status is written, the dashboard shows its recorded reason or exit code.
+
+In the four-tower mode, the final C5 level-3 upgrade can spend wave-30 cash when X1 is already on the map and every other core level is confirmed. The usual identity, price, and affordability checks still apply.
+
 **v0.5.0 installed and published:** The Overview selector separates 3-tower Gem-only (empty slots4–5) from 4-slot Gem+Tower XP (Boomerang, regular Crook Boss, Farm, text-verified slot4 tower; empty slot5). The latter protects critical defenses, verifies a $200–$10,000 quote and green/white Place preview, then places X1 near the central U-shaped route at `(976,580)`. Two native wave30 trials showed 137 Gems and +106 Juggernaut Tower XP each. Full tests and hosted Windows CI passed. The standard Windows app and one Desktop shortcut are verified. Automatic Updates are OFF by default and install only when no worker runs; Auto-Equip remains disabled.
 
 **v0.4.1 available:** The current [stable Windows ZIP](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.4.1) fixes exact native Wretched Front wave30 map-label OCR misreads without weakening other result checks. From v0.4.0, use Updates -> Check now and Download/Install only when the gameplay worker is idle; Automatic updates can be enabled manually and remain OFF by default. The official ZIP was independently validated and installed at the standard location without interrupting the separate active three-tower worker. Old v0.4.0 is preserved under the timestamped backup folder and its Desktop shortcut remains available.
@@ -40,22 +44,15 @@ v0.4.0 UPDATES (candidate): Open the Updates tab to toggle Automatic updates ON/
 
 **v0.3.1 planning note (2026-11-21 15:49 ICT; not shipped):** The revised Wretched Front path is RIGHT **on top of rocks**, DOWN across the **light boulder beside the old gate**, DOWN finishing **on the path**, then LEFT to the existing strict placement camera. A single accepted route should eliminate **route-version OCR**, not the OCR needed for hotbar, prices, results, etc. Until native route proof, the existing code is not approved for current-version unattended Hardcore. The [acceptance plan](plans/2026-11-21-v0.3.1-execution-checkpoints.md) governs; GUI/release behavior described below is source-candidate status only.
 
-## Version status
-
-- **Published stable:** v0.3.2, with the redesigned GUI and repaired three-tower Hardcore checks. v0.3.1 is preserved.
-- **Published v0.3.2 patch:** 960x690 Overview/Diagnostics GUI, native-tested ten-Scout Golden route, guarded three-tower Hardcore baseline and optional XP capability (unused for the current three-tower run).
-- The ten-Scout route has **16 independently verified 50/50-action wave-20 Victories on TDS v2.20.3** (7,200 Coins displayed).
-- A v2.20.3 native Hardcore 75+1 optional Minigunner match previously reached wave 30 with 137 Gems and +106 XP displayed. That earlier wave-19 count bug is now fixed; the new frozen GUI completed **two consecutive 75/75-action wave-30 three-tower results** (274 Gems displayed) with zero recoveries, and automatically began cycle 3.
-
 ## Start and controls
 
 1. Extract the entire Windows application folder; keep TDSMacro.exe, _internal, assets, calibrations, strategies, docs, and license notices together.
 2. Open the Store version of Roblox Tower Defense Simulator in English. Required foreground client is **1920×991 pixels at 120 DPI**, on Windows 11, with the configured Solo tower loadout.
-3. In **Overview**, select **Golden Scout — 10 Max / Dead Ahead / Easy**, **Golden Scout — 9 Scouts (legacy fallback)**, or **Hardcore Gem Grind — Wretched Front / Solo**.
-4. Verify recovery and Auto Equip options, then select **Start / F1**. You have five seconds to put Roblox in front; the app minimizes as the separate guarded worker takes control.
+3. In **Run setup**, select one of the Hardcore or Golden Scout strategies. Equip the loadout shown under the selector.
+4. Set the recovery preference and select **Start run** or press **F1**. The app minimizes and the guarded worker checks Roblox after five seconds.
 5. **Stop / F2** requests an orderly stop. **F8 / Escape** are emergency-stop controls. Never compete with the active worker for Roblox input or change camera/geometry mid-run.
 
-The **SESSION** area shows actions, match count, displayed results, status, and stop reasons. READY, RUNNING, STOPPING, and STOPPED describe the controller, not server availability or verified reward credit. A successful result-screen reward is **not** automatically proof of a wallet credit.
+**Live session** shows confirmed actions, wave, recoveries, and displayed rewards. The XP counter tracks verified placements in completed cycles. Gem totals come from verified result screens.
 
 ## Strategies and evidence
 
@@ -64,19 +61,17 @@ The **SESSION** area shows actions, match count, displayed results, status, and 
 | Golden 10 Max | Golden Scout slot 1, slots 2–5 empty | Ten placements and forty once-only E-key upgrades; all ten level 4; wave-20 Victory in 16 native v2.20.3 continuous matches |
 | Golden 9 legacy | Golden Scout slot 1, slots 2–5 empty | Original 44-action fallback from the published v0.3.0 |
 | Hardcore Gem Grind | Boomerang slot 1, regular Crook Boss slot 2, Farm slot 3, slots 4–5 empty for the requested run | Two v2.20.3 GUI three-tower native 75/75 results, 137 Gems displayed each, auto Restart Match |
-| Hardcore optional XP | Above Hardcore equipment plus a supported, independently verified evolution tower in slot 4 | A v2.20.3 $1,850 Minigunner X1 native run recorded 76/76 core+optional actions, wave30, +106 XP displayed; the requested three-tower run leaves slot 4 empty |
+| Hardcore Gems + Tower XP | Same first three slots, Juggernaut or another supported XP tower in slot 4, slot 5 empty | Two consecutive near-path $10,000 Juggernaut placements, natural wave-30 Defeats, 137 Gems and +106 Tower XP displayed per match. Both reached the protected defense levels, with C5 at level 2. |
 
 The Golden 10 profile uses a separately calibrated v2.20.2 scene. It stops if map, camera, hover, price, funds, tower identity, count, or upgrade result cannot be verified. The legacy nine-Scout profile remains separate.
 
 ## Auto Equip
 
-**OFF by default.** When OFF, the app does not send Equip actions. When ON, it still requires independent, exact readable EMPTY labels on **all five** inventory hotbar slots, exact Search/text identity for each required tower, a dynamically located Equip label, and post-click slot verification. Partially occupied, unlabelled, or ambiguous hotbars are never overwritten.
-
-The currently observed TDS inventory presents blank-looking empty tiles, **without five explicit EMPTY text labels**. The GUI checkbox is disabled and Controller rejects Auto-Equip activation. Equip manually. Do not loosen this requirement by using skins, icons, borders, card ordering, or model appearance.
+Equip manually. Auto-Equip is unavailable because the inventory lacks five independently readable EMPTY labels. The controller rejects requests to enable it.
 
 ## Diagnostics and privacy
 
-The **Diagnostics** tab is a read-only, scrollable report of bounded allowlisted session fields and recent events. **Copy diagnostics** copies sanitized text; **Export .txt** opens a local save dialog. There is **no command interpreter** and no remote diagnostics transmission. Local screenshots and full run logs remain under captures/runs and are **not** included in the public release.
+**Diagnostics** opens a read-only, scrollable report of selected session fields and recent events. **Copy** copies sanitized text. **Export .txt** opens a local save dialog. Screenshots and full run logs stay in the local `captures/runs` folder.
 
 Do not publicly paste unfiltered raw logs or screenshots. See [diagnostic-data.md](diagnostic-data.md), [setup.md](setup.md), and [troubleshooting.md](troubleshooting.md).
 

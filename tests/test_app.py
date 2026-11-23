@@ -247,6 +247,28 @@ class AppTests(unittest.TestCase):
         self.assertTrue(self.controller.start(next(iter(STRATEGIES))))
         self.assertNotEqual(before,self.controller.output)
 
+    def test_worker_exit_before_first_status_shows_recorded_startup_failure(self):
+        self.controller.start(next(iter(STRATEGIES)))
+        self.controller.output.mkdir()
+        reason = 'Roblox client identity changed during startup.'
+        (self.controller.output/'result.json').write_text(
+            json.dumps({'status': 'stopped', 'reason': reason}), encoding='utf-8')
+        self.child.code = 2
+
+        self.assertEqual(status_text(self.controller.status(), self.controller.running),
+                         'Stopped: '+reason)
+
+    def test_unexpected_worker_exit_replaces_ready_with_exit_details(self):
+        self.controller.start(next(iter(STRATEGIES)))
+        self.controller.output.mkdir()
+        (self.controller.output/'status.json').write_text(
+            json.dumps({'phase': 'hardcore_action', 'wave': 25}), encoding='utf-8')
+        self.child.code = 1
+
+        data = self.controller.status()
+        self.assertEqual(data['wave'], 25)
+        self.assertIn('exit code 1', status_text(data, self.controller.running))
+
     def test_status_reports_nested_stop_and_live_progress_without_raw_log_dump(self):
         self.assertIn('7 Scouts',status_text({'phase':'playing','match':2,'progress':{'count':7,'confirmed_step':21}},True))
         data={'result':{'matches':[{'status':'stopped','reason':'Map was not confirmed.'}]}}

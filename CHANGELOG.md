@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.5.1
+
+- Replaced the tab strip with a Windows strategy dashboard. Diagnostics and Updates open in separate utility windows. The selected strategy, required loadout, start and safe stop, and live counters are visible on the main screen.
+- Report the worker's recorded stop reason when it exits before publishing status. Unexpected exits without a result show an exit code and retain the last progress counters.
+- When Juggernaut or another supported XP tower is already placed, the sole pending C5 level-3 upgrade may use confirmed wave-30 cash. The purchase still needs the live tower, level, price, affordability, focus, and camera checks. The original three-tower mode retains its pre-wave-30 purchase cutoff.
+- Include the slot-4 Hardcore tests in hosted Windows checks.
+
 **v0.5.0 released November 23, 2026:** Separate Wretched Front Hardcore Gem-only three-tower and four-slot Gem+Tower XP modes; dynamic slot4 tower identity/price checks, protected core defenses and independent XP-placement counts. Fixed the native Juggernaut $10,000 OCR failure with agreeing bounded text crops; relocated only optional X1 from `(1120,660)` to path-side `(976,580)`. Two consecutive native wave30 results displayed **274 Gems and +212 Juggernaut XP combined**, zero recoveries. Main Windows CI `45094236903`, full 672-test regression and official ZIP independent SHA/CRC verification passed. Published [v0.5.0](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.5.0), installed at `dist/TDSMacro` with preserved v0.4.1 backup and one stable Desktop shortcut. Original three-tower/18 required points/14-phase route unchanged.
 
 **v0.4.1 released November 23, 2026:** Exact Wretched Front result-label OCR correction from native wave30 screenshot, retaining strict reward metadata and the unchanged three-tower 75-action strategy. Sanitized regression red/green, 657 local Python tests, Windows feature/main CI, frozen self-check and privacy-clean 1,271-file public ZIP CRC/SHA256 and re-download passed. Current native session safely restarted after one wave-12 early Defeat and then completed two consecutive full wave-30 results (137 Gems displayed each), automatic Restart Match, zero client recoveries. Published official ZIP installed through the existing verified updater; prior v0.4.0 install/captures and Desktop shortcut preserved.

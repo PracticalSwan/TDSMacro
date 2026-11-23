@@ -1021,12 +1021,17 @@ class HardcoreCandidateV2Tests(unittest.TestCase):
         worker.frame = Mock()
         worker.reader = Mock()
         worker.reader.read.side_effect = [Hud(cash=550, tower_count=4, wave=20),
-                                          Hud(cash=550, tower_count=4, wave=30)]
+                                          Hud(cash=550, tower_count=4, wave=30),
+                                          Hud(cash=16117, tower_count=19, wave=30),
+                                          Hud(cash=16117, tower_count=19, wave=31)]
         worker.opening = False
         worker.observe_wave = Mock(return_value=True)
         self.assertEqual(worker.read({4}, 19)[1].wave, 20)
         with self.assertRaises(TargetWaveReached):
             worker.read({4}, 29)
+        self.assertEqual(worker.read({19}, 30)[1].cash, 16117)
+        with self.assertRaises(TargetWaveReached):
+            worker.read({19}, 30)
 
     def test_opening_ready_rechecks_one_transient_frame_without_mouse_down(self):
         from tds_auto.hardcore_match import HardcoreMatchV2

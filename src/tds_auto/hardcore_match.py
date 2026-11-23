@@ -344,7 +344,10 @@ class HardcoreMatch:
                 stable_wave = self.observe_wave(hud.wave, frame)
             if stable_wave:
                 if type(stage) is int:
-                    if hud.wave >= self.plan.finish_wave:
+                    # Only the final guarded XP-mode upgrade can pass the
+                    # target wave itself as the purchase limit.
+                    limit = self.plan.finish_wave + (stage == self.plan.finish_wave)
+                    if hud.wave >= limit:
                         raise TargetWaveReached()
                 if stage is not None and type(stage) is not int and hud.wave > stage.last_wave:
                     raise StopRun(f'Action deadline {stage.last_wave} passed at wave {hud.wave}.')
@@ -845,13 +848,29 @@ class HardcoreMatchV2(HardcoreMatch):
             actions = [action for action in actions if not self.completed_action(action)]
             if not actions:
                 break
+            # Native XP runs had enough cash at wave 30 to finish C5 after
+            # Juggernaut. Carry only that final upgrade through the boundary.
+            finish_xp_defense = (phase.step == 14 and len(actions) == 1
+                                 and actions[0].tower_id == 'C5' and actions[0].level == 3
+                                 and 'X1' in self.levels and self.session.strategy_id == XP_PLAN_ID
+                                 and all(self.levels.get(tower_id) == level
+                                         for tower_id, level in self.plan.final_required_levels
+                                         if tower_id != 'C5'))
+            latest = self.plan.finish_wave if finish_xp_defense else self.plan.finish_wave - 1
             self.session.pause(self.frame)
-            frame, hud = self.read({len(self.levels)}, self.plan.finish_wave - 1)
+            frame, hud = self.read({len(self.levels)}, latest)
             if actions[0].optional and hud.wave > 26:
                 self.session.status('hardcore_optional_skipped',step=phase.step,
                                     reason='wave24_to_26_window_missed',wave=hud.wave)
                 return
             price_for = self.v2_price_for(frame)
+            if finish_xp_defense and hud.wave == self.plan.finish_wave:
+                action = actions[0]
+                price = price_for(action, self.levels[action.tower_id])
+                if (price is None or hud.cash < price
+                        or not self.upgrade(self.towers[action.tower_id], action.level, latest)):
+                    raise TargetWaveReached()
+                continue
             if (phase.step >= 13 and getattr(self,'optional_tower',None) and 'X1' not in self.levels
                     and self.try_optional_placement(frame, hud, price_for)):
                 continue
@@ -895,7 +914,6 @@ class HardcoreMatchV2(HardcoreMatch):
                                     tower_id=action.tower_id, wave=hud.wave, deadline_wave=due)
             if action is not None:
                 tower = self.towers[action.tower_id]
-                latest = self.plan.finish_wave - 1
                 finished = (self.place(tower, latest) if action.operation == 'place'
                             else self.upgrade(tower, action.level, latest))
                 if finished:

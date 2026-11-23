@@ -1,4 +1,8 @@
-TDS Macro - Windows v0.5.0
+TDS Macro - Windows v0.5.1
+
+Choose a strategy in Run setup. Live session shows the verified counters
+and the reason if startup or the worker stops. Open Diagnostics and
+Updates from the dashboard header.
 
 Version 0.5.0 adds a separate Wretched Front Hardcore Gems + Tower XP mode.
 The optional tower uses central ground (976,580) near the player and
@@ -14,6 +18,8 @@ one or more of the five expensive final upgrades. It never sells/upgrades
 the XP tower. Unsafe or unaffordable placements are deferred; Gems count
 only after a verified natural wave-30 137-Gem result. The native trial
 confirmed 137 Gems plus 106 Juggernaut XP on its result screen.
+If X1 is placed and only C5 level 3 remains, that upgrade can use verified
+wave-30 cash. All normal purchase checks still apply.
 The normal 3-tower strategy still requires empty slots 4–5.
 The only Windows Desktop shortcut is TDS Macro, pointing to the current
 standard installation; historical installations stay inside dist.
@@ -32,8 +38,8 @@ A native wave-11 OCR ambiguity now requires agreement between exact,
 independently bounded text crops. Hardcore HUD verification allows up to
 7 seconds of passive rereading across wave changes, without any inputs
 or guesses; persistent unknown values still stop safely.
-The Overview, Diagnostics and Updates GUI defaults to Wretched Front Hardcore Solo.
-Updates tab: Automatic updates OFF by default. Enable for official stable
+The dashboard defaults to three-tower Wretched Front Hardcore Solo.
+Updates: Automatic updates OFF by default. Enable for official stable
 GitHub release checks at startup and every six hours; Check now also works
 manually. Download/install are deferred while gameplay is running. Both
 GitHub asset digests and SHA256SUMS must agree, the ZIP is validated, and
