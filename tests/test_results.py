@@ -51,13 +51,15 @@ class ResultTests(unittest.TestCase):
         from tds_auto.resources import LocalOCR
         from tds_auto.results import HardcoreResult,read_hardcore_result
 
-        frame=self.v052_panel('v052_hardcore_hover_defeat.png')
         observer,ocr=Observer(),LocalOCR()
-        self.assertEqual(observer.result_banner(frame),'defeat')
-        self.assertEqual(read_hardcore_result(frame,observer,ocr),HardcoreResult('defeat',10,107,1))
-        frame.paste('black',(700,735,968,802))
-        self.assertEqual(observer.result_banner(frame),'defeat')
-        self.assertIsNone(read_hardcore_result(frame,observer,ocr))
+        for name in ('v052_hardcore_hover_defeat.png','v052_hardcore_tall_hover_defeat.png'):
+            with self.subTest(name=name):
+                frame=self.v052_panel(name)
+                self.assertEqual(observer.result_banner(frame),'defeat')
+                self.assertEqual(read_hardcore_result(frame,observer,ocr),HardcoreResult('defeat',10,107,1))
+                frame.paste('black',(700,735,968,802))
+                self.assertEqual(observer.result_banner(frame),'defeat')
+                self.assertIsNone(read_hardcore_result(frame,observer,ocr))
 
     def test_real_victory_and_loss_have_verified_metadata(self):
         self.assertIsNotNone(ResultReader)

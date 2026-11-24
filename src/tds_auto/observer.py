@@ -105,14 +105,16 @@ class Observer:
             from .resources import LocalOCR
             if self.result_ocr is None:
                 self.result_ocr=LocalOCR()
-            title=self.result_ocr.read(frame.crop((800,343,1120,426))).strip().upper()
+            title_crop=frame.crop((800,343,1120,426))
             if best[1]=='defeat':
-                # A left-side tower tooltip can obscure YOU while leaving
-                # LOST intact. Require the registered shape and both reads.
-                if (title.split()==['R','TOWER','U','LOST']
+                # The Farm tooltip can add another line below the title.
+                # Match the upper two lines and independently read LOST.
+                lines=self.result_ocr.read_lines(title_crop)
+                if ([text.upper() for text,_ in lines[:2]]==['R TOWER','U LOST']
                         and self.result_ocr.read(frame.crop((948,352,1110,414))).upper()=='LOST'):
                     return 'defeat',0
                 return None
+            title=self.result_ocr.read(title_crop).strip().upper()
             if title=='TRIUMPH!':
                 # OCR matches the canonical positions; a template offset here
                 # can reflect font animation rather than a moved result panel.
