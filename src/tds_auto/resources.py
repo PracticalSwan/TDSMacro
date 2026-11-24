@@ -241,6 +241,11 @@ class HudReader:
             if count is None and self.wave_total == 45:
                 # Extra vertical padding resolves the compact 0/40 at spawn.
                 count = parse_count(self.ocr.read(frame.crop((1270, 934, 1354, 977))))
+            if count is None and self.wave_total == 45:
+                # After X1, the original crops can read the slash in 19/40 as 1.
+                boxes=((1260,930,1415,987),(1274,943,1360,972))
+                if all(parse_count(self.ocr.read(frame.crop(box)))==19 for box in boxes):
+                    count=19
         title_crop = frame.crop(self.title_box)
         title = self.ocr.read(title_crop)
         if self.wave_total == 45 and title not in self.tower_names:

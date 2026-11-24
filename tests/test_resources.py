@@ -41,6 +41,15 @@ class ResourceTests(unittest.TestCase):
             frame.paste(glyphs,(1280,940))
             self.assertNotEqual(golden.count_from_pixels(frame),10)
 
+    def test_native_optional_tower_count_requires_both_crops_to_read_19_over_40(self):
+        frame=Image.new('RGB',(1920,991))
+        with Image.open(ROOT/'tests/fixtures/v052_hardcore_optional_count19.png') as counter:
+            frame.paste(counter,(1260,930))
+        reader=HudReader(hardcore=True)
+        self.assertEqual(reader.read(frame).tower_count,19)
+        frame.paste('black',(1315,942,1370,974))
+        self.assertIsNone(reader.read(frame).tower_count)
+
     def test_selected_level_and_next_cost_change_after_upgrade(self):
         reader = HudReader()
         for file, level, cost in (("hud_500", 0, 150), ("hud_350", 1, 600)):
