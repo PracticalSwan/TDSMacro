@@ -160,7 +160,8 @@ class CalibrationTests(unittest.TestCase):
         import tempfile,json,shutil
         from unittest.mock import patch
         with tempfile.TemporaryDirectory() as temporary:
-            root=Path(temporary);(root/'strategies').mkdir()
+            root=Path(temporary).resolve()
+            (root/'strategies').mkdir()
             profile=json.loads((ROOT/'calibrations/dead_ahead_vertical_nine_v4.json').read_text())
             shutil.copy2(ROOT/profile['strategy'],root/profile['strategy'])
             path=root/'profile.json';path.write_text(json.dumps(profile))
