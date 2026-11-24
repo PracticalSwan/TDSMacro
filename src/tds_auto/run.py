@@ -15,7 +15,7 @@ from .observer import Observer
 from .phase1 import capture, locate_roblox
 from .resources import HudReader, hovered_scout_at
 from .results import ResultReader
-from .recording import LatestFrame,write_json
+from .recording import LatestFrame,append_jsonl,write_json
 from .timing import READ_SECONDS, MATCH_START_SECONDS, RESULT_CONFIRM_SECONDS
 
 ROOT=Path(__file__).resolve().parents[2]
@@ -39,7 +39,7 @@ def run_sequence(strategy,runner,progress,map_point,limit,before_step=None,check
             before_step(step,progress)
         if step.operation=='SpawnTower':
             x,y,slot,ident=step.args
-            runner.place(map_point((x,y)),slot,progress.count)
+            runner.place(map_point((x,y)),slot,progress.count,tower_id=ident)
             progress.count+=1
             progress.levels[ident]=0
         elif step.operation=='UpgradeTower':
@@ -47,7 +47,7 @@ def run_sequence(strategy,runner,progress,map_point,limit,before_step=None,check
             if ident not in progress.levels:
                 raise StopRun("Progress does not contain the target tower.")
             previous=progress.levels[ident]
-            result=runner.upgrade(map_point(positions[ident]),previous,progress.count)
+            result=runner.upgrade(map_point(positions[ident]),previous,progress.count,tower_id=ident)
             increment=result.level==previous+1 and result.level<=4
             maxed_noop=previous==result.level==4 and result.maxed
             if result.tower_count!=progress.count or result.tower_name!='Scout' or not (increment or maxed_noop):
@@ -132,19 +132,6 @@ class Playback:
             if result is not None and result==previous:
                 final_frame=frame
                 diagnostic_error=None;diagnostic_error_kind=None
-                if result.coins is None:
-                    # Scroll only the verified reward pane, once; never zoom the map.
-                    try:
-                        self.driver.move(850,600)
-                        self.driver.zoom(-3)
-                        self.driver.wait(.3)
-                        final_frame=self.frame()
-                        scrolled=self.results.read(final_frame)
-                        if scrolled and (scrolled.status,scrolled.map_name,scrolled.difficulty,scrolled.wave,scrolled.duration_seconds)==(result.status,result.map_name,result.difficulty,result.wave,result.duration_seconds):
-                            result=scrolled
-                    except (RuntimeError,OSError) as exc:
-                        diagnostic_error=str(exc)
-                        diagnostic_error_kind=getattr(exc,'kind','setup')
                 try:self.save_evidence(final_frame,'final.png')
                 except (RuntimeError,OSError) as exc:
                     if diagnostic_error is None:
@@ -154,14 +141,24 @@ class Playback:
             previous=result
             self.driver.wait(.2)
             frame=self.frame()
-        raise StopRun('Result banner appeared but map/mode/wave/duration were not confirmed; no further game input.')
+        self.save_evidence(frame,'final.png')
+        raise StopRun('Result banner appeared but its controls or receipt are obscured; no further match input.',
+                      kind='result_obscured')
 
     def read(self):
         frame=self.frame()
         state=self.finish_if_result(frame)
         bar=read_hotbar(frame,slot=self.profile['slot'])
-        return Snapshot(state,self.hud.read(frame),self.camera.check(frame),
-                        valid_preview(frame,*self.preview_point) if self.preview_point else False,bar.valid,bar.price)
+        hud=self.hud.read(frame)
+        # The visible sell button rules out a cleared panel when its title
+        # OCR briefly fails. Bright red covers over 5,200 pixels when open.
+        sell_visible=False
+        if hud.tower_name is None:
+            sell_pixels=frame.crop((78,806,310,837)).convert('RGB').get_flattened_data()
+            sell_visible=sum(r>100 and r>2*g and r>2*b for r,g,b in sell_pixels)>4500
+        return Snapshot(state,hud,self.camera.check(frame),
+                        valid_preview(frame,*self.preview_point) if self.preview_point else False,
+                        bar.valid,bar.price,sell_visible)
 
     def click_gate(self):
         deadline=time.monotonic()+READ_SECONDS
@@ -194,12 +191,13 @@ class Playback:
         self.save_evidence(initial,'initial.png')
         def hover_selection(point):
             frame=self.frame()
-            if self.observer.observe(frame).state not in {'match_ready','in_match'} or not self.camera.check(frame):
+            if self.finish_if_result(frame) not in {'match_ready','in_match'} or not self.camera.check(frame):
                 return False
             return hovered_scout_at(frame,point,self.hud.ocr)
         golden_ten = golden_ten_enabled(self.profile,self.strategy)
         runner=MatchRunner(self.driver,self.read,slot=1,hover_check=hover_selection,
-                           use_e_upgrades=golden_ten)
+                           use_e_upgrades=golden_ten,
+                           selection_event=lambda **event: append_jsonl(self.output/'selection.jsonl',event))
         old_gate=self.driver.before_click
         self.driver.before_click=self.click_gate
         def save(current):
@@ -234,6 +232,10 @@ class Playback:
             if wait_result and progress.next_step==len(self.strategy.steps):
                 if not 0<result_timeout<=1200:
                     raise StopRun('Invalid result deadline.')
+                if golden_ten:
+                    park_frame=self.frame()
+                    if self.finish_if_result(park_frame)=='in_match' and self.camera.check(park_frame):
+                        self.driver.move(1450,500)
                 deadline=time.monotonic()+result_timeout
                 while time.monotonic()<deadline:
                     self.pause(self.read)
@@ -258,6 +260,8 @@ class Playback:
             result['diagnostic_error']=diagnostic_error
             result['diagnostic_error_kind']=diagnostic_error_kind or 'storage'
         result['progress']=asdict(progress)
+        if golden_ten:
+            result.update(selection_clicks=runner.selection_clicks, upgrade_keys=runner.upgrade_keys)
         result['strategy_sha256']=self.profile['strategy_sha256']
         result['modifier_scope']='Observed current account only; active modifiers may change income and win timing.'
         write_json(self.output/'result.json',result)

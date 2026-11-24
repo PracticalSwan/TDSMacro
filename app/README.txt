@@ -1,4 +1,4 @@
-TDS Macro - Windows v0.5.1
+TDS Macro - Windows v0.5.2
 
 Choose a strategy in Run setup. Live session shows the verified counters
 and the reason if startup or the worker stops. Open Diagnostics and

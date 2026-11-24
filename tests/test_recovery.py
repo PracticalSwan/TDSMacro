@@ -128,7 +128,7 @@ class RecoveryTests(unittest.TestCase):
                 self.assertEqual(result['status'],'stopped')
                 self.assertEqual(launches,[])
 
-    def test_hardcore_transport_recovery_preserves_credit_and_stops_on_early_result(self):
+    def test_hardcore_uncredited_receipt_escalates_until_shared_relaunch_limit(self):
         from tds_auto.hardcore_plan_v2 import PLAN_ID
         recovery=self.module();relaunches=[];attempts=[]
 
@@ -138,14 +138,17 @@ class RecoveryTests(unittest.TestCase):
             if len(attempts)==1:
                 totals.update(gem_cycles=1,gems_total=137)
                 return {'status':'stopped','stop_kind':'failure','reason':'transport loss'}
-            return {'status':'early_result'}
+            return {'status':'early_result','stop_kind':'uncredited_cycle',
+                    'reason':'Observed wave 29 without a verified receipt'}
 
         result=recovery.supervise(self.path,self.platform,None,strategy_id=PLAN_ID,
             attempt=attempt,restart=lambda *args:relaunches.append(1),
             locate=lambda:self.platform.window)
         self.assertEqual((result['status'],result['gem_cycles'],result['gems_total']),
-                         ('early_result',1,137))
-        self.assertEqual(relaunches,[1])
+                         ('stopped',1,137))
+        self.assertIn('3 relaunches without a credited gem cycle',result['reason'])
+        self.assertEqual(relaunches,[1,1,1])
+        self.assertEqual(len(attempts),4)
 
     def test_hardcore_preparation_and_verified_result_do_not_spend_relaunch_budget(self):
         from tds_auto.hardcore_plan_v2 import PLAN_ID

@@ -48,6 +48,7 @@ def load_profile(path):
 class CameraGate:
     def __init__(self, profile_path):
         self.profile, strategy = load_profile(profile_path)
+        self.golden_ten = golden_ten_enabled(self.profile,strategy)
         scene_path = (Path(profile_path).parent / self.profile['scene']).resolve()
         if not scene_path.is_relative_to(Path(profile_path).parent.resolve()):
             raise ValueError('Scene path must remain inside calibration directory.')
@@ -103,8 +104,24 @@ class CameraGate:
         keypoints, descriptors = self.features(frame)
         if descriptors is None or reference_descriptors is None:
             return None
-        pairs = cv2.BFMatcher(cv2.NORM_L2).knnMatch(reference_descriptors, descriptors, k=2)
+        matcher = cv2.BFMatcher(cv2.NORM_L2)
+        pairs = matcher.knnMatch(reference_descriptors, descriptors, k=2)
         good = [pair[0] for pair in pairs if len(pair) == 2 and pair[0].distance < 0.70 * pair[1].distance]
+        matrix = self.fit_terrain(reference_keys,keypoints,good)
+        if matrix is None and reference is None and self.golden_ten and len(good)>=60:
+            # Fresh Dead Ahead frames can have hundreds of one-way matches
+            # on repeated scenery. Require reciprocal descriptors before
+            # fitting again with the original consensus. In-match drift uses
+            # the original path against the newly bound reference.
+            reverse=matcher.knnMatch(descriptors,reference_descriptors,k=2)
+            reciprocal=[match for match in good if len(reverse[match.trainIdx])==2
+                        and reverse[match.trainIdx][0].trainIdx==match.queryIdx
+                        and reverse[match.trainIdx][0].distance < .80*reverse[match.trainIdx][1].distance]
+            matrix=self.fit_terrain(reference_keys,keypoints,reciprocal)
+        return matrix
+
+    @staticmethod
+    def fit_terrain(reference_keys,keypoints,good):
         if len(good) < 30:
             return None
         source = np.float32([reference_keys[m.queryIdx].pt for m in good])
@@ -121,6 +138,21 @@ class CameraGate:
         if (source[selected, 0] < 900).sum() < 10 or (source[selected, 0] > 1000).sum() < 10:
             return None
         return matrix
+
+    def fresh_south_nudge(self, frame):
+        """Recognize the narrow downward terrain shift seen after setup."""
+        if not self.golden_ten:
+            return False
+        matrix=self.estimate(frame)
+        if matrix is None:
+            return False
+        scale=float(np.hypot(matrix[0,0],matrix[1,0]))
+        angle=float(np.degrees(np.arctan2(matrix[1,0],matrix[0,0])))
+        if abs(scale-1)>=.005 or abs(angle)>.1:
+            return False
+        shift=cv2.transform(self.extent[None],matrix)[0]-self.extent
+        dx,dy=shift.mean(axis=0)
+        return bool(abs(dx)<=6 and 8<=dy<=12 and 10<np.linalg.norm(shift,axis=1).max()<=12)
 
     def zoom_step(self, frame):
         """Guide setup only when matching terrain differs by centered zoom.

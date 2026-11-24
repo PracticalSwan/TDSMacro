@@ -26,6 +26,19 @@ class CalibrationTests(unittest.TestCase):
         gate = CameraGate(ROOT / "calibrations/dead_ahead_vertical_nine_v4.json")
         self.assertFalse(gate.check(Image.new("RGB", (1920, 991))))
 
+    def test_fresh_golden_reciprocal_matches_keep_setup_and_drift_limits(self):
+        gate=CameraGate(ROOT/'calibrations/dead_ahead_vertical_ten_v031_v2202_trial.json')
+        with Image.open(ROOT/'tests/fixtures/v052_camera_reciprocal.png') as frame:
+            self.assertTrue(gate.bind(frame))
+            self.assertTrue(gate.check(frame))
+            self.assertFalse(gate.check(ImageChops.offset(frame,4,0)))
+        with Image.open(ROOT/'tests/fixtures/v052_camera_translated.png') as frame:
+            self.assertFalse(gate.bind(frame))
+            self.assertTrue(gate.fresh_south_nudge(frame))
+            for bad in (frame.rotate(2),ImageChops.offset(frame,0,20),Image.new('L',frame.size)):
+                self.assertFalse(gate.bind(bad))
+                self.assertFalse(gate.fresh_south_nudge(bad))
+
     def test_red_road_preview_rejected_and_white_ground_preview_accepted(self):
         for name, point, expected in (("preview_red", (925,330), False), ("preview_white", (1020,330), True)):
             with Image.open(ROOT / "tests/fixtures" / f"{name}.png") as frame:

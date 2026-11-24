@@ -228,6 +228,9 @@ def status_text(data, running, stopping=False, start_error=None):
             return 'Hardcore stopped — the result did not qualify as a credited cycle.'
         return 'Ready — open the TDS lobby, then press F1.'
     phase = data.get('phase', 'starting')
+    if phase == 'uncredited_replay':
+        return (f"Uncredited result · replay {data.get('direct_replay', 1)}/2 · "
+                f"{data.get('reason', 'Trying the same strategy again.')}")
     if phase == 'hardcore_early_result_retry':
         return (f"Verified wave-{data.get('wave', '?')} early Defeat · "
                 f"Restart Match {data.get('consecutive_early_defeats', 1)}/2 · "
@@ -238,7 +241,10 @@ def status_text(data, running, stopping=False, start_error=None):
         stages={'cooldown':'restarting shortly','closing':'leaving the failed game',
                 'settling_launcher':'waiting 60 seconds for the Roblox launcher',
                 'launching':'opening Roblox','waiting_lobby':'waiting for the lobby'}
-        return f"Recovery {data.get('recovery_attempt',1)}/{data.get('max_recoveries',3)} · {stages.get(data.get('stage'),'restarting TDS')} · F2 cancels."
+        recovery=f"Recovery {data.get('recovery_attempt',1)}/{data.get('max_recoveries',3)}"
+        if data.get('stop_kind')=='uncredited_cycle':
+            recovery='Uncredited result · '+recovery
+        return f"{recovery} · {stages.get(data.get('stage'),'restarting TDS')} · F2 cancels."
     progress = data.get('progress', {})
     if phase == 'playing' and 'confirmed_step' in progress:
         return f"Match {data.get('match', 1)} · {progress.get('count', 0)} Scouts · {progress['confirmed_step']}/{progress.get('total_actions', 44)} actions"
