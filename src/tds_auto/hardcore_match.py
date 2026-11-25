@@ -384,12 +384,12 @@ class HardcoreMatch:
                 cursor_parked = True
             self.driver.wait(.15)
 
-    def place(self, tower, stage):
+    def place(self, tower, stage, *, reserve=0):
         point = self.camera.point(tower.tower_id)
         count = len(self.levels)
         frame, hud = self.read({count}, stage)
         price = wretched_price(frame, tower.slot, self.ocr)
-        if price is None or hud.cash < price:
+        if price is None or hud.cash < price + reserve:
             if tower.tower_id not in self.recorded_wait:
                 self.recorded_wait.add(tower.tower_id)
                 self.session.save_frame(frame, f'hardcore_{tower.tower_id}_waiting_to_place.png')
@@ -401,9 +401,11 @@ class HardcoreMatch:
         # a fresh cash/price and green footprint after the pointer moves, so
         # a second pre-slot OCR read only delays the placement.
         self.driver.key(str(tower.slot))
+        if reserve:
+            return self.commit_placement(tower, stage, point, count, price, reserve=reserve)
         return self.commit_placement(tower, stage, point, count, price)
 
-    def commit_placement(self, tower, stage, point, count, price):
+    def commit_placement(self, tower, stage, point, count, price, *, reserve=0):
         """Complete one placement from the slot preview that is already armed."""
         round_footprint = tower.tower_type in {'Boomerang', 'Crook Boss'} or (
             getattr(tower, 'optional', False) and tower.tower_type != 'Military Base')
@@ -416,7 +418,7 @@ class HardcoreMatch:
                     # Wait only for an exact fresh quote and sufficient cash;
                     # never click on a missing, changed, or unaffordable quote.
                     fresh_price = wretched_price(frame, tower.slot, self.ocr)
-                    if hud.cash < price or fresh_price != price:
+                    if hud.cash < price + reserve or fresh_price != price:
                         if self.session.now() >= deadline:
                             self.session.save_frame(frame, f'hardcore_{tower.tower_id}_price_unverified.png')
                             raise StopRun(f'Placement price or cash changed for {tower.tower_id}.')
@@ -721,9 +723,10 @@ class HardcoreMatchV2(HardcoreMatch):
         if xp_mode and not self.xp_critical_defense_verified():
             return False
         price = price_for(self.plan_actions['X1', 0], None)
-        # The separate XP mode may defer only late wave-25..29 upgrades,
-        # after every critical L2/L3 defense and Farm has been verified.
-        reserve = 0 if xp_mode else self.next_core_price(price_for)
+        # The next verified core quote is protected even in XP mode.
+        # Both native wave-29 losses spent $10,000 on X1 and finished wave 28
+        # with less than $5,000 available for the $14,000 Crook upgrade.
+        reserve = self.next_core_price(price_for)
         affordable = optional_placement_budget(price, hud.cash, reserve, hud.wave)
         if xp_mode:
             # Record one passive cash/quote decision per wave and affordability
@@ -736,7 +739,7 @@ class HardcoreMatchV2(HardcoreMatch):
                                     affordable=affordable, confirmed_actions=self.completed)
         if not affordable:
             return False
-        if self.place(self.towers['X1'], self.plan.finish_wave - 1):
+        if self.place(self.towers['X1'], self.plan.finish_wave - 1, reserve=reserve):
             self.session.status('hardcore_optional_placed', tower=self.optional_tower,
                                 cost=price, reserved_core_cash=reserve,
                                 wave=self.last_wave, confirmed_actions=self.completed)
@@ -943,7 +946,11 @@ class HardcoreMatchV2(HardcoreMatch):
         deadline = self.session.now() + RESULT_CONFIRM_SECONDS
         previous = None
         while self.session.now() < deadline:
+            before_pause = self.session.now()
             self.session.pause()
+            # A result can appear while the operator is paused. Give both
+            # fresh receipt reads the remaining active confirmation time.
+            deadline += self.session.now() - before_pause
             frame = self.session.frame(record_latest=False)
             receipt = read_hardcore_result(frame, self.session.observer, self.ocr)
             if receipt is not None and receipt == previous:
@@ -958,6 +965,8 @@ class HardcoreMatchV2(HardcoreMatch):
                            or (xp_mode and result['xp_critical_defense_verified']))
                       and receipt.displayed_gems == 137 and receipt.status == 'defeat'):
                     result['status'] = 'result_verified'
+                else:
+                    result['status'] = 'unverified_reward'
                 return result
             previous = receipt
             self.driver.wait(.4)

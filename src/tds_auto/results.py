@@ -59,7 +59,7 @@ class ResultReader:
             return None
         rewards=text((650,520,1010,710))
         matches=re.findall(r'(?<![0-9])([0-9][0-9,]{0,7})\s*Coins\b',rewards,re.IGNORECASE)
-        if len(matches)!=1:
+        if not matches:
             rewards=self.ocr.read(ink(frame.crop((650,520,1010,710))))
             matches=re.findall(r'(?<![0-9])([0-9][0-9,]{0,7})\s*Coins\b',rewards,re.IGNORECASE)
         coins=parse_cash(matches[0]) if len(matches)==1 else None
@@ -110,10 +110,21 @@ def read_hardcore_result(frame, observer, ocr):
     if (text((1150, 548, 1282, 575)), text((1150, 584, 1282, 613))) != ('Hardcore', 'Hardcore'):
         return None
     wave_row = frame.crop((1020, 510, 1280, 538))
-    wave = next((match for sample in (wave_row, ink(wave_row), ImageOps.invert(wave_row.convert('RGB')))
-                 if (match := re.fullmatch(r'Wave:\s*([0-9]{1,2})', ocr.read(sample)))), None)
+    waves = set()
+    for sample in (wave_row, ink(wave_row), ImageOps.invert(wave_row.convert('RGB'))):
+        row = ocr.read(sample)
+        if match := re.fullmatch(r'Wave:\s*([0-9]{1,2})', row):
+            waves.add(int(match[1]))
+        elif match := re.fullmatch(r'([0-9]{1,2}) Wave:', row):
+            # The OCR engine can order the right value before the left label.
+            # Require both to independently read in their expected locations.
+            if text((1020, 510, 1135, 538)) == 'Wave:' and text((1200, 510, 1280, 538)) == match[1]:
+                waves.add(int(match[1]))
     duration = read_duration(frame, ocr)
-    if wave is None or not 1 <= int(wave[1]) <= 45 or duration is None:
+    if len(waves) != 1 or duration is None:
+        return None
+    wave = waves.pop()
+    if not 1 <= wave <= 45:
         return None
     rewards = frame.crop((650, 505, 1010, 710))
     values = set()
@@ -130,4 +141,4 @@ def read_hardcore_result(frame, observer, ocr):
             if amount and (value := parse_cash(amount[1])) is not None:
                 values.add(value)
     gems = values.pop() if len(values) == 1 else None
-    return HardcoreResult(state, int(wave[1]), duration, gems)
+    return HardcoreResult(state, wave, duration, gems)

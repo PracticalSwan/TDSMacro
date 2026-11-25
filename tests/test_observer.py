@@ -198,8 +198,8 @@ class ObserverTests(unittest.TestCase):
         self.assertEqual(self.observer.result_banner(frame),'victory')
         self.assertEqual(self.observer.observe(frame).state,'victory')
         frame.paste('black',(997,733,1213,799))
-        self.assertIsNone(self.observer.result_banner(frame))
-        self.assertNotEqual(self.observer.observe(frame).state,'victory')
+        self.assertEqual(self.observer.result_banner(frame),'victory')
+        self.assertEqual(self.observer.observe(frame).state,'unknown')
 
     def test_actual_replay_hover_keeps_result_recognized_without_font_variants(self):
         with Image.open(ROOT/'tests/fixtures/victory_hover_animated.png') as source:

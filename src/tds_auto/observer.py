@@ -99,17 +99,28 @@ class Observer:
         if best[0]>=.90:
             return best[1],best[2]
         # Current TDS result banner can render a smaller title font. Keep the
-        # standard image threshold intact; accept this specific victory variant
-        # only when BOTH its title and Play Again control read exactly.
-        if best[1]=='victory' and best[0]>=.74:
+        # standard image threshold intact. A known clipped title can block
+        # gameplay. observe() still requires an independent result control.
+        if (best[1]=='victory' and best[0]>=.74) or (best[1]=='defeat' and best[0]>=.84):
             from .resources import LocalOCR
             if self.result_ocr is None:
                 self.result_ocr=LocalOCR()
-            title=self.result_ocr.read(frame.crop((800,343,1120,426))).strip().upper()
-            action=self.result_ocr.read(frame.crop((997,733,1213,799))).casefold().split()
-            if title=='TRIUMPH!' and action==['play','again']:
+            title_crop=frame.crop((800,343,1120,426))
+            if best[1]=='defeat':
+                # The Farm tooltip can add another line below the title.
+                # Match the upper two lines and independently read LOST.
+                lines=self.result_ocr.read_lines(title_crop)
+                if ([text.upper() for text,_ in lines[:2]]==['R TOWER','U LOST']
+                        and self.result_ocr.read(frame.crop((948,352,1110,414))).upper()=='LOST'):
+                    return 'defeat',0
+                return None
+            title=self.result_ocr.read(title_crop).strip().upper()
+            if title=='TRIUMPH!':
                 # OCR matches the canonical positions; a template offset here
                 # can reflect font animation rather than a moved result panel.
+                return 'victory',0
+            if (title.lstrip('•').split()==['TRIUMP','YOUR']
+                    and self.result_ocr.read(frame.crop((800,343,1050,426))).upper()=='TRIUMP'):
                 return 'victory',0
         return None
 
@@ -149,7 +160,10 @@ class Observer:
                 box, caption = (701, 745, 968, 790), ['Return', 'To', 'Lobby']
             else:
                 box, caption = self.anchors['victory'][1][0][0], ['Play', 'Again']
-            if self.result_ocr.read(frame.crop(box)).split()==caption:
+            crop=frame.crop(box)
+            samples=(crop,ink(crop,True)) if banner=='defeat' else (crop,)
+            if any(self.result_ocr.read(sample).casefold().split()==[word.casefold() for word in caption]
+                   for sample in samples):
                 scores[banner]=.90
         if banner and scores[banner]<.90:
             return Observation('unknown',round(scores[banner],4),scores,

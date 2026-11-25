@@ -183,7 +183,7 @@ class XPVariantTests(unittest.TestCase):
             self.assertFalse(runner.xp_critical_defense_verified(),tower)
             runner.levels[tower]=level
 
-    def test_juggernaut_xp_priority_only_after_milestones_even_if_late_upgrade_pending(self):
+    def test_juggernaut_requires_surplus_after_milestones_and_preserves_late_defense(self):
         from tds_auto.hardcore_match import XP_CRITICAL_LEVELS
         runner=HardcoreMatchV2.__new__(HardcoreMatchV2)
         runner.session=SimpleNamespace(strategy_id=XP_PLAN_ID,status=Mock())
@@ -202,8 +202,10 @@ class XPVariantTests(unittest.TestCase):
         self.assertFalse(runner.try_optional_placement('frame',SimpleNamespace(cash=20000,wave=25),quote))
         runner.place.assert_not_called()
         runner.levels['C5']=2
-        self.assertTrue(runner.try_optional_placement('frame',SimpleNamespace(cash=10000,wave=25),quote))
-        runner.place.assert_called_once_with(runner.towers['X1'],29)
+        self.assertFalse(runner.try_optional_placement('frame',SimpleNamespace(cash=13134,wave=25),quote))
+        runner.place.assert_not_called()
+        self.assertTrue(runner.try_optional_placement('frame',SimpleNamespace(cash=24000,wave=25),quote))
+        runner.place.assert_called_once_with(runner.towers['X1'],29,reserve=14000)
 
     def test_optional_purchase_requires_surplus_and_verified_core_quote(self):
         runner=HardcoreMatchV2.__new__(HardcoreMatchV2)
@@ -225,7 +227,7 @@ class XPVariantTests(unittest.TestCase):
         runner.place.assert_not_called()
         runner.next_core_price.return_value=14000
         self.assertTrue(runner.try_optional_placement('frame',SimpleNamespace(cash=24000,wave=24),quote))
-        runner.place.assert_called_once_with(runner.towers['X1'],29)
+        runner.place.assert_called_once_with(runner.towers['X1'],29,reserve=14000)
         runner.session.status.assert_called_once()
 
     def test_xp_variant_credits_gems_even_if_no_cash_was_safe_for_xp_tower(self):
@@ -234,6 +236,8 @@ class XPVariantTests(unittest.TestCase):
             with self.subTest(placed=placed),tempfile.TemporaryDirectory() as t:
                 session=Session.__new__(Session)
                 session.output=Path(t)
+                from tds_auto.session import SessionControl
+                session.control=SessionControl(session.output)
                 session.strategy_id=XP_PLAN_ID
                 session.totals={'attempts':0,'matches_completed':0,'wins':0,'coins_total':0}
                 session.hardcore_plan=SimpleNamespace(finish_wave=30,map_name='Wretched Front')
@@ -307,6 +311,36 @@ class XPVariantTests(unittest.TestCase):
                 self.assertEqual(result['status'],'result_verified')
                 self.assertEqual(result['optional_tower_placed'],placed)
                 self.assertEqual(result['displayed_gems'],137)
+
+    def test_pause_on_early_defeat_preserves_two_read_confirmation_window(self):
+        from tds_auto.hardcore_match import HardcoreMatch, RESULT_CONFIRM_SECONDS
+        from tds_auto.results import HardcoreResult
+
+        runner = HardcoreMatchV2.__new__(HardcoreMatchV2)
+        runner.plan = SimpleNamespace(finish_wave=30, final_required_levels=(('F1', 3),))
+        runner.levels = {'F1': 2}
+        runner.optional_tower = None
+        runner.missed_defense_deadlines = set()
+        runner.ocr = Mock()
+        runner.session = Mock(strategy_id=XP_PLAN_ID)
+        watch = 0
+
+        def advance(seconds):
+            nonlocal watch
+            watch += seconds
+
+        runner.session.now.side_effect = lambda: watch
+        runner.session.pause.side_effect = lambda: advance(RESULT_CONFIRM_SECONDS + 10) if watch == 0 else None
+        runner.driver = Mock()
+        runner.driver.wait.side_effect = advance
+        expected = HardcoreResult('defeat', 10, 107, 1)
+        with (patch.object(HardcoreMatch, 'run', return_value={
+                'status': 'early_result', 'target_wave_verified': False, 'confirmed_actions': 11}),
+                patch('tds_auto.hardcore_match.read_hardcore_result', return_value=expected) as read):
+            result = runner.run()
+        self.assertEqual(read.call_count, 2)
+        self.assertEqual((result['status'], result['result_wave'], result['displayed_gems']),
+                         ('early_result', 10, 1))
 
 
 if __name__=='__main__':unittest.main()

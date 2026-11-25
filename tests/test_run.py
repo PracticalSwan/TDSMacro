@@ -18,13 +18,13 @@ class GameBoundary:
     def __init__(self,fail=False):
         self.commands=[]
         self.fail=fail
-    def place(self,point,slot,count):
-        self.commands.append(('place',point,slot,count))
+    def place(self,point,slot,count,*,tower_id):
+        self.commands.append(('place',point,slot,count,tower_id))
         return Hud(500,count+1,'Scout',0,150,1)
-    def upgrade(self,point,level,count):
+    def upgrade(self,point,level,count,*,tower_id):
         if self.fail:
             raise StopRun('unconfirmed')
-        self.commands.append(('upgrade',point,level,count))
+        self.commands.append(('upgrade',point,level,count,tower_id))
         return Hud(350,count,'Scout',level+1,600,1)
 
 
@@ -36,7 +36,7 @@ class RunTests(unittest.TestCase):
     def test_operations_keep_order_and_use_adjusted_points(self):
         game=GameBoundary(); progress=Progress()
         run_sequence(self.strategy,game,progress,lambda p:(p[0]+5,p[1]-4),3)
-        self.assertEqual(game.commands,[('place',(860,326),2,0),('upgrade',(860,326),0,1),('place',(1025,326),2,1)])
+        self.assertEqual(game.commands,[('place',(860,326),2,0,1),('upgrade',(860,326),0,1,1),('place',(1025,326),2,1,2)])
         self.assertEqual((progress.next_step,progress.count,progress.levels),(3,2,{1:1,2:0}))
 
     def test_unconfirmed_action_does_not_advance_saved_progress(self):
@@ -53,14 +53,14 @@ class RunTests(unittest.TestCase):
 
     def test_confirmed_maxed_noop_advances_step_but_not_level(self):
         game=GameBoundary()
-        game.upgrade=lambda p,l,c: Hud(1000,c,'Scout',4,None,16,False,True)
+        game.upgrade=lambda p,l,c,**kwargs: Hud(1000,c,'Scout',4,None,16,False,True)
         progress=Progress(1,1,{1:4})
         run_sequence(self.strategy,game,progress,lambda p:p,1)
         self.assertEqual((progress.next_step,progress.levels),(2,{1:4}))
 
     def test_unconfirmed_noop_does_not_advance(self):
         game=GameBoundary()
-        game.upgrade=lambda p,l,c: Hud(1000,c,'Scout',l,600,16)
+        game.upgrade=lambda p,l,c,**kwargs: Hud(1000,c,'Scout',l,600,16)
         progress=Progress(1,1,{1:1})
         with self.assertRaises(StopRun):run_sequence(self.strategy,game,progress,lambda p:p,1)
         self.assertEqual(progress.next_step,1)

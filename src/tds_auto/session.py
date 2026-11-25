@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import os
 import json
+import re
 import time
 import shutil
 from dataclasses import asdict
@@ -24,11 +25,12 @@ from .navigation import Navigator,MENU_ROUTE,HARDCORE_MENU_ROUTE
 from .hardcore_plan import PLAN_ID,load_hardcore_plan
 from .hardcore_plan_v2 import PLAN_ID as PLAN_V2_ID,XP_PLAN_ID as PLAN_V2_XP_ID,is_hardcore_v2,load_hardcore_plan_v2
 from .hardcore_vision import wretched_match_ready,wretched_price
-from .observer import Observer
+from .observer import Observer,ink
 from .phase1 import capture,locate_roblox,BlankCapture,Window
 from .resources import LocalOCR,HudReader,parse_cash
 from .run import Playback,ROOT
 from .recording import append_jsonl,write_json
+from .results import ResultReader,read_hardcore_result
 
 from .timing import READ_SECONDS, TELEPORT_SECONDS
 
@@ -37,6 +39,7 @@ class SessionControl:
     def __init__(self,path,context=None):
         self.path=Path(path)
         self.context=context if context is not None else {}
+        self.direct_replays=0
     def stopped(self):
         return (self.path/'stop').exists()
     def paused(self):
@@ -208,7 +211,7 @@ class Session:
             self.driver.wait(.2)
         raise StopRun(f'Timed out waiting for {target}; no input retry.')
 
-    def transition(self,name):
+    def transition(self,name,*,uncredited_result=None):
         from .navigation import TRANSITIONS
         self.pause()
         if name=='scout_details':
@@ -221,7 +224,60 @@ class Session:
         if name in {'easy','hardcore'}:
             self.allowed.add('survival_menu_2200')
         self.status(name)
-        return self.navigator.step(name,timeout=TELEPORT_SECONDS if name in {'solo','return_victory','play_again','restart_match'} else 45)
+        previous=self.driver.before_click
+        if uncredited_result is not None:
+            self.driver.before_click=lambda:self.verify_result_replay(name,uncredited_result)
+        try:
+            result_transitions={'return_lobby','return_victory','play_again','restart_match'}
+            return self.navigator.step(name,timeout=TELEPORT_SECONDS if name in {'solo',*result_transitions} else 45)
+        finally:
+            self.driver.before_click=previous
+
+    def verify_result_replay(self,name,result):
+        frame=self.frame()
+        location=self.observer.result_location(frame)
+        if name=='restart_match':
+            receipt=read_hardcore_result(frame,self.observer,self.ocr)
+            fields=('outcome','result_wave','match_seconds','displayed_gems')
+            matches=receipt is not None and (
+                receipt.status,receipt.wave,receipt.duration_seconds,receipt.displayed_gems
+            )==tuple(result.get(field) for field in fields)
+        else:
+            receipt=ResultReader(self.observer).read(frame)
+            matches=receipt is not None and all(result.get(key)==value for key,value in asdict(receipt).items())
+        if not matches or location is None:
+            raise StopRun('Current result receipt changed; no replay click sent.',kind='uncredited_cycle')
+        # Check the caption around the actual fixed click point. The general
+        # Defeat observer also sees Return To Lobby and cannot verify Restart.
+        if name=='restart_match':
+            box=(960,735,1240,802)  # Hover enlarges the label towards the left.
+        elif name=='play_again':
+            box=(969,735,1240,802)
+        else:
+            box=(701,735,968,802)
+        caption=frame.crop(box)
+        readings={' '.join(self.ocr.read(sample).casefold().split())
+                  for sample in (caption,ink(caption))}
+        if name=='restart_match':
+            verified=any(re.fullmatch(r'restart match \(0/1\)',text) for text in readings)
+        else:
+            verified=('play again' if name=='play_again' else 'return to lobby') in readings
+        if not verified:
+            raise StopRun('Replay control is unreadable or changed; no click sent.',kind='uncredited_cycle')
+
+    def uncredited(self,result,reason,*,continuous):
+        self.totals['uncredited_cycles']=self.totals.get('uncredited_cycles',0)+1
+        result.update(uncredited_reason=reason,reason=reason)
+        if continuous and result.get('stop_kind') in {None,'result_obscured'}:
+            result['stop_kind']='uncredited_cycle'
+
+    def allow_direct_replay(self,result):
+        if self.control.direct_replays>=2:
+            return False
+        self.control.direct_replays+=1
+        self.status('uncredited_replay',reason=result['uncredited_reason'],
+                    direct_replay=self.control.direct_replays)
+        return True
 
     def lobby(self):
         self.status('lobby_popup_check')
@@ -573,8 +629,8 @@ class Session:
 
         root=self.output
         completed=[]
-        consecutive_early_defeats=0
         self.totals.setdefault('early_results',0)
+        self.totals.setdefault('observed_early_results',0)
         self.totals.setdefault('gems_total',0)
         self.totals.setdefault('gem_cycles',0)
         if self.strategy_id==PLAN_V2_XP_ID:
@@ -604,26 +660,25 @@ class Session:
                     return prepared
                 self.totals['attempts']+=1
                 result=runner.run()
-                # Native result OCR was already confirmed in two fresh frames.
-                # Only a known early Defeat may retry; unknown results remain terminal.
-                verified_early_defeat=(
-                    result.get('status')=='early_result'
+                # A direct restart needs a complete, twice-read supported
+                # receipt and a fresh independent control check.
+                verified_defeat=(
+                    result['status'] in {'early_result','late_result','unverified_reward','reward_mismatch'}
                     and result.get('outcome')=='defeat'
                     and type(result.get('result_wave')) is int
-                    and 1<=result['result_wave']<self.hardcore_plan.finish_wave
-                    and result.get('target_wave_verified') is False
+                    and 1<=result['result_wave']<=45
                     and type(result.get('confirmed_actions')) is int
                     and 0<=result['confirmed_actions']<=(76 if self.strategy_id==PLAN_V2_XP_ID else 75)
                     and type(result.get('displayed_gems')) is int
-                    and result['displayed_gems']>=0)
-                if verified_early_defeat:
-                    consecutive_early_defeats+=1
-                    self.totals['early_results']+=1
-                    if consecutive_early_defeats>2:
-                        result.update(stop_kind='strategy',
-                                      reason='Three consecutive verified early defeats; no further match restart.')
-                if result['status']=='result_verified' and result.get('displayed_gems')==137:
-                    consecutive_early_defeats=0
+                    and result['displayed_gems']>=0
+                    and result.get('stop_kind') is None)
+                if result['status']=='early_result':
+                    self.totals['observed_early_results']+=1
+                    if verified_defeat:
+                        self.totals['early_results']+=1
+                if (result['status']=='result_verified' and type(result.get('displayed_gems')) is int
+                        and result['displayed_gems']==137):
+                    self.control.direct_replays=0
                     # These are verified result-screen rewards, not a direct
                     # account-wallet audit. No lobby trip is necessary.
                     self.totals['gems_total']+=137
@@ -637,28 +692,36 @@ class Session:
                     result['reward_verification']='result_screen_only'
                 elif result['status']=='result_verified':
                     result['status']='reward_mismatch'
+                if result['status'] in {'early_result','late_result','unverified_reward','reward_mismatch'}:
+                    wave=result.get('result_wave')
+                    if type(wave) is int and wave!=self.hardcore_plan.finish_wave:
+                        reason=f'Hardcore result wave {wave} did not meet the wave-30 target.'
+                    elif wave is None or result.get('displayed_gems') is None:
+                        reason='Hardcore outcome observed without a fully readable result receipt.'
+                    elif result['displayed_gems']!=137:
+                        reason='Hardcore result did not show the required 137 Gems.'
+                    else:
+                        reason='Hardcore result lacked required outcome, wave, or defense evidence.'
+                    self.uncredited(result,reason,continuous=continuous)
                 write_json(self.output/'result.json',result)
                 completed.append(result)
                 if continuous and len(completed)>10:
                     completed.pop(0)
                 self.status(result['status'],result=result)
-                retry_early=(continuous and verified_early_defeat
-                             and consecutive_early_defeats<=2)
-                if result['status']!='result_verified' and not retry_early:
+                replay=(continuous and verified_defeat and self.allow_direct_replay(result))
+                if result['status']!='result_verified' and not replay:
                     break
-                if retry_early:
-                    self.status('hardcore_early_result_retry',
-                                wave=result['result_wave'],
-                                consecutive_early_defeats=consecutive_early_defeats,
-                                early_results=self.totals['early_results'])
                 if not continuous and index>=matches:
                     break
-                self.transition('restart_match')
+                if replay:
+                    self.transition('restart_match',uncredited_result=result)
+                else:
+                    self.transition('restart_match')
                 index+=1
             summary={'status':completed[-1]['status'],'matches':completed,**self.totals}
-            if completed[-1].get('stop_kind'):
-                summary.update(stop_kind=completed[-1]['stop_kind'],
-                               reason=completed[-1]['reason'])
+            for field in ('stop_kind','reason'):
+                if field in completed[-1]:
+                    summary[field]=completed[-1][field]
             return summary
         finally:
             self.output=root
@@ -1118,21 +1181,44 @@ class Session:
                 value=parse_cash(self.ocr.read(frame.crop((x,y,x+w,y+h))))
                 if value is None and badge_is_one(frame,(x,y,x+w,y+h)):
                     value=1
-                if value is not None:
-                    candidates.append((abs(x+w/2-expected_badge),value))
-        candidates.sort()
-        return candidates[0][1] if candidates else None
+                candidates.append(value)
+        # One target badge must be uniquely associated. An unreadable nearby
+        # contour cannot be silently discarded in favor of a readable digit.
+        return candidates[0] if len(candidates)==1 else None
 
     def align_fresh_camera(self,gate):
+        reader=HudReader()
+        south_observed=False
+        nudged=False
         for attempt in range(7):
             frame=self.frame()
-            if self.observer.observe(frame).state!='match_ready' or HudReader().read(frame).tower_count!=0:
+            if self.observer.observe(frame).state!='match_ready' or reader.read(frame).tower_count!=0:
                 raise StopRun('Require a fresh match with zero towers before camera alignment.')
             if gate.bind(frame):
                 return
-            step=gate.zoom_step(frame) if attempt<6 else None
-            if step is None:
+            if attempt==6:
                 break
+            if golden_ten_enabled(self.profile,self.strategy):
+                south_needed=not nudged and gate.fresh_south_nudge(frame)
+                if south_needed:
+                    if south_observed:
+                        # The pinned route already uses S to move terrain up.
+                        # One short correction, followed by the original bind.
+                        self.save_frame(frame,'camera_before_south_nudge.png')
+                        self.status('camera_alignment',step=attempt+1,terrain_nudge='S')
+                        self.driver.key('S',.04)
+                        nudged=True
+                    south_observed=True
+                    self.driver.wait(.4)
+                    continue
+                south_observed=False
+                if nudged:
+                    self.driver.wait(.4)
+                    continue
+            step=gate.zoom_step(frame)
+            if step is None:
+                self.driver.wait(.4)
+                continue  # Read-only settling while Ready and zero are still verified.
             self.status('camera_alignment',step=attempt+1,wheel_delta=step)
             self.driver.move(1450,450)  # World area, outside the HUD and hotbar.
             self.driver.zoom_fine(step)
@@ -1231,15 +1317,34 @@ class Session:
                 raise StopRun('Strategy changed during this session; no new-match playback sent.')
             result=playback.play(operations=len(self.strategy.steps),start_waves=True,wait_result=True)
             index+=1
-            self.totals['matches_completed']+=int(result['status'] in {'victory','defeat'})
-            self.totals['wins']+=int(result['status']=='victory')
-            self.totals['coins_total']+=result.get('coins') or 0
+            state=result['status']
+            observed=state in {'victory','defeat'}
+            coins=result.get('coins')
+            reward_readable=type(coins) is int and coins>=0
+            credited=state=='victory' and result.get('full_strategy_verified') is True and reward_readable
+            self.totals['matches_completed']+=int(observed)
+            if credited:
+                self.control.direct_replays=0
+                self.totals['wins']+=1
+                self.totals['coins_total']+=coins
+            elif observed or result.get('stop_kind')=='result_obscured':
+                if state=='victory':
+                    reason=('Victory observed but coin reward is unreadable.' if not reward_readable
+                            else 'Victory observed before the full Golden strategy was confirmed.')
+                else:
+                    reason=result.get('reason','Golden strategy ended in Defeat.')
+                self.uncredited(result,reason,continuous=continuous)
             row={'match':match_number,'elapsed_seconds':round(self.now()-self.started,1),'result':result}
             append_jsonl(self.output/'matches.jsonl',row)
             results.append(result)
             results=results[-20:]
             summary={'status':result['status'],**self.totals,'matches':results,
                 'continuous':continuous,'all_requested_matches_won':not continuous and index==matches and self.totals['wins']==matches}
+            if state=='victory' and not credited:
+                summary['status']='stopped'
+            for field in ('stop_kind','reason'):
+                if field in result:
+                    summary[field]=result[field]
             if result.get('diagnostic_error'):
                 stop_kind=result.get('diagnostic_error_kind','storage')
                 summary.update(status='stopped',stop_kind=stop_kind,reason='Final result confirmed; evidence recording failed: '+result['diagnostic_error'])
@@ -1248,21 +1353,28 @@ class Session:
                 return summary
             write_json(self.output/'result.json',summary)
             self.status('match_complete' if result['status'] in {'victory','defeat'} else 'stopped',match=match_number,last_result=result,continuous=continuous)
-            if result['status']=='victory' and (type(result.get('coins')) is not int or result['coins']<0):
-                summary.update(status='stopped',reason='Victory observed but coin reward is unreadable; no repeat started.',all_requested_matches_won=False)
-                write_json(self.output/'result.json',summary)
+            if not continuous and (not credited or index>=matches):
                 return summary
-            if result['status']!='victory' or (not continuous and index>=matches):
+            replay=(continuous and result.get('stop_kind')=='uncredited_cycle' and observed and reward_readable
+                    and result.get('map_name')=='Dead Ahead' and result.get('difficulty')=='Easy'
+                    and type(result.get('wave')) is int and type(result.get('duration_seconds')) is int
+                    and self.allow_direct_replay(result))
+            if not credited and not replay:
                 return summary
             if shutil.disk_usage(self.output).free<2*1024**3:
                 raise StopRun('Less than 2 GiB free on the evidence disk; stopped before another match.',kind='storage')
-            if repeat_route=='lobby':
-                self.transition('return_victory')
+            if state=='defeat' or repeat_route=='lobby':
+                route='return_lobby' if state=='defeat' else 'return_victory'
+                if replay:
+                    self.transition(route,uncredited_result=result)
+                else:
+                    self.transition(route)
                 self.preflight()
                 self.choose_map()
                 self.prepare_camera()
             else:
-                destination=self.transition('play_again')
+                destination=(self.transition('play_again',uncredited_result=result) if replay
+                             else self.transition('play_again'))
                 if destination=='map_vote':
                     self.choose_map()
                     self.prepare_camera()

@@ -23,6 +23,33 @@ class ResourceTests(unittest.TestCase):
                 result = reader.read(frame)
                 self.assertEqual((result.cash, result.tower_count), (cash, count))
 
+    def test_golden_pixel_count_ten_requires_the_complete_registered_fraction(self):
+        golden,hardcore=HudReader(),HudReader(hardcore=True)
+        for value in (9,10,11,18):
+            with self.subTest(value=value):
+                frame=Image.new('RGB',(1920,991))
+                with Image.open(ROOT/'assets/ui_2191'/f'count_{value}.png') as glyphs:
+                    frame.paste(glyphs,(1274,940))
+                self.assertEqual(golden.count_from_pixels(frame),value if value<=10 else None)
+                self.assertEqual(hardcore.count_from_pixels(frame),value)
+        with Image.open(ROOT/'assets/ui_2191/count_10.png') as glyphs:
+            frame=Image.new('RGB',(1920,991))
+            frame.paste(glyphs,(1274,940))
+            frame.paste('black',(1301,943,1310,971))
+            self.assertNotEqual(golden.count_from_pixels(frame),10)
+            frame=Image.new('RGB',(1920,991))
+            frame.paste(glyphs,(1280,940))
+            self.assertNotEqual(golden.count_from_pixels(frame),10)
+
+    def test_native_optional_tower_count_requires_both_crops_to_read_19_over_40(self):
+        frame=Image.new('RGB',(1920,991))
+        with Image.open(ROOT/'tests/fixtures/v052_hardcore_optional_count19.png') as counter:
+            frame.paste(counter,(1260,930))
+        reader=HudReader(hardcore=True)
+        self.assertEqual(reader.read(frame).tower_count,19)
+        frame.paste('black',(1315,942,1370,974))
+        self.assertIsNone(reader.read(frame).tower_count)
+
     def test_selected_level_and_next_cost_change_after_upgrade(self):
         reader = HudReader()
         for file, level, cost in (("hud_500", 0, 150), ("hud_350", 1, 600)):

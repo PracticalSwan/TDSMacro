@@ -57,8 +57,26 @@ docs/*
 !docs/development.md
 !docs/verification.md
 !docs/strategies.md
+!docs/STATUS.md
+!docs/PLAN.md
 !docs/images/
 !docs/strategies/
+# Publish only reviewed strategy requirements; leave unrelated documentation private.
+!docs/requirements/
+docs/requirements/*
+!docs/requirements/strategies/
+docs/requirements/strategies/*
+!docs/requirements/strategies/README.md
+!docs/requirements/strategies/_TEMPLATE.md
+!docs/requirements/strategies/golden-scout-10.md
+!docs/requirements/strategies/golden-scout-9.md
+!docs/requirements/strategies/hardcore-gems-3.md
+!docs/requirements/strategies/hardcore-gems-xp-4.md
+# Keep only the two historical handoff archives visible; other history stays private.
+!docs/history/
+docs/history/*
+!docs/history/AGENTS-precompact-2026-11-23.md
+!docs/history/PLAN-legacy-2026-11-23.md
 # Publish reviewed implementation and current corrective-release plans; retain other historical plans private.
 !docs/plans/
 docs/plans/*
@@ -73,3 +91,7 @@ docs/plans/*
 
 !docs/plans/2026-11-22-v0.4.0-auto-update.md
 !docs/plans/2026-11-23-v0.5.1-dashboard.md
+!docs/plans/2026-11-23-v1.0-loadout-switching.md
+!docs/plans/2026-11-23-v1.0-successful-run-rotation.md
+!docs/plans/2026-11-24-v0.5.2-golden-upgrade-selection-revamp.md
+!docs/plans/2026-11-24-v0.5.2-uncredited-cycle-recovery.md

@@ -154,6 +154,7 @@ class HudReader:
         self.tower_names = {'Boomerang', 'Crook Boss', 'Farm'} if hardcore else {'Scout'}
         self.title_box = (85, 198, 296, 247) if hardcore else (130, 205, 240, 242)
         self.wave_total = 45 if hardcore else 20
+        self.pixel_count_limit = 18 if hardcore else 10
         self.level_templates = {}
         for path in (Path(__file__).resolve().parents[2] / "assets/ui_2191").glob("level_*.png"):
             with Image.open(path) as image:
@@ -161,9 +162,8 @@ class HudReader:
         self.count_templates={}
         for path in (Path(__file__).resolve().parents[2]/'assets/ui_2191').glob('count_*.png'):
             count = int(path.stem.split('_')[-1])
-            if hardcore or count <= 9:
-                with Image.open(path) as image:
-                    self.count_templates[count] = ink(image)
+            with Image.open(path) as image:
+                self.count_templates[count] = ink(image)
 
     def level_from_pixels(self, frame):
         glyphs = [ink(frame.crop((92+dx, 451+dy, 111+dx, 473+dy)))
@@ -181,7 +181,9 @@ class HudReader:
                 for dx in (-1,0,1) for dy in (-1,0,1)]
         scores=sorted(((max(overlap(glyph,template) for glyph in glyphs),count)
                        for count,template in self.count_templates.items()),reverse=True)
-        if len(scores)>=2 and scores[0][0]>=.97 and scores[0][0]-scores[1][0]>=.03:
+        # Keep larger counts in the comparison so they cannot masquerade as 10.
+        if (len(scores)>=2 and scores[0][1]<=self.pixel_count_limit
+                and scores[0][0]>=.97 and scores[0][0]-scores[1][0]>=.03):
             return scores[0][1]
         return None
 
@@ -239,6 +241,11 @@ class HudReader:
             if count is None and self.wave_total == 45:
                 # Extra vertical padding resolves the compact 0/40 at spawn.
                 count = parse_count(self.ocr.read(frame.crop((1270, 934, 1354, 977))))
+            if count is None and self.wave_total == 45:
+                # After X1, the original crops can read the slash in 19/40 as 1.
+                boxes=((1260,930,1415,987),(1274,943,1360,972))
+                if all(parse_count(self.ocr.read(frame.crop(box)))==19 for box in boxes):
+                    count=19
         title_crop = frame.crop(self.title_box)
         title = self.ocr.read(title_crop)
         if self.wave_total == 45 and title not in self.tower_names:

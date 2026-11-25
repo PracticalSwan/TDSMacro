@@ -87,6 +87,12 @@ def read_headers(frame,after_vote=False):
         # closer 1920x991 view; retain them so four-board indices stay physical.
         if w>100 and h>20 and cv2.contourArea(contour)>1000:
             boxes.append((x,y+180,x+w,y+180+int(h*.66)))
+    if after_vote and len(boxes)>4:
+        # The taller band can include red thumbnail artwork. Fall back only
+        # to a complete, aligned row in the original header band.
+        row=read_boards(frame)
+        if row and max(board.box[1] for board in row)-min(board.box[1] for board in row)<=12:
+            return row
     if not 1<=len(boxes)<=4:
         return ()
     ocr=LocalOCR()
@@ -265,7 +271,7 @@ def badge_is_one(frame,box):
     glyph=mask.crop(bounds).resize((24,32)).point(lambda p:255 if p>127 else 0)
     folder=Path(__file__).resolve().parents[2]/'assets/ui_2191'
     for name in ('vote_one.png','vote_one_board4.png','vote_one_replay.png',
-                 'vote_one_2200_clear.png','vote_one_2200_close.png'):
+                 'vote_one_2200_clear.png','vote_one_2200_close.png','vote_one_oblique.png'):
         with Image.open(folder/name) as reference:
             reference=reference.convert('L').point(lambda p:255 if p>127 else 0)
             # A slightly different view angle can shift the normalized digit

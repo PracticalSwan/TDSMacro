@@ -900,6 +900,34 @@ class SessionTests(unittest.TestCase):
             with self.assertRaises(StopRun):self.session.prepare_camera(retained=True)
         self.assertEqual(self.platform.events,[])
 
+    def test_fresh_golden_south_correction_requires_two_samples_and_a_strict_bind(self):
+        from unittest.mock import Mock
+
+        self.state='match_ready'
+        gate=Mock()
+        gate.bind.return_value=False
+        gate.fresh_south_nudge.return_value=True
+        with (patch('tds_auto.session.HudReader') as hud,
+              patch('tds_auto.session.golden_ten_enabled',return_value=True)):
+            hud.return_value.read.return_value=SimpleNamespace(tower_count=0)
+            with self.assertRaisesRegex(StopRun,'did not match'):
+                self.session.align_fresh_camera(gate)
+        self.assertEqual(gate.fresh_south_nudge.call_count,2)
+        self.assertEqual(gate.bind.call_count,7)
+        self.assertEqual([e for e in self.platform.events if e[0]=='key_down'],[('key_down','S')])
+        gate.zoom_step.assert_not_called()
+
+        self.platform.events.clear()
+        gate.reset_mock()
+        gate.fresh_south_nudge.side_effect=[True,False]
+        gate.bind.side_effect=[False,False,True]
+        gate.zoom_step.return_value=None
+        with (patch('tds_auto.session.HudReader') as hud,
+              patch('tds_auto.session.golden_ten_enabled',return_value=True)):
+            hud.return_value.read.return_value=SimpleNamespace(tower_count=0)
+            self.session.align_fresh_camera(gate)
+        self.assertEqual(self.platform.events,[])
+
     def test_result_banner_interrupts_playback_before_any_click(self):
         playback=object.__new__(Playback)
         playback.full_evidence=True
@@ -922,6 +950,23 @@ class SessionTests(unittest.TestCase):
         with Image.open(ROOT/'tests/fixtures/vote_board4_badges.png') as frame:
             self.assertEqual(self.session.vote_count(frame,Board(4,(901,253,1126,286),'Dead Ahead')),1)
 
+    def test_native_oblique_badges_require_one_unobscured_target_digit(self):
+        from tds_auto.maps import Board
+        for suffix,title,header,position in (
+                ('dead_ahead','Dead Ahead',(900,233,1192,276),(1107,414)),
+                ('wretched','Wretched Front',(919,251,1166,302),(1097,402))):
+            with self.subTest(title=title):
+                frame=Image.new('RGB',(1920,991))
+                with Image.open(ROOT/'tests/fixtures'/f'v052_badge_{suffix}.png') as crop:
+                    frame.paste(crop,position)
+                    target=Board(3,header,title)
+                    self.assertEqual(self.session.vote_count(frame,target),1)
+                    self.assertIsNone(self.session.vote_count(frame,Board(4,(1400,230,1692,276),'Other')))
+                    obscured=frame.copy()
+                    x,y=position
+                    obscured.paste('black',(x+24,y+12,x+52,y+50))
+                    self.assertIsNone(self.session.vote_count(obscured,target))
+
     def test_view_clear_badge_one_survives_bounded_registration_without_accepting_neighbor_zeros(self):
         from tds_auto.maps import visible_target,badge_is_one
         with Image.open(ROOT/'tests/fixtures/post_vote_badge_view_clear_d.png') as frame:
@@ -931,6 +976,21 @@ class SessionTests(unittest.TestCase):
             self.assertTrue(badge_is_one(frame,(809,408,860,457)))
             self.assertFalse(badge_is_one(frame,(1115,404,1167,452)))
             self.assertFalse(badge_is_one(frame,(1422,408,1487,459)))
+
+    def test_post_vote_decoration_does_not_hide_the_aligned_four_board_row(self):
+        from tds_auto.maps import visible_target
+
+        frame=Image.new('RGB',(1920,991))
+        with Image.open(ROOT/'tests/fixtures/v052_vote_wide_scan_decoration.png') as panels:
+            frame.paste(panels,(0,180))
+        target=visible_target(frame,after_vote=True)
+        self.assertIsNotNone(target)
+        self.assertEqual(target.index,1)
+        self.assertEqual(self.session.vote_count(frame,target),1)
+        header=frame.crop((1710,230,1920,300))
+        frame.paste('black',(1710,200,1920,300))
+        frame.paste(header,(1710,205))
+        self.assertIsNone(visible_target(frame,after_vote=True))
 
     def test_replay_vote_one_is_read_at_the_cleared_camera_angle(self):
         from tds_auto.maps import visible_target,badge_is_one
@@ -1058,7 +1118,7 @@ class SessionTests(unittest.TestCase):
         with patch('tds_auto.session.Playback',Engine):result=self.session.run(continuous=True)
         self.assertEqual(result['status'],'stopped')
         self.assertIn('coin reward',result['reason'])
-        self.assertEqual((result['wins'],result['matches_completed']),(1,1))
+        self.assertEqual((result['wins'],result['coins_total'],result['matches_completed']),(0,0,1))
         self.assertEqual(result['matches'][0]['status'],'victory')
 
     def test_low_disk_space_stops_before_lobby_input(self):
@@ -1204,8 +1264,8 @@ class SessionTests(unittest.TestCase):
             candidate.return_value.run.side_effect=[dict(early) for _ in range(3)]
             result=session.play_hardcore_v2(1,continuous=True)
         self.assertEqual(result['status'],'early_result')
-        self.assertEqual(result['stop_kind'],'strategy')
-        self.assertIn('consecutive',result['reason'])
+        self.assertEqual(result['stop_kind'],'uncredited_cycle')
+        self.assertIn('wave 28',result['reason'])
         self.assertEqual(result['early_results'],3)
         self.assertEqual(result['gem_cycles'],0)
         self.assertEqual(session.transition.call_count,2)
@@ -1236,8 +1296,69 @@ class SessionTests(unittest.TestCase):
                     candidate.return_value.run.return_value=outcome
                     result=session.play_hardcore_v2(1,continuous=True)
                 self.assertEqual(result['status'],outcome['status'])
+                self.assertEqual(result['stop_kind'],'uncredited_cycle')
                 session.transition.assert_not_called()
                 self.assertEqual(result['gem_cycles'],0)
+
+    def test_hardcore_replay_budget_spans_relaunches_and_resets_only_on_credit(self):
+        from unittest.mock import Mock
+        from tds_auto.hardcore_plan_v2 import PLAN_ID
+        from tds_auto.recovery import supervise
+
+        early={'status':'early_result','outcome':'defeat','result_wave':29,'match_seconds':417,
+               'target_wave_verified':False,'confirmed_actions':74,'displayed_gems':133}
+        credited={'status':'result_verified','outcome':'defeat','result_wave':30,
+                  'target_wave_verified':True,'confirmed_actions':75,'displayed_gems':137}
+        stopped={'status':'stopped','stop_kind':'user_stop','reason':'F2'}
+        replays=[]
+        attempts=[]
+        restarts=[]
+
+        def attempt(path,control,totals):
+            attempts.append(path.name)
+            session=Session(self.driver,path,read_frame=self.session.capture,
+                            now=self.platform.now,strategy_id=PLAN_ID,control=control,totals=totals)
+            session.preflight_hardcore=Mock()
+            session.choose_map=Mock()
+            session.prepare_hardcore_match=Mock()
+            session.verify_hardcore_hotbar=Mock()
+            session.transition=lambda name,**kwargs:replays.append((path.name,name,bool(kwargs)))
+            session.status=Mock()
+            return session.play_hardcore_v2(1,continuous=True)
+
+        with patch('tds_auto.hardcore_match.HardcoreMatchV2') as runner:
+            runner.return_value.run.side_effect=[dict(early) for _ in range(4)]+[
+                dict(credited),dict(early),dict(stopped)]
+            result=supervise(self.path,self.platform,None,strategy_id=PLAN_ID,attempt=attempt,
+                             restart=lambda *args:restarts.append(1),
+                             locate=lambda:self.platform.window)
+        self.assertEqual(attempts,['attempt_001','attempt_002','attempt_003'])
+        self.assertEqual(restarts,[1,1])
+        self.assertEqual(replays,[('attempt_001','restart_match',True)]*2+
+                         [('attempt_003','restart_match',False),('attempt_003','restart_match',True)])
+        self.assertEqual((result['stop_kind'],result['gem_cycles'],result['gems_total']),
+                         ('user_stop',1,137))
+        self.assertEqual((result['early_results'],result['uncredited_cycles']),(5,5))
+
+    def test_uncredited_hardcore_replay_requires_unchanged_receipt_and_restart_caption(self):
+        from tds_auto.observer import Observer
+
+        frame=Image.new('RGB',(1920,991))
+        with Image.open(ROOT/'tests/fixtures/v052_hardcore_hover_defeat.png') as panel:
+            frame.paste(panel,(625,330))
+        self.session.observer=Observer()
+        self.session.frame=lambda:frame
+        receipt={'outcome':'defeat','result_wave':10,'match_seconds':107,'displayed_gems':1}
+        self.session.verify_result_replay('restart_match',receipt)
+        with Image.open(ROOT/'tests/fixtures/v052_hardcore_restart_hover.png') as panel:
+            frame.paste(panel,(625,330))
+        self.session.verify_result_replay('restart_match',receipt)
+        with self.assertRaisesRegex(StopRun,'receipt changed'):
+            self.session.verify_result_replay('restart_match',{**receipt,'result_wave':11})
+        frame.paste('black',(969,735,1240,802))
+        with self.assertRaisesRegex(StopRun,'Replay control is unreadable'):
+            self.session.verify_result_replay('restart_match',receipt)
+        self.assertEqual(self.platform.events,[])
 
     def test_hardcore_prepare_reuses_one_hud_reader_for_all_polls(self):
         self.state='match_ready'

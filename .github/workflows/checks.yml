@@ -48,7 +48,7 @@ jobs:
           .\.venv\Scripts\python.exe -m compileall -q src tests tds_launcher.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           foreach ($suite in @('strategy','phase1','control','navigation','observer','maps','match','run','app','updates','diagnostics','golden_v031','session','status','recovery',
-                                'vertical_profile','loadout','resources','results','hardcore_plan','hardcore_candidate_v2','hardcore_early_boomerang',
+                                'calibration','vertical_profile','loadout','resources','results','hardcore_plan','hardcore_candidate_v2','hardcore_early_boomerang',
                                 'hardcore_camera_checkpoint08','hardcore_camera_wave28','bottom_hud_cash_simple','hardcore_cash_brace',
                                 'hardcore_hud_fastpath','hardcore_f5_hover','hardcore_route_readback','hardcore_wave14_ocr','hardcore_f10_preview',
                                 'hardcore_inventory_notification','hardcore_route04',

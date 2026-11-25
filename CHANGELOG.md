@@ -1,5 +1,44 @@
 # Changelog
 
+## v0.5.2 - November 25, 2026
+
+- Reconciled latest three-tower Hardcore native result (75 actions, 137 displayed Gems), repeated 694-test regression and exact hosted candidate comparison. No new gameplay changes. Kept rare native acceptance gaps explicit and bounded further trials.
+- Updated bundled quick-start instructions to the candidate recovery and Gem-first XP reserve policy; added offline strategy prerequisite sheets and repository-only link resolution in the Windows builder. Fixed relative output destinations resolving outside the project root. Final candidate ZIP passed frozen self-check, CRC and per-file hashes; no public release/install performed.
+
+### Runtime corrections
+
+- Continued the current strategy after an uncredited result when the same receipt and replay control are still verified. Continuous sessions can use two direct replays and, with automatic recovery enabled, up to three guarded relaunches per streak without credit. Only a credited strategy result resets these limits.
+- Kept uncredited outcomes out of the Golden wins and Coins and Hardcore cycle and Gems totals. Restored Hardcore receipt parsing when OCR prints the wave value before its label.
+- Reused verified Golden 10 Scout selections for E upgrades. Added guarded cross-tower selection, complete `10/40` recognition, cursor parking at the end of playback, and read-only recognition for the observed Scout-obscured TRIUMPH panel.
+- Used reciprocal terrain matches and one bounded correction for the observed fresh Dead Ahead pose, with the original 10-pixel setup and 2-pixel drift limits. Recognized the oblique Solo vote digit observed on Dead Ahead and Wretched Front.
+- Protected the next verified Hardcore core-upgrade quote before optional slot-4 spending. A match can still earn the Gem result when the XP tower exceeds the available surplus.
+- Verified the full Hardcore `19/40` counter from two matching crops when the prior crops misread the slash after an optional placement.
+
+See [verification](docs/verification.md) for observed evidence and remaining exact native-condition limitations.
+
+## Unreleased — November 24 evening investigation (planning only)
+
+- Added BUG-006–008: uncredited outcome terminates continuous Hardcore, reversed wave-row OCR blocks receipt, repeated wave29 defeats before final Crook Boss upgrades (cause unresolved). BUG-003 also observed in Wretched Front. [Recovery plan](docs/plans/2026-11-24-v0.5.2-uncredited-cycle-recovery.md).
+- Latest worker stopped at 17:28 after four credited cycles/548 displayed Gems and uncredited fifth match; no recovery. No source/build/install/release change. v1.0 remains planning-only.
+
+## Unreleased — November 24, 2026 morning investigation (planning only)
+
+- Reproduced Golden Scout's **unconditional two-click deselect/reselect** in `MatchRunner.upgrade`; the ten-Scout profile performs 40 E-key upgrades, including 23 immediately same-target transitions that can potentially reuse verified selection. Added **BUG-004** and the [proposed v0.5.2 Golden upgrade/result revamp](docs/plans/2026-11-24-v0.5.2-golden-upgrade-selection-revamp.md), with no executable edits.
+- Reproduced **BUG-005** from a private native wave-20 TRIUMPH frame: a selected Scout overlay caused `Observer` to report `in_match` and the result reader to miss the visible 450-Coin Victory, followed by a 900-second result timeout and guarded recovery. Do not infer a wallet or session win from the screenshot without a positive verified result.
+- Extended camera BUG-002 with **three** additional unsuccessful fresh-camera alignments from the 04:56 session (two insufficient feature estimates, one 10.49px displacement). The resulting known camera-start failure total across the last two Golden sessions is eight; retain the 10px/2px camera safety limits.
+- Latest observed v0.5.1 Golden session `app_20261124_083539_998292` remained active at 09:06 ICT with **three verified victories/1,350 Coins displayed**, fourth match underway and zero recoveries. The prior session ended with **15 verified victories and four recoveries**, then stopped on a focus safety gate.
+- Updated [BUGS_FOUND.md](BUGS_FOUND.md), current status, roadmap, verification/lessons and a narrowly allowlisted planning document. **No runtime modifications, builds, commits, pushes, tags, or releases.**
+
+## Unreleased — documentation and defect investigation (November 23–24, 2026)
+
+- Read-only v0.5.1 Golden Scout investigation identified **three active bugs** and recorded evidence/fix criteria in [BUGS_FOUND.md](BUGS_FOUND.md): Golden's omitted count-10 pixel template (six 33/50-action stops), recurring calibrated camera-pose failures (five current-session recoveries), and one unconfirmed Solo vote badge after one safe view correction. All guarded stops preserved credits; none authorize blind retries or relaxed pose limits.
+- At 01:47 ICT on November 24, the current Golden session had **55 completed verified wave-20 victories / 24,750 Coins displayed**, **nine cumulative relaunches** across winning attempts, and a fresh Play Again transition. The previous session stopped after 33 wins when focus was not restored. No gameplay source/installed worker was altered in this audit.
+
+- Condensed the active `AGENTS.md` instructions; archived its historical 226-line state to `docs/history/AGENTS-precompact-2026-11-23.md` without treating past release instructions as current.
+- Replaced outdated current-status text in the README, setup and Windows app guide. Added timestamped `docs/STATUS.md` and a short active `docs/PLAN.md`; archived the old chronological plan.
+- Linked per-strategy prerequisites (including Golden/Hardcore cash and Economy-skill limits) and the **planning-only** v1.0 loadout-switch/5-success rotation proposals.
+- At the 11:45 ICT live checkpoint, the installed **Golden Scout** worker was running with six verified 50-action victories (2,700 Coins displayed), match seven at 14/50 actions, and zero recoveries. No game code, settings, installed app, or release was changed. A displayed reward is not a wallet audit.
+
 ## v0.5.1 · November 23, 2026
 
 - Replaced the tab strip with a Windows strategy dashboard. Diagnostics and Updates open in separate utility windows. The selected strategy, required loadout, start and safe stop, and live counters are visible on the main screen.

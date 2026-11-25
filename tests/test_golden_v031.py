@@ -58,15 +58,41 @@ class GoldenTenV031Tests(unittest.TestCase):
         legacy, old=load_profile(ROOT/'calibrations/dead_ahead_vertical_nine_v4.json')
         self.assertFalse(golden_ten_enabled(legacy,old))
 
+    def test_placement_and_two_same_tower_upgrades_need_no_selection_click(self):
+        from types import SimpleNamespace
+        from tds_auto.run import Progress, run_sequence
+        from tds_auto.strategy import Step
+
+        platform, clock = FakeOS(), Clock()
+        def read():
+            placed = ('left_down',) in platform.events
+            level = platform.events.count(('key_down', 'E'))
+            if platform.events.count(('left_down',)) == 2:
+                return Snapshot('in_match', Hud(10000, 1, wave=20), True)
+            hud = Hud(10000, int(placed), 'Scout' if placed else None,
+                      level if placed else None, 150 if placed else None, 20, placed)
+            return Snapshot('in_match', hud, True, True, True, 250)
+
+        runner = MatchRunner(GuardedInput(platform.window, platform), read, clock.now, clock.sleep,
+                             hover_check=lambda point: True, use_e_upgrades=True)
+        strategy = SimpleNamespace(steps=(Step('SpawnTower', (1020, 465, 1, 5)),
+                                          Step('UpgradeTower', (5,)), Step('UpgradeTower', (5,))))
+        progress = run_sequence(strategy, runner, Progress(), lambda point: point, 3)
+        self.assertEqual(progress.levels, {5: 2})
+        self.assertEqual(platform.events.count(('key_down', 'E')), 2)
+        self.assertEqual(platform.events.count(('left_down',)), 1)
+
     def test_wave_twenty_active_hud_allows_single_e_upgrade(self):
         platform,clock=FakeOS(),Clock()
         level3=Snapshot('in_match',Hud(20000,10,'Scout',3,4000,20,True),True)
         level4=Snapshot('in_match',Hud(16000,10,'Scout',4,None,20,False,True),True)
         def read():
+            if platform.events.count(('left_down',))==1:
+                return Snapshot('in_match',Hud(20000,10,wave=20),True)
             return level4 if ('key_down','E') in platform.events else level3
         runner=MatchRunner(GuardedInput(platform.window,platform),read,
-                           clock.now,clock.sleep,slot=1,use_e_upgrades=True)
-        result=runner.upgrade((1020,465),3,10,timeout=2)
+                           clock.now,clock.sleep,slot=1,use_e_upgrades=True,hover_check=lambda point: True)
+        result=runner.upgrade((1020,465),3,10,timeout=2,tower_id=5)
         self.assertEqual(result.level,4)
         self.assertEqual(platform.events.count(('key_down','E')),1)
         self.assertEqual(platform.events.count(('left_down',)),2)
@@ -76,13 +102,46 @@ class GoldenTenV031Tests(unittest.TestCase):
         first=Snapshot('in_match',Hud(20000,10,'Scout',2,4000,19,True),True)
         changed=Snapshot('in_match',Hud(20000,10,'Scout',1,4000,19,True),True)
         def read():
-            return changed if platform.events.count(('left_down',))>=2 else first
+            clicks=platform.events.count(('left_down',))
+            if clicks==1:
+                return Snapshot('in_match',Hud(20000,10,wave=19),True)
+            return changed if clicks>=2 else first
         runner=MatchRunner(GuardedInput(platform.window,platform),read,
-                           clock.now,clock.sleep,slot=1,use_e_upgrades=True)
+                           clock.now,clock.sleep,slot=1,use_e_upgrades=True,hover_check=lambda point: True)
         from tds_auto.control import StopRun
         with self.assertRaises(StopRun):
-            runner.upgrade((1020,465),2,10,timeout=2)
+            runner.upgrade((1020,465),2,10,timeout=2,tower_id=5)
         self.assertNotIn(('key_down','E'),platform.events)
+
+    def test_same_level_of_a_different_scout_does_not_prove_a_switch(self):
+        from tds_auto.control import StopRun
+
+        platform,clock=FakeOS(),Clock()
+        old_panel=Snapshot('in_match',Hud(5000,2,'Scout',2,150,8,True),True)
+        runner=MatchRunner(GuardedInput(platform.window,platform),lambda:old_panel,
+                           clock.now,clock.sleep,hover_check=lambda point:True,use_e_upgrades=True)
+        runner.selected=(1,(855,330),2)
+        with self.assertRaisesRegex(StopRun,'cleared panel'):
+            runner.upgrade((1020,330),2,2,tower_id=2)
+        self.assertEqual(platform.events.count(('left_down',)),1)
+        self.assertNotIn(('key_down','E'),platform.events)
+        self.assertIsNone(runner.selected)
+
+    def test_fresh_unaffordable_quote_invalidates_reused_panel_without_e(self):
+        from tds_auto.control import StopRun
+
+        platform,clock=FakeOS(),Clock()
+        point=(855,330)
+        affordable=Snapshot('in_match',Hud(750,1,'Scout',2,600,6,True),True)
+        changed=Snapshot('in_match',Hud(500,1,'Scout',2,600,6,False),True)
+        snapshots=iter([affordable,affordable,affordable,changed])
+        runner=MatchRunner(GuardedInput(platform.window,platform),lambda:next(snapshots),
+                           clock.now,clock.sleep,use_e_upgrades=True)
+        runner.selected=(1,point,1)
+        with self.assertRaisesRegex(StopRun,'precondition changed'):
+            runner.upgrade(point,2,1,tower_id=1)
+        self.assertEqual(platform.events,[])
+        self.assertIsNone(runner.selected)
 
 if __name__=='__main__':
     unittest.main()

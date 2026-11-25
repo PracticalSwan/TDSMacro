@@ -9,6 +9,58 @@ except ImportError:
     ResultReader=None
 
 class ResultTests(unittest.TestCase):
+    def v052_panel(self,name):
+        frame=Image.new('RGB',(1920,991))
+        with Image.open(ROOT/'tests/fixtures'/name) as panel:
+            frame.paste(panel,(625,330))
+        return frame
+
+    def test_native_obscured_triumph_requires_control_and_receipt_metadata(self):
+        from tds_auto.results import GameResult
+
+        frame=self.v052_panel('v052_golden_overlay.png')
+        reader=ResultReader()
+        self.assertEqual(reader.read(frame),GameResult('victory','Dead Ahead','Easy',20,456,450))
+        for box in ((1150,473,1265,499),(1200,585,1265,612),(1160,548,1265,574),
+                    (1225,510,1265,536),(969,733,1240,802)):
+            with self.subTest(box=box):
+                obscured=frame.copy()
+                obscured.paste('black',box)
+                self.assertEqual(reader.observer.result_banner(obscured),'victory')
+                self.assertIsNone(reader.read(obscured))
+
+    def test_native_victory_with_coin_caption_clipped_keeps_reward_unverified(self):
+        from tds_auto.results import GameResult
+
+        frame=self.v052_panel('v052_golden_clipped_coin.png')
+        self.assertEqual(ResultReader().read(frame),GameResult('victory','Dead Ahead','Easy',20,454,None))
+
+    def test_native_reversed_hardcore_wave_requires_label_and_value_in_place(self):
+        from tds_auto.observer import Observer
+        from tds_auto.resources import LocalOCR
+        from tds_auto.results import HardcoreResult,read_hardcore_result
+
+        frame=self.v052_panel('v052_hardcore_wave29.png')
+        observer,ocr=Observer(),LocalOCR()
+        self.assertEqual(read_hardcore_result(frame,observer,ocr),HardcoreResult('defeat',29,417,133))
+        frame.paste('black',(1020,509,1135,541))
+        self.assertIsNone(read_hardcore_result(frame,observer,ocr))
+
+    def test_native_hardcore_defeat_with_farm_hover_blocks_input_and_reads_receipt(self):
+        from tds_auto.observer import Observer
+        from tds_auto.resources import LocalOCR
+        from tds_auto.results import HardcoreResult,read_hardcore_result
+
+        observer,ocr=Observer(),LocalOCR()
+        for name in ('v052_hardcore_hover_defeat.png','v052_hardcore_tall_hover_defeat.png'):
+            with self.subTest(name=name):
+                frame=self.v052_panel(name)
+                self.assertEqual(observer.result_banner(frame),'defeat')
+                self.assertEqual(read_hardcore_result(frame,observer,ocr),HardcoreResult('defeat',10,107,1))
+                frame.paste('black',(700,735,968,802))
+                self.assertEqual(observer.result_banner(frame),'defeat')
+                self.assertIsNone(read_hardcore_result(frame,observer,ocr))
+
     def test_real_victory_and_loss_have_verified_metadata(self):
         self.assertIsNotNone(ResultReader)
         reader=ResultReader()

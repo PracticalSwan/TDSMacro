@@ -382,18 +382,18 @@ def supervise(output,platform,profile,*,attempt=None,restart=None,locate=locate_
                 expected=optional_window(locate)
             result=attempt(path,control,totals)
         except (RuntimeError,ValueError,OSError,KeyError,TypeError) as exc:
-            kind=getattr(exc,'kind','setup' if isinstance(exc,(ValueError,KeyError,TypeError)) else 'failure')
+            fallback='storage' if isinstance(exc,OSError) else 'setup' if isinstance(exc,(ValueError,KeyError,TypeError)) else 'failure'
+            kind=getattr(exc,'kind',fallback)
             result={'status':'stopped','reason':str(exc),'stop_kind':kind}
         try:
             write_json(path/'result.json',result)
             append_jsonl(output/'sessions.jsonl',{'attempt_folder':path.name,'result':result,'totals':dict(totals)})
         except StopRun as exc:
             return finish({'status':'stopped','reason':str(exc),'stop_kind':exc.kind})
-        if result['status'] in {'victory','prepared'}:return finish(result)
-        if hardcore and result['status']!='stopped':
-            return finish(result)
         last=result.get('matches',[{}])[-1] if result.get('matches') else {}
         kind=result.get('stop_kind') or last.get('stop_kind','failure')
+        if result['status']!='stopped' and kind!='uncredited_cycle':
+            return finish(result)
         focus_return=kind=='focus_lost' and expected is not None and expected.foreground and (expected.width,expected.height,expected.dpi)==(1920,991,120)
         if kind in NO_RECOVERY and not focus_return:return finish({**result,'stop_kind':kind})
         def report(**detail):
@@ -408,7 +408,7 @@ def supervise(output,platform,profile,*,attempt=None,restart=None,locate=locate_
             check_cancel(control,platform)
             if totals[success_key]>successes_before:consecutive=0
             if consecutive>=max_recoveries:
-                outcome='a credited gem cycle' if hardcore else 'a win'
+                outcome='a credited gem cycle' if hardcore else 'a credited Golden victory'
                 return finish({**result,'status':'stopped','reason':f'Automatic recovery limit reached after {max_recoveries} relaunches without {outcome}.'})
             if focus_return:
                 kind='focus_interrupted'
