@@ -4,6 +4,8 @@
 
 [Windows v0.5.3 release](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.5.3) restores the bounded Golden Coin scroll and corrects the verified Hardcore result-map OCR failure. The [defect register](../BUGS_FOUND.md) records OBS-010 and OBS-012 as unresolved observations. See the [verification record](verification.md) for observed results, remaining coverage gaps and the publication/install record.
 
+v0.5.3 is published and locally installed, with v0.5.2 retained for rollback. The installed dashboard started one Golden Scout 10 Max worker in continuous mode with automatic recovery enabled. [Windows CI](https://github.com/PracticalSwan/TDSMacro/actions/runs/45673883230) · [Installation evidence](verification.md)
+
 Loadout switching, successful-run rotation, explicit slot-4 selection and legacy consolidation remain v1.0 planning items.
 
 > Timestamped evidence; check current processes, Git status and newest session receipts before starting, stopping or replacing any worker.

@@ -1,6 +1,6 @@
-# Current TDS Macro roadmap — November 25, 2026
+# Current TDS Macro roadmap — November 26, 2026
 
-**Installed stable release: v0.5.2.** The corrective patch passed local and exact-release-commit hosted Windows checks, representative native gameplay in both modes, public archive verification and installation. See [project status](STATUS.md), the [defect register](../BUGS_FOUND.md), and [verification](verification.md) for the exact coverage and residual verification limitations. Older development history is in the [archived plan](history/PLAN-legacy-2026-11-23.md).
+**Installed stable release: v0.5.3.** The receipt corrections for BUG-011 and BUG-009 are complete. OBS-010 and OBS-012 remain open pending evidence of their causes. The clipped-reward scroll passed saved-frame checks. Native coverage includes Golden Play Again and Hardcore Restart Match. [Project status](STATUS.md) · [Verification](verification.md) · [Defect register](../BUGS_FOUND.md)
 
 ## Current accepted baseline
 

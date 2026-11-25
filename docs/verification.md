@@ -1,5 +1,11 @@
 # Verification
 
+## November 26 v0.5.3 publication and installation
+
+- Stable v0.5.3 tags `4fee6601260f6c7eedb36868308e3448b4085ddc`. The exact-commit Windows workflow passed tests, packaging and artifact upload. [Release](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.5.3) · [Windows CI](https://github.com/PracticalSwan/TDSMacro/actions/runs/45673883230)
+- The independently downloaded 1,322-file ZIP matched the GitHub asset digest and checksum `f692931a34f52e585d9a444002b605005f75928d374a5bb4643e1dfa1933a4a9`. ZIP CRC, per-file hashes and 85 documentation links were checked. The frozen dashboard opened and closed normally. Native-tested executable SHA-256: `b64c17fb4c19b8f1c53af505d04a2ead0c63fc2d25963ffd7fadc07f21e2fb08`.
+- The guarded idle installer promoted the official ZIP. All installed files matched the download and the installed frozen self-check passed. One Desktop shortcut still points to the installation. The v0.5.2 directory and its captures were retained.
+
 ## November 26 v0.5.3 receipt verification
 
 - Golden archived controls: four clipped frames each authorized one three-notch scroll in the fake input recorder and remained uncredited when the frame did not change. Five readable frames each returned 450 Coins with zero wheel input. The focused regression verifies the offset point, panel/control or metadata changes, conflicting reads and two agreeing post-scroll reads.
