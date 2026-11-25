@@ -3,7 +3,7 @@
 ## v0.5.2 - November 25, 2026
 
 - Reconciled latest three-tower Hardcore native result (75 actions, 137 displayed Gems), repeated 694-test regression and exact hosted candidate comparison. No new gameplay changes. Kept rare native acceptance gaps explicit and bounded further trials.
-- Updated bundled quick-start instructions to the candidate recovery and Gem-first XP reserve policy; added offline strategy prerequisite sheets and repository-only link resolution in the Windows builder. Fixed relative output destinations resolving outside the project root. Final candidate ZIP passed frozen self-check, CRC and per-file hashes; no public release/install performed.
+- Updated bundled quick-start instructions to the candidate recovery and Gem-first XP reserve policy; added offline strategy prerequisite sheets and repository-only link resolution in the Windows builder. Fixed relative output destinations resolving outside the project root. Final release ZIP passed frozen self-check, CRC and per-file hashes. Stable v0.5.2 was published and installed after exact-commit Windows CI passed; previous installation preserved.
 
 ### Runtime corrections
 

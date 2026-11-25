@@ -1,14 +1,14 @@
 # Bugs found — active TDS Macro defect register
 
-## v0.5.2 candidate checkpoint
+## v0.5.2 released corrective checkpoint
 
-The entries below document v0.5.1 behavior. The local corrective candidate has changes for all eight issues. See [verification](docs/verification.md) for the native and release gates still in progress.
+The entries below document v0.5.1 behavior. All eight corrective changes were published and installed in v0.5.2 (tag `41d9e09`). The individual historical entries describe v0.5.1; the table records current evidence and residual risks, not a claim of exact rare-condition native verification. See [verification](docs/verification.md) for release evidence.
 
-| Bug | Candidate change | Evidence and remaining scope |
+| Bug | Released correction | Evidence and remaining scope |
 | --- | --- | --- |
 | BUG-001 | Recognize the whole `10/40` fraction and compare against other count templates | All six private v0.5.1 frames now read 10. Native Golden runs completed all 50 actions with ten level-4 Scouts. |
 | BUG-002 | Use reciprocal terrain features after a failed one-way match and allow one guarded south correction for the measured pose | Full-frame replay of all eight failures yielded two fresh binds and six single recorded south corrections. A still-displaced frame stopped after one input. Native probes accepted 9.51 px and rejected 13.46 px. The physical result of a live south correction remains open. |
-| BUG-003 | Match the observed oblique vote digit and require a unique target badge | A full-frame replay of both original board-3 sequences authorized one recorded Ready click from the confirmed pre-clear vote. Both post-clear counts remained unknown. Native board 1 passed after one view clear. Fresh live board-3 entry remains open. |
+| BUG-003 | Match the observed oblique vote digit and require a unique target badge | A full-frame replay of both original board-3 sequences authorized one recorded Ready click from the confirmed pre-clear vote. Both post-clear counts remained unknown. Native board 1 passed after one view clear. Installed v0.5.2 passed fresh Wretched Front physical board 3 and reached Ready with zero view-clear steps; fresh Dead Ahead board 3 and the exact original visual variant remain unverified. |
 | BUG-004 | Reuse the last confirmed Golden 10 Scout ID only with current matching panel evidence | Native full matches measured 23 reuses, 17 switches, 34 selection clicks and 40 E upgrades. The existing strategy would have sent 80 selection clicks. |
 | BUG-005 | Recognize the clipped title with positive result anchors and park the pointer before results | The severe original overlay fixture verifies wave 20 and 450 Coins. A fresh tooltip trial verified 450 Coins, and its saved Play Again preconditions passed. Two later native tooltip results had clipped Coin amounts, so the receipt guard withheld Play Again. The positive live transition remains open. |
 | BUG-006 | Separate credit and continuation across two guarded direct replays and three relaunches | A native incomplete receipt led to one relaunch and a later exact-once 137-Gem credit. A complete wave-10, one-Gem receipt stayed uncredited and reached Ready through Restart Match on the same client. |
