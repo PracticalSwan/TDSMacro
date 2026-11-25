@@ -103,7 +103,11 @@ def read_hardcore_result(frame, observer, ocr):
     text = lambda box: ocr.read(frame.crop(box))
     map_name = text((1090, 473, 1281, 501))
     # The current result panel clips the last letters of Wretched Front.
+    # On the observed shifted panel the broken W reads as a quote in the
+    # wide crop and as N in the independently bounded contrast mask.
     if (map_name not in HARDCORE_MAP_LABELS_OCR
+            and not (map_name == '"retched Fron'
+                     and ocr.read(ink(frame.crop(HARDCORE_MAP_BOX))) == 'Nretched Fron')
             and max(overlap(ink(frame.crop(HARDCORE_MAP_BOX)), label)
                     for label in hardcore_map_labels()) < .94):
         return None

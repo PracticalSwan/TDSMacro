@@ -1,4 +1,4 @@
-TDS Macro - Windows v0.5.2
+TDS Macro - Windows v0.5.3
 
 Run TDSMacro.exe from the entire extracted folder. Keep _internal,
 assets, calibrations, strategies, docs and notices together.

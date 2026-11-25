@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 
 from .calibration import CameraGate, load_profile, valid_preview, golden_ten_enabled
@@ -84,6 +84,30 @@ class MatchFinished(Exception):
         self.diagnostic_error_kind=diagnostic_error_kind
 
 
+def reward_scroll_point(frame, location):
+    """Find the interior point of the registered Victory reward pane."""
+    if location is None or location[0]!='victory':
+        return None
+    _,dy=location
+    # The gray outline at (650,521)-(1004,708) surrounds the scrollable
+    # rewards. Check all four edges against nearby pixels outside the pane.
+    pane=frame.crop((646,518+dy,1009,712+dy)).convert('L')
+    edge_pairs=(
+        ((x,edge),(x,outside))
+        for edge,outside in ((521,519),(708,710)) for x in (710,850,940)
+    )
+    side_pairs=(
+        ((edge,y),(outside,y))
+        for edge,outside in ((650,648),(1004,1006)) for y in (555,600,675)
+    )
+    for (x,y),(outside_x,outside_y) in (*edge_pairs,*side_pairs):
+        border=pane.getpixel((x-646,y-518))
+        outside=pane.getpixel((outside_x-646,outside_y-518))
+        if not 55<=border<=85 or border-outside<30:
+            return None
+    return 850,600+dy
+
+
 class Playback:
     """One prepared match. Navigation and repeat policy belong to session.py."""
     def __init__(self,profile_path,driver,output,notify=None,pause=None,full_evidence=True,latest_path=None):
@@ -114,10 +138,36 @@ class Playback:
         try:
             if self.full_evidence:
                 image.save(self.output/name)
-            elif name=='final.png':
+            elif name in {'final.png','reward_before_scroll.png'}:
                 image.crop((630,350,1290,805)).save(self.output/name)
         except OSError as exc:
             raise StopRun(f'Cannot save {name} ({type(exc).__name__}).',kind='storage') from exc
+
+    def reveal_coins(self,frame,result,deadline):
+        point=reward_scroll_point(frame,self.observer.result_location(frame))
+        if point is None or time.monotonic()+1.1>=deadline:
+            return result,frame
+        self.save_evidence(frame,'reward_before_scroll.png')
+        self.driver.move(*point)
+        hovered=self.frame()
+        current=self.results.read(hovered)
+        if (current is None or replace(current,coins=None)!=result
+                or reward_scroll_point(hovered,self.observer.result_location(hovered))!=point
+                or time.monotonic()>=deadline):
+            return result,hovered
+        if current.coins is None:
+            # The receipt and pane are still at the verified pointer position.
+            self.driver.zoom(-3)
+            self.driver.wait(.3)
+            hovered=self.frame()
+            current=self.results.read(hovered)
+        if (current is None or current.coins is None or replace(current,coins=None)!=result
+                or time.monotonic()>=deadline):
+            return result,hovered
+        self.driver.wait(.2)
+        final_frame=self.frame()
+        confirmed=self.results.read(final_frame)
+        return (current if confirmed==current and time.monotonic()<deadline else result),final_frame
 
     def finish_if_result(self,frame):
         state=self.observer.observe(frame).state
@@ -131,6 +181,8 @@ class Playback:
             result=self.results.read(frame)
             if result is not None and result==previous:
                 final_frame=frame
+                if result.status=='victory' and result.coins is None:
+                    result,final_frame=self.reveal_coins(frame,result,deadline)
                 diagnostic_error=None;diagnostic_error_kind=None
                 try:self.save_evidence(final_frame,'final.png')
                 except (RuntimeError,OSError) as exc:

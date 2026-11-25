@@ -1572,6 +1572,72 @@ class SessionTests(unittest.TestCase):
             with self.assertRaisesRegex(StopRun,'Result banner'):playback.finish_if_result(pending)
         self.assertEqual(self.platform.events,[])
 
+    def test_golden_clipped_reward_scroll_needs_same_pane_and_agreeing_readbacks(self):
+        from dataclasses import replace
+        from tds_auto.observer import Observer
+        from tds_auto.results import ResultReader
+
+        clipped=Image.new('RGB',(1920,991))
+        with Image.open(ROOT/'tests/fixtures/v052_golden_clipped_coin.png') as panel:
+            clipped.paste(panel,(625,330))
+        no_pane=clipped.copy()
+        no_pane.paste('black',(649,520,1006,710))
+        no_control=clipped.copy()
+        no_control.paste('black',(969,733,1240,802))
+        shifted=Image.new('RGB',clipped.size)
+        shifted.paste(clipped,(0,6))
+        revealed=shifted.copy()
+        with Image.open(ROOT/'tests/fixtures/v052_golden_overlay.png') as panel:
+            revealed.paste(panel.crop((25,190,385,380)),(650,526))
+        self.assertEqual(ResultReader().read(revealed),GameResult('victory','Dead Ahead','Easy',20,454,450))
+        changed_amount=revealed.copy()
+        changed_metadata=shifted.copy()
+
+        for name,start,hover,reads,wheel,coins,moved in (
+            ('revealed',shifted,shifted,(revealed,revealed),3,450,True),
+            ('readable',revealed,revealed,(),0,450,False),
+            ('missing pane',no_pane,no_pane,(),0,None,False),
+            ('pane disappeared',clipped,no_pane,(),0,None,True),
+            ('control disappeared',clipped,no_control,(),0,None,True),
+            ('metadata changed',shifted,changed_metadata,(),0,None,True),
+            ('scroll had no effect',shifted,shifted,(shifted,shifted),3,None,True),
+            ('conflicting amount',shifted,shifted,(revealed,changed_amount),3,None,True),
+        ):
+            with self.subTest(case=name), tempfile.TemporaryDirectory() as tmp:
+                platform=FakeOS()
+                playback=Playback.__new__(Playback)
+                playback.driver=GuardedInput(platform.window,platform)
+                playback.observer=Observer()
+                playback.results=ResultReader(playback.observer)
+                playback.output=Path(tmp)
+                playback.full_evidence=False
+                frames=iter((start,hover,*reads))
+                playback.frame=lambda:next(frames)
+                real_read=playback.results.read
+
+                def read(frame):
+                    if frame is changed_amount:
+                        return replace(real_read(frame),coins=451)
+                    if frame is changed_metadata:
+                        return replace(real_read(frame),duration_seconds=455)
+                    return real_read(frame)
+
+                playback.results.read=read
+                with patch('tds_auto.run.time.monotonic',side_effect=platform.now):
+                    with self.assertRaises(MatchFinished) as caught:
+                        playback.finish_if_result(start)
+                self.assertEqual(caught.exception.result.coins,coins)
+                self.assertEqual(platform.events.count(('wheel',-120)),wheel)
+                if moved:
+                    offset=0 if start is clipped else 6
+                    self.assertEqual(platform.events[:1],[('move',850,platform.window.y+600+offset)])
+                else:
+                    self.assertEqual(platform.events,[])
+                self.assertNotIn(('left_down',),platform.events)
+                self.assertTrue((playback.output/'final.png').is_file())
+                if wheel:
+                    self.assertTrue((playback.output/'reward_before_scroll.png').is_file())
+
     def test_obscured_vote_is_reobserved_from_one_clearer_position_without_revoting(self):
         from tds_auto.maps import Board
         target=Board(1,(750,250,990,282),'Dead Ahead')

@@ -3,7 +3,7 @@
 ## Start here
 - Workspace/Git root: `D:\Side Projects\tower-defense-simulator-automation-script`. Check Git status, current processes, installed version and live session **before any action**; historical PIDs and notes are not live proof.
 - Read [current status](docs/STATUS.md), **[open bugs](BUGS_FOUND.md)**, [README](README.md), [setup](docs/setup.md), [development](docs/development.md), [verification](docs/verification.md), relevant [strategy requirements](docs/requirements/strategies/README.md), and current private `LESSONS.md`/`memory/` when useful. Consult detailed plans only for the task in scope.
-- **v0.5.2 is released/installed** at `dist/TDSMacro/TDSMacro.exe`, with one Desktop shortcut. Check [current status](docs/STATUS.md), [defect register](BUGS_FOUND.md) and [verification](docs/verification.md) for the released corrections and residual verification limitations.
+- **v0.5.3 is the current release version** at `dist/TDSMacro/TDSMacro.exe`, with one Desktop shortcut. Check [current status](docs/STATUS.md), [defect register](BUGS_FOUND.md) and [verification](docs/verification.md) for the released corrections and residual verification limitations.
 - The next major milestone **v1.0.0 is planning-only**: [verified loadout switching](docs/plans/2026-11-23-v1.0-loadout-switching.md) and [successful-run rotation](docs/plans/2026-11-23-v1.0-successful-run-rotation.md). Do not implement these without explicit authorization. Interim fixes continue as v0.5.2/v0.6.0/etc.
 
 ## Non-negotiable runtime safety

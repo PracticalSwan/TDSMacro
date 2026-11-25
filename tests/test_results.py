@@ -140,3 +140,25 @@ class ResultTests(unittest.TestCase):
                          HardcoreResult('defeat', 30, 451, 137))
         frame.paste('black', (1090, 473, 1281, 501))
         self.assertIsNone(read_hardcore_result(frame, observer, ocr))
+
+    def test_native_shifted_hardcore_receipt_with_broken_first_map_glyph(self):
+        from tds_auto.observer import Observer
+        from tds_auto.resources import LocalOCR
+        from tds_auto.results import HardcoreResult, read_hardcore_result
+
+        frame=self.v052_panel('v053_hardcore_cycle_024.png')
+        observer,ocr=Observer(),LocalOCR()
+        self.assertEqual(read_hardcore_result(frame,observer,ocr),HardcoreResult('defeat',30,463,137))
+        for box in ((1138,473,1281,508),(1150,548,1282,576),(1150,584,1282,614),
+                    (1020,510,1135,540),(700,735,968,803)):
+            with self.subTest(box=box):
+                obscured=frame.copy()
+                obscured.paste('black',box)
+                self.assertIsNone(read_hardcore_result(obscured,observer,ocr))
+        wrong_map=frame.copy()
+        with Image.open(ROOT/'tests/fixtures/result_victory.png') as golden:
+            wrong_map.paste('black',(1138,473,1281,508))
+            wrong_map.paste(golden.crop((1150,473,1265,499)),(1150,474))
+        self.assertIsNone(read_hardcore_result(wrong_map,observer,ocr))
+        frame.paste('black',(646,505,1010,717))
+        self.assertEqual(read_hardcore_result(frame,observer,ocr),HardcoreResult('defeat',30,463,None))

@@ -1,5 +1,14 @@
 # Verification
 
+## November 26 v0.5.3 receipt verification
+
+- Golden archived controls: four clipped frames each authorized one three-notch scroll in the fake input recorder and remained uncredited when the frame did not change. Five readable frames each returned 450 Coins with zero wheel input. The focused regression verifies the offset point, panel/control or metadata changes, conflicting reads and two agreeing post-scroll reads.
+- Hardcore: the original cycle 024 frame and its sanitized fixture recovered wave 30, 463 seconds and 137 displayed Gems. Obscured fields, an incorrect map and the existing reversed-wave controls were tested. The receipt with hidden Gems remains unreadable for reward credit.
+- Windows: 696 tests passed in the final local suite on Python 3.14. Compilation, all 18 dependency checks and frozen v0.5.3 self-check passed.
+
+- Native Golden 10: two Dead Ahead Easy Solo wave-20 victories, all 50 actions and ten level-4 Scouts in each. Play Again returned to the verified voting room on the same client and the next match completed. Both receipts showed 450 Coins. Neither match had the clipped reward layout, so physical scroll coverage remains open.
+- Native Hardcore Gem Grind: Wretched Front Solo reached wave 30 after all 75 core actions, with all required levels and 18 towers. The 463-second Defeat showed 137 Gems and was credited once. Restart Match reached a fresh zero-tower Ready state on the same Roblox client before the trial stopped. Amounts are from the result screen.
+
 ## November 25 v0.5.2 release and installed launch
 
 - Release commit `41d9e0944fa2e9e8278d615e39662aee0a8ef8ab` pushed to main; exact [Windows CI 45527548654](https://github.com/PracticalSwan/TDSMacro/actions/runs/45527548654) completed successfully. Final rebuild used the project-relative destination and produced the exact earlier native-tested executable SHA-256 `9f42f3c43143ffeb6ca5e08ab8afd598b1cdc8e3bb3c97381622c4625763e4e4`. The final archive included four legitimate WinRT runtime files that the earlier overbroad candidate privacy filter had excluded. The final allowlisted ZIP has 1,322 files / 61,534,783 bytes; 82 documentation links and all CRC/per-entry hashes passed, with no private captures or test fixtures. Frozen self-check and updater extraction/staging checks passed.

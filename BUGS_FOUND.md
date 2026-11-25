@@ -1,5 +1,14 @@
 # Bugs found — active TDS Macro defect register
 
+## v0.5.3 receipt reliability
+
+- **BUG-011 — corrected.** v0.5.2 dropped the existing reward-pane scroll. Four archived Golden victories had a second reward row with the Coin amount clipped. Once the victory, Play Again control and reward-pane outline are verified, v0.5.3 permits one downward scroll. Two fresh readings must agree on the amount and the original receipt metadata before credit and direct replay.
+- **BUG-009 — corrected.** A shifted Hardcore result rendered part of the initial W too faintly for the existing map reader. The new fallback requires the observed wide-crop and narrow contrast-mask readings to corroborate one another. The original receipt verifies as a 7m43s wave-30 Defeat with 137 displayed Gems. The previous tally was left as recorded.
+- **OBS-010 — open observation.** Four early Defeats stopped at C5 level 2. Post-C4 cash overlapped successful runs, deadline 18 was missed across both outcomes, and the failures made no optional purchase. The files lack cash and enemy/HP evidence at the final affordability decision.
+- **OBS-012 — open observation.** The recorded fourth-Scout attempt stopped at 9/50 actions before a click. The exact pre-click frame and matching replay camera bind are unavailable, so the failed predicate remains unresolved.
+
+See [verification](docs/verification.md) for the evidence and native coverage.
+
 ## v0.5.2 released corrective checkpoint
 
 The entries below document v0.5.1 behavior. All eight corrective changes were published and installed in v0.5.2 (tag `41d9e09`). The individual historical entries describe v0.5.1; the table records current evidence and residual risks, not a claim of exact rare-condition native verification. See [verification](docs/verification.md) for release evidence.

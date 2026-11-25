@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.5.3 - November 26, 2026
+
+- Restored one guarded scroll for a verified Golden victory with unreadable Coins. Credit requires two fresh agreeing reads with the same receipt metadata. A readable reward skips the scroll.
+- Accepted a corroborated Wretched Front map OCR variant while retaining the established map template threshold and independent Hardcore result checks.
+- Reviewed OBS-010 and OBS-012. The available logs do not establish a cause for either observation. See [verification](docs/verification.md).
+
 ## v0.5.2 - November 25, 2026
 
 - Reconciled latest three-tower Hardcore native result (75 actions, 137 displayed Gems), repeated 694-test regression and exact hosted candidate comparison. No new gameplay changes. Kept rare native acceptance gaps explicit and bounded further trials.

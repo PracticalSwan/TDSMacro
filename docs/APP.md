@@ -1,6 +1,6 @@
 # TDS Macro Windows application
 
-**Version:** [v0.5.2](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.5.2). The installed maintainer build is `dist/TDSMacro/TDSMacro.exe` with one `TDS Macro.lnk` shortcut. For a timestamped live observation, see [project status](STATUS.md); never infer the worker is still running from this page alone.
+**Version:** [v0.5.3](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.5.3). The installed maintainer build is `dist/TDSMacro/TDSMacro.exe` with one `TDS Macro.lnk` shortcut. For a timestamped live observation, see [project status](STATUS.md); never infer the worker is still running from this page alone.
 
 ## GUI
 
