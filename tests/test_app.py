@@ -286,11 +286,14 @@ class AppTests(unittest.TestCase):
         self.assertIn('no full-cycle Gems counted',text)
 
     def test_passive_focus_wait_explains_natural_return_and_stop(self):
-        text=status_text({'phase':'recovering','stage':'awaiting_foreground','recoveries':0},True)
-        self.assertIn('5 seconds',text)
+        text=status_text({'phase':'recovering','stage':'awaiting_foreground','recoveries':0,'seconds':30},True)
+        self.assertIn('30 seconds',text)
         self.assertIn('naturally',text)
         self.assertIn('F2',text)
         self.assertNotIn('Recovery 1/',text)
+        missing=status_text({'phase':'recovering','stage':'awaiting_foreground'},True)
+        self.assertNotIn('seconds',missing)
+        self.assertIn('naturally',missing)
 
     def test_native_f1_f2_queue_and_release_without_keyboard_input(self):
         keys=Hotkeys()

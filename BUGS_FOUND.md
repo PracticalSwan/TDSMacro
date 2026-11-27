@@ -1,5 +1,10 @@
 # Bugs found — active TDS Macro defect register
 
+## November 27 evening — corroboration and BUG-021
+The November 26 evening OBS-019 attempt_005 archived final frame independently reads the same exact DataStore load failure (267), and the new narrow recognizer accepts it. Two independent historical failure frames establish recurrence, not native post-Leave recovery. Do not force the external error.
+
+BUG-021: dashboard foreground-wait copy still said five seconds even though recovery reports seconds=30. status_text now renders the positive integer wait from the worker event; absent/invalid duration uses nonnumeric copy. No recovery timeout or safety policy change. Updated regression failed on old copy and passed after correction; 26 app tests passed.
+
 ## November 27 evening — BUG-020 (DataStore Leave-only recovery gap)
 Official v0.5.5 session completed five credited wave-20 Golden 10 victories / 2,250 displayed Coins, each 50/50 actions and ten L4 Scouts. All five archived receipts independently reconciled. Match 5 Play Again timed out waiting for match_ready at 16:16:31 ICT; final pre-recovery frame contains the exact DataStore load failed, please rejoin the game (error 267) Leave-only dialog. Existing observer classifies it unknown and old disconnect_prompt rejects it because it requires Leave and Reconnect. Ordinary close requested 16:16:36; close timeout 16:17:06, confirmed_close=false, disconnect_consumed=false, loading_close_checked=true, home_close_requested=false. No screenshot during the close loop proves persistence of the dialog; the recognition gap is confirmed, exact cause of ordinary close timeout is not fully established. At 16:50 same client was verified foreground lobby. Restarted official v0.5.5 Golden 10 continuous auto-recovery at 16:52, one worker. No foreground loss or reward/placement failures in the five completed matches.
 

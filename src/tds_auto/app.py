@@ -237,7 +237,9 @@ def status_text(data, running, stopping=False, start_error=None):
                 "no full-cycle Gems counted.")
     if phase=='recovering':
         if data.get('stage')=='awaiting_foreground':
-            return 'Input stopped · waiting up to 5 seconds for Roblox to return naturally · F2 cancels.'
+            seconds = data.get('seconds')
+            wait = f'waiting up to {seconds} seconds' if type(seconds) is int and seconds > 0 else 'waiting'
+            return f'Input stopped · {wait} for Roblox to return naturally · F2 cancels.'
         stages={'cooldown':'restarting shortly','closing':'leaving the failed game',
                 'settling_launcher':'waiting 60 seconds for the Roblox launcher',
                 'launching':'opening Roblox','waiting_lobby':'waiting for the lobby'}

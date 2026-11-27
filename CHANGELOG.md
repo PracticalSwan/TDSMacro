@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased v0.5.6
+- Correct dashboard foreground wait text using the worker-reported duration instead of the obsolete five-second constant.
 - Handle the exact observed DataStore load-failure (267) Leave-only dialog in guarded recovery; record the confirmed dialog variant. Retain existing bounded close/relaunch, identity, foreground and cancellation safeguards. Saved-frame and fake-input tests pass; actual server rejoin remains unverified.
 
 ## v0.5.5 - November 27, 2026
