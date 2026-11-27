@@ -1,6 +1,9 @@
-# Current TDS Macro roadmap — November 26, 2026
+# Current TDS Macro roadmap — November 27, 2026
 
-## November 27 afternoon — remaining incremental release gates
+## November 27 — incremental release completed
+Official v0.5.5 is published and installed; exact-commit hosted CI, remaining local test modules, package audit and frozen GUI smoke passed. Continuous Golden 10 automatic recovery restarted. Next maintenance only on new reproducible evidence; observe BUG-017 naturally and retain unresolved observations. v1.0 remains planning-only.
+
+## Historical November 27 afternoon — incremental release gates (completed)
 Native Golden 10 result/replay and shifted-pane/preview corrections verified; leave the worker undisturbed during source review and hosted CI. Verify exact-commit Windows build, package privacy/CRC/digests, frozen self-check and GUI at idle, then publish/install if gates pass. Record remaining rare native activation and alternate-pane limitations. Keep v1.0 planning-only.
 
 ## November 27 local v0.5.5 installed
@@ -25,7 +28,7 @@ Locally installed verified candidate; published stable remains v0.5.3. Golden 10
 
 Prioritize verified BUG-013 alternate reward pane and requested CHG-014 30-second natural focus return. Focused tests passed. OBS-012/015 diagnostic-only until exact predicate evidence; OBS-010 remains open. No v1.0 implementation. Published v0.5.3 unchanged pending full release verification; use one verified local candidate and do not interrupt active worker for speculative changes.
 
-**Published stable: v0.5.3. Locally installed candidate: v0.5.4.** The receipt corrections for BUG-011 and BUG-009 are complete. OBS-010 and OBS-012 remain open pending evidence of their causes. The clipped-reward scroll passed saved-frame checks. Native coverage includes Golden Play Again and Hardcore Restart Match. [Project status](STATUS.md) · [Verification](verification.md) · [Defect register](../BUGS_FOUND.md)
+**Historical November 26 checkpoint: published v0.5.3, local candidate v0.5.4.** The receipt corrections for BUG-011 and BUG-009 are complete. OBS-010 and OBS-012 remain open pending evidence of their causes. The clipped-reward scroll passed saved-frame checks. Native coverage includes Golden Play Again and Hardcore Restart Match. [Project status](STATUS.md) · [Verification](verification.md) · [Defect register](../BUGS_FOUND.md)
 
 ## Completed v0.5.3 owner goal
 

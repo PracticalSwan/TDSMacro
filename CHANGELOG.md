@@ -1,16 +1,16 @@
 # Changelog
 
-## Unreleased local v0.5.5
+## v0.5.5 - November 27, 2026
 - Foreground recovery: after 30 seconds of passive wait, one ordinary idle-desktop activation request; verify two matching foreground samples before bounded fresh-session recovery.
-- Include pending shifted reward-pane and isolated placement-preview corrections; add last-observed lobby and close-timeout diagnostics. Native shifted-pane scroll and passive preview reread confirmed; 25 consecutive credited Golden victories without recovery. Native idle activation not yet observed. Published stable v0.5.3 unchanged.
+- Include pending shifted reward-pane and isolated placement-preview corrections; add last-observed lobby and close-timeout diagnostics. Native shifted-pane scroll and passive preview reread confirmed; 27 consecutive credited Golden victories without recovery. Native idle activation not yet observed. Published and installed from exact-commit Windows CI; 707 tests across hosted and local modules. See verification record.
 
-## Unreleased v0.5.4 follow-up source corrections
+## Historical v0.5.4 follow-up source corrections (included in v0.5.5)
 
 - Correct a third observed reward-pane raster layout on shifted Golden victory receipts; both saved failures now satisfy complete border checks.
 - Reobserve an isolated transient pre-click preview failure once, passively, retaining unchanged count, cash, quote, camera, focus and hotbar guards. No paid action retry.
 - Record unresolved intermittent recovery lobby timeout. Focused tests passed; further source corrections not yet installed/published.
 
-## Unreleased v0.5.4 local candidate
+## Historical v0.5.4 local candidate (superseded by v0.5.5)
 
 - Extend passive foreground-return window from five to 30 seconds; keep immediate input stop, identity/geometry and cancellation guards.
 - Recognize the additional native Golden reward pane raster pair while preserving full border and receipt verification. v0.5.3 scroll confirmed natively on 28 recorded successful cases.

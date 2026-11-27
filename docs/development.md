@@ -4,7 +4,7 @@
 
 Use a fresh isolated build destination, then retire verified obsolete frozen payloads after checking processes, references, Git status, unique files and every reparse point, including ignored .venv links. Unlink a junction itself before worktree removal; never recursively delete its target. Keep current install, last-good rollback, official artifact, private evidence and source history. Old dist evidence moved under ignored captures/maintenance/20261125/dist; consult private ledger. The released builder packages Golden 9, Golden 10 and Hardcore v2. [Consolidation plan](plans/2026-11-25-v1.0-legacy-consolidation.md) is not implementation authorization.
 
-**Published stable v0.5.3; installed maintainer candidate v0.5.5.** Review [current status](STATUS.md), [defect register](../BUGS_FOUND.md), [verification](verification.md) and [current roadmap](PLAN.md). Build into a fresh separate destination; keep the sole gameplay worker undisturbed. No v1.0 implementation without authorization.
+**Published and installed stable v0.5.5.** Review [current status](STATUS.md), [defect register](../BUGS_FOUND.md), [verification](verification.md) and [current roadmap](PLAN.md). Build into a fresh separate destination; keep the sole gameplay worker undisturbed. No v1.0 implementation without authorization.
 
 ## Historical engineering decisions and checkpoints
 

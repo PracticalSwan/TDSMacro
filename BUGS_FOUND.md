@@ -1,5 +1,8 @@
 # Bugs found — active TDS Macro defect register
 
+## November 27 — release checkpoint
+v0.5.5 is published and installed. Previous local candidate completed 27 consecutive credited Golden 10 victories / 12,150 displayed Coins, zero recoveries. Shifted pane and passive preview reread natively confirmed; no recurrence of foreground interruption, hover/selection, lobby/close timeout or new Hardcore evidence. BUG-017 idle activation and the second pane geometry retain explicit native acceptance gaps; OBS-010/015/016/018/019 remain unresolved. No further speculative runtime edits. [Verification](docs/verification.md).
+
 ## November 27 afternoon — local v0.5.5 native evidence
 Passive review at 15:05 ICT: installed local v0.5.5, published stable v0.5.3. The same single continuous Golden 10 worker completed 25 consecutive credited wave-20 victories (11,250 displayed Coins), each 50/50 actions, ten L4 Scouts and 40 E upgrades, without any recovery. All 25 saved receipts independently reconciled after restoring compact captures to their documented original coordinates. No game input or focus change during the review.
 

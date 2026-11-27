@@ -1,6 +1,6 @@
 # Setup — TDS Macro Windows
 
-Install the **complete** [v0.5.3 Windows ZIP](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.5.3); do not run just the EXE. Keep `TDSMacro.exe`, `_internal/`, `assets/`, `calibrations/`, `strategies/`, docs and notices together. The maintainer's installed version is `dist/TDSMacro/` with one `TDS Macro.lnk` Desktop shortcut. The latest verified previous installation is retained for rollback; older non-runtime diagnostic evidence is archived privately rather than retained as duplicate executable installations.
+Install the **complete** [v0.5.5 Windows ZIP](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.5.5); do not run just the EXE. Keep `TDSMacro.exe`, `_internal/`, `assets/`, `calibrations/`, `strategies/`, docs and notices together. The maintainer's installed version is `dist/TDSMacro/` with one `TDS Macro.lnk` Desktop shortcut. The latest verified previous installation is retained for rollback; older non-runtime diagnostic evidence is archived privately rather than retained as duplicate executable installations.
 
 ## Required computer and game setup
 

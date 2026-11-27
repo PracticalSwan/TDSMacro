@@ -2,7 +2,7 @@
 
 Windows automation for **Roblox Tower Defense Simulator** using guarded mouse/keyboard inputs and screenshots/OCR to verify cash, prices, loadouts, placement, upgrades and results. Requires the official Windows Roblox client; **no injection or modified client**.
 
-**Latest stable v0.5.3 (November 26, 2026).** [Download the Windows release](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.5.3) · [Setup](docs/setup.md) · [Project status](docs/STATUS.md) · [Defect register](BUGS_FOUND.md) · [Verification and limitations](docs/verification.md)
+**Latest stable v0.5.5 (November 27, 2026).** [Download the Windows release](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.5.5) · [Setup](docs/setup.md) · [Project status](docs/STATUS.md) · [Defect register](BUGS_FOUND.md) · [Verification and limitations](docs/verification.md)
 
 ## Supported strategies
 
