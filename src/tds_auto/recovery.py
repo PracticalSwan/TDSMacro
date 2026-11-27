@@ -189,6 +189,32 @@ def disconnect_prompt(frame):
             and ocr.read(frame.crop((967,582,1185,628))).strip()=='Reconnect')
 
 
+def datastore_disconnect_prompt(frame):
+    """Recognize only the observed DataStore load failure and its single Leave."""
+    if frame.size!=(1920,991):return False
+    # Confirm the observed wide neutral button and surrounding dark modal
+    # before OCR. This is not the two-button AFK/disconnect layout.
+    rgb=frame.convert('RGB')
+    for x,y in ((750,590),(1170,590),(750,620),(1170,620)):
+        color=rgb.getpixel((x,y))
+        if min(color)<220 or max(color)-min(color)>8:return False
+    for x,y in ((750,575),(1170,575),(750,630),(1170,630)):
+        color=rgb.getpixel((x,y))
+        if max(color)>90 or max(color)-min(color)>12:return False
+    lines=LocalOCR().read_lines(frame.crop((730,344,1190,640)))
+    if tuple(text for text,_ in lines)!=(
+            'Disconnected',
+            'You have been kicked by this experience or its',
+            'moderators. Moderation message:',
+            'DataStore load failed, please rejoin the game.',
+            '(Error Code: 267)',
+            'Leave'):
+        return False
+    # Verify that the sole action caption occupies the actual button center.
+    x0,y0,x1,y1=lines[-1][1]
+    return 195<=x0<x1<=265 and 245<=y0<y1<=280
+
+
 def roblox_home(frame):
     """Recognize a known Roblox Home navigation layout after disconnect Leave."""
     if frame.size!=(1920,991):return False
@@ -217,6 +243,9 @@ def confirm_close(window,control,platform,allow_disconnect=True):
         changed='Roblox close confirmation changed; no click sent.'
     elif allow_disconnect and disconnect_prompt(frame):
         kind='disconnect';point=(845,605);confirm=lambda image:disconnect_prompt(image)
+        changed='Roblox disconnect dialog changed; no Leave click sent.'
+    elif allow_disconnect and datastore_disconnect_prompt(frame):
+        kind='datastore_267';point=(960,605);confirm=datastore_disconnect_prompt
         changed='Roblox disconnect dialog changed; no Leave click sent.'
     else:return False
     def verify():
@@ -317,8 +346,9 @@ def restart_client(control,platform,report,*,locate=locate_client,close=close_cl
                 dialog=confirm(window,control,platform,not disconnect_consumed)
                 if dialog=='close':
                     confirmed_close=True
-                elif dialog=='disconnect' and not disconnect_consumed:
+                elif dialog in {'disconnect','datastore_267'} and not disconnect_consumed:
                     disconnect_consumed=True
+                    report(stage='disconnect_leave_confirmed',client_pid=window.pid,client_hwnd=window.hwnd,dialog=dialog)
                     transition=await_disconnect_transition(window,control,platform,
                         locate=locate,exists=exists,deadline=deadline)
                     if transition=='home' and exists(window):

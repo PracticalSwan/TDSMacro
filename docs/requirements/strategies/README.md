@@ -1,6 +1,6 @@
 # Strategy execution requirements
 
-**Status:** reviewed against released v0.5.2 on 2026-11-25 (Thailand). These requirements document existing guards; automatic loadout switching, strategy rotation and [explicit slot-4 tower selection](../../plans/2026-11-25-v1.0-slot4-tower-selection.md) are not implemented. The live profiles remain the executable source of truth.
+**Status:** planning scope reviewed against released v0.5.5 on 2026-11-27 (Thailand). These requirements document existing guards; automatic loadout switching, strategy rotation and [explicit slot-4 tower selection](../../plans/2026-11-25-v1.0-slot4-tower-selection.md) are not implemented. The live profiles remain the executable source of truth. Planned slot-4 targets: Juggernaut, Golden Scout, Operator, Enforcer and Kingpin, subject to individual native qualification.
 
 Each selectable strategy has a separate requirement sheet:
 

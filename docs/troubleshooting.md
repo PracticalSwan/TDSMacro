@@ -8,6 +8,8 @@ Golden count-10 recognition, redundant selection, obscured results, camera and v
 
 The v0.5.5 release waits 30 seconds after focus loss and may make one ordinary idle-desktop activation request. Actual native activation is not yet demonstrated; a denied request or active desktop stops safely. Do not synthesize input to force focus.
 
+The v0.5.6 candidate recognizes the exact observed DataStore load failed, please rejoin the game (267) dialog with its sole centered Leave button. It does not treat arbitrary moderation kicks as recoverable. One verified Leave, then existing Home/close and original-process exit checks; no force kill. Native server rejoin remains unverified. See the current verification record.
+
 ## Historical troubleshooting records (superseded where applicable)
 
 > Dated notes below retain original symptoms and prior behavior. They are not current release instructions.

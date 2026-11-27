@@ -601,6 +601,55 @@ class RecoveryTests(unittest.TestCase):
                 recovery.confirm_close(self.platform.window,control,self.platform)
         self.assertNotIn(('left_down',),self.platform.events)
 
+    def test_datastore_267_leave_only_dialog_uses_one_guarded_center_click(self):
+        recovery=self.module();control=SessionControl(self.path)
+        path=Path(__file__).parent/'fixtures'/'roblox_datastore_267_dialog.png'
+        with Image.open(path) as source:frame=source.copy()
+        with patch.object(recovery,'client_exists',return_value=True), \
+             patch.object(recovery,'capture',return_value=frame):
+            self.assertEqual(recovery.confirm_close(self.platform.window,control,self.platform),'datastore_267')
+        self.assertIn(('move',960,634),self.platform.events)
+        self.assertEqual(self.platform.events.count(('left_down',)),1)
+        self.assertEqual(self.platform.events[-1],('left_up',))
+
+    def test_datastore_267_records_variant_and_relaunches_only_after_home_and_exit(self):
+        recovery=self.module();control=SessionControl(self.path)
+        with Image.open(Path(__file__).parent/'fixtures'/'roblox_datastore_267_dialog.png') as source:
+            dialog=source.copy()
+        with Image.open(Path(__file__).parent/'fixtures'/'roblox_home_controls.png') as source:
+            home=source.copy()
+        closes=[];launches=[];reports=[]
+        def exists(window):
+            return len(closes)<2
+        def capture(window):
+            return home if ('left_down',) in self.platform.events else dialog
+        with patch.object(recovery,'client_exists',return_value=True), patch.object(recovery,'capture',side_effect=capture):
+            recovery.restart_client(control,self.platform,lambda **row:reports.append(row),
+                locate=lambda:self.platform.window,close=lambda window:closes.append(window),
+                exists=exists,launch=lambda:launches.append(len(closes)),observe=lambda window:'lobby')
+        self.assertEqual(self.platform.events.count(('left_down',)),1)
+        self.assertEqual(len(closes),2)
+        self.assertEqual(launches,[2])
+        self.assertTrue(any(row.get('stage')=='disconnect_leave_confirmed'
+                            and row.get('dialog')=='datastore_267' for row in reports))
+
+    def test_datastore_267_rejects_missing_text_button_or_changed_dialog(self):
+        recovery=self.module();control=SessionControl(self.path)
+        with Image.open(Path(__file__).parent/'fixtures'/'roblox_datastore_267_dialog.png') as source:
+            frame=source.copy()
+        for box in ((870,355,1060,390),(760,505,1160,533),
+                    (885,533,1040,557),(930,590,990,618),(740,585,925,625)):
+            changed=frame.copy();changed.paste('black',box)
+            with self.subTest(box=box), patch.object(recovery,'client_exists',return_value=True), \
+                 patch.object(recovery,'capture',return_value=changed):
+                self.assertFalse(recovery.confirm_close(self.platform.window,control,self.platform))
+        self.assertNotIn(('left_down',),self.platform.events)
+        with patch.object(recovery,'client_exists',return_value=True), \
+             patch.object(recovery,'capture',side_effect=[frame,Image.new('RGB',(1920,991))]):
+            with self.assertRaisesRegex(StopRun,'disconnect dialog changed'):
+                recovery.confirm_close(self.platform.window,control,self.platform)
+        self.assertNotIn(('left_down',),self.platform.events)
+
     def test_consumed_disconnect_dialog_cannot_click_leave_again(self):
         recovery=self.module();control=SessionControl(self.path);frame=Image.new('RGB',(1920,991))
         with patch.object(recovery,'client_exists',return_value=True), \

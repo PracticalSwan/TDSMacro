@@ -1,4 +1,4 @@
-TDS Macro - Windows v0.5.5
+TDS Macro - Windows v0.5.6
 
 Run TDSMacro.exe from the entire extracted folder. Keep _internal,
 assets, calibrations, strategies, docs and notices together.
@@ -56,7 +56,9 @@ changed client, invalid setup, unsafe terrain, low storage and
 exhausted recovery budget stop safely. After a focus interruption,
 wait 30 seconds; only one idle-desktop foreground request is allowed,
 with two matching foreground samples required before fresh recovery.
-Unknown or unconfirmed paid
+An exact DataStore load failure (267) with the verified Leave-only
+dialog can use the existing guarded close/relaunch path; other kicks
+are not accepted by that new recognizer. Unknown or unconfirmed paid
 actions are never repeated. Coins and Gems are result-screen totals,
 not an independent account-wallet audit.
 

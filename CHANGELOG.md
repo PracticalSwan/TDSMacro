@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased v0.5.6
+- Handle the exact observed DataStore load-failure (267) Leave-only dialog in guarded recovery; record the confirmed dialog variant. Retain existing bounded close/relaunch, identity, foreground and cancellation safeguards. Saved-frame and fake-input tests pass; actual server rejoin remains unverified.
+
 ## v0.5.5 - November 27, 2026
 - Foreground recovery: after 30 seconds of passive wait, one ordinary idle-desktop activation request; verify two matching foreground samples before bounded fresh-session recovery.
 - Include pending shifted reward-pane and isolated placement-preview corrections; add last-observed lobby and close-timeout diagnostics. Native shifted-pane scroll and passive preview reread confirmed; 27 consecutive credited Golden victories without recovery. Native idle activation not yet observed. Published and installed from exact-commit Windows CI; 707 tests across hosted and local modules. See verification record.

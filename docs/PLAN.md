@@ -1,5 +1,8 @@
 # Current TDS Macro roadmap — November 27, 2026
 
+## November 27 evening — incremental BUG-020 correction
+Candidate v0.5.6 adds exact DataStore error 267 Leave-only recovery support and explicit variant evidence. Focused tests pass. Complete exact-commit CI, artifact audit, frozen self-check and idle native smoke before release/install; retain single Golden worker and verify result/restart where feasible. Do not force the external failure. v1.0 planning-only.
+
 ## November 27 — incremental release completed
 Official v0.5.5 is published and installed; exact-commit hosted CI, remaining local test modules, package audit and frozen GUI smoke passed. Continuous Golden 10 automatic recovery restarted. Next maintenance only on new reproducible evidence; observe BUG-017 naturally and retain unresolved observations. v1.0 remains planning-only.
 
@@ -48,7 +51,7 @@ The [receipt reliability plan](plans/2026-11-26-v0.5.3-receipt-reliability.md) r
 
 ## Future milestone — v1.0 planning-only
 
-- [Explicit slot-4 tower selection](plans/2026-11-25-v1.0-slot4-tower-selection.md): select a verified tower profile in the Hardcore Gem+XP GUI, initially Juggernaut and Golden Scout subject to exact variant/current native qualification; use known profile cost for scheduling, retain fresh affordability/reserve/price/placement proof. Add future towers only after documented native acceptance.
+- [Explicit slot-4 tower selection](plans/2026-11-25-v1.0-slot4-tower-selection.md): select a verified tower profile in the Hardcore Gem+XP GUI, five v1.0 targets: Juggernaut, Golden Scout, Operator, Enforcer and Kingpin, each subject to exact variant/current native qualification; use known profile cost for scheduling, retain fresh affordability/reserve/price/placement proof. Add future towers only after documented native acceptance.
 
 - [Verified loadout switching](plans/2026-11-23-v1.0-loadout-switching.md): exact ordered slots, empty/perk evidence, safe lobby transition and manual fallback.
 - [Successful-run rotation](plans/2026-11-23-v1.0-successful-run-rotation.md): configured exact strategy and quota, e.g. five credited Golden victories then five credited Hardcore Gem cycles and repeat. Reuse released single-strategy credit/recovery primitives; no second controller.
