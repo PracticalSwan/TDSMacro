@@ -1392,7 +1392,7 @@ def main(argv=None):
     parser.add_argument('--expected-window',help=argparse.SUPPRESS)
     parser.add_argument('--matches',type=int,default=1)
     parser.add_argument('--continuous',action='store_true',help='Explicit Solo grind until stopped, a guard fails or disk space is low')
-    parser.add_argument('--auto-recover',action='store_true',help='Fresh TDS session after game failures or verified natural focus return within five seconds; continuous mode only')
+    parser.add_argument('--auto-recover',action='store_true',help='Fresh TDS session after game failures or verified focus recovery (30-second wait, one idle-desktop activation); continuous mode only')
     parser.add_argument('--auto-equip',action='store_true',help='Opt-in; requires five text-proven empty inventory slots')
     parser.add_argument('--repeat-route',choices=['play-again','lobby'],default='play-again')
     parser.add_argument('--prepare-only',action='store_true')

@@ -100,6 +100,50 @@ class MatchTests(unittest.TestCase):
         self.assertEqual(run.place((1020,330), slot=2, count=1).tower_count, 2)
         self.assertEqual(self.platform.events.count(("left_down",)), 1)
 
+    def test_golden_placement_guard_logs_predicates_without_click(self):
+        events=[]
+        run=self.make([self.shot(cash=500),self.shot(cash=500),self.shot(cash=500),
+                       self.shot(cash=500,preview=False)])
+        run.use_e_upgrades=True
+        run.selection_event=lambda **event:events.append(event)
+        with self.assertRaisesRegex(StopRun,'precondition changed'):
+            run.place((1020,330),slot=2,count=1,tower_id=2)
+        self.assertEqual(self.platform.events.count(('left_down',)),0)
+        self.assertEqual(events,[dict(event='placement_guard_rejected',point=(1020,330),
+            tower_id=2,expected_count=1,observed_count=1,expected_price=250,
+            observed_price=250,cash=500,preview_ok=False,hotbar_ok=True)])
+
+    def test_golden_placement_reobserves_transient_preview_before_single_click(self):
+        run=self.make([self.shot(cash=555)]*3+
+                      [self.shot(cash=555,preview=False),
+                       self.shot(cash=555),
+                       self.shot(cash=305,count=2,level=0)])
+        run.use_e_upgrades=True
+        result=run.place((1020,330),slot=2,count=1,tower_id=2)
+        self.assertEqual((result.tower_count,result.level),(2,0))
+        self.assertEqual(self.platform.events.count(('left_down',)),1)
+
+    def test_golden_placement_reobservation_rejects_changed_quote(self):
+        run=self.make([self.shot(cash=555)]*3+
+                      [self.shot(cash=555,preview=False),
+                       self.shot(cash=555,placement=300)])
+        run.use_e_upgrades=True
+        with self.assertRaisesRegex(StopRun,'precondition changed'):
+            run.place((1020,330),slot=2,count=1,tower_id=2)
+        self.assertEqual(self.platform.events.count(('left_down',)),0)
+
+    def test_golden_hover_rejection_logs_target_without_click(self):
+        events=[]
+        shot=Snapshot('in_match',Hud(500,1,None,None,None,2),True)
+        run=self.make([shot])
+        run.use_e_upgrades=True
+        run.hover_check=lambda point:False
+        run.selection_event=lambda **event:events.append(event)
+        with self.assertRaisesRegex(StopRun,'Owned Scout hover'):
+            run.select_scout((855,330),1)
+        self.assertEqual(self.platform.events.count(('left_down',)),0)
+        self.assertEqual(events,[dict(event='selection_hover_rejected',point=(855,330),count=1)])
+
     def test_invalid_preview_never_clicks(self):
         run=self.make([self.shot(cash=500), self.shot(cash=500), self.shot(cash=500,preview=False)])
         with self.assertRaisesRegex(StopRun,"preview"):

@@ -80,6 +80,7 @@ class MatchRunner:
                 if self.hover_check and self.hover_check(point):
                     return
                 if self.now() >= deadline:
+                    self.selection_event(event='selection_hover_rejected',point=point,count=count)
                     raise StopRun('Owned Scout hover did not verify at the calibrated target.')
                 self.sleep(.15)
         self.driver.before_click = guard
@@ -253,8 +254,22 @@ class MatchRunner:
                 if previous:
                     previous()
                 fresh=self.checked()
+                # The preview was verified before pointer movement. Allow one
+                # passive reread only if every other purchase predicate still
+                # agrees; never retry the slot key, pointer move or paid click.
+                if (not fresh.preview_ok and fresh.hotbar_ok and fresh.placement_cost==cost
+                        and fresh.hud.cash>=cost and fresh.hud.tower_count==count):
+                    self.sleep(.15)
+                    fresh=self.checked()
+                    if (fresh.preview_ok and fresh.hotbar_ok and fresh.placement_cost==cost
+                            and fresh.hud.cash>=cost and fresh.hud.tower_count==count):
+                        self.selection_event(event='placement_preview_reobserved',point=point,tower_id=tower_id)
                 if (not fresh.preview_ok or not fresh.hotbar_ok or fresh.placement_cost!=cost
                         or fresh.hud.cash<cost or fresh.hud.tower_count!=count):
+                    self.selection_event(event='placement_guard_rejected',point=point,tower_id=tower_id,
+                        expected_count=count,observed_count=fresh.hud.tower_count,
+                        expected_price=cost,observed_price=fresh.placement_cost,cash=fresh.hud.cash,
+                        preview_ok=fresh.preview_ok,hotbar_ok=fresh.hotbar_ok)
                     raise StopRun('Golden placement precondition changed before click.')
                 cleared=self.empty_panel(fresh)
             self.driver.before_click=guard

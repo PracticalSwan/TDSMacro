@@ -1,5 +1,17 @@
 # Troubleshooting
 
+**Current stable: v0.5.3; local maintainer candidate v0.5.5.** See [defect register](../BUGS_FOUND.md) and [current status](STATUS.md). A qualifying Gem cycle may leave Juggernaut unplaced; the worker reserves the next verified core quote before X1. This is intentional, not a failed XP purchase.
+
+Continuous play allows up to two direct replays with a positively verified result and restart control, then up to three guarded client relaunches when automatic recovery is enabled. Only genuine credit resets the budgets. Uncredited outcomes never increase reward totals. Protected stops remain terminal.
+
+Golden count-10 recognition, redundant selection, obscured results, camera and vote recognition have released corrections. Hardcore reversed wave rows now have guarded parsing. If an old symptom recurs, preserve evidence and use the normal controller; never bypass a guard, blindly repeat a paid action, or infer success.
+
+The v0.5.5 candidate waits 30 seconds after focus loss and may make one ordinary idle-desktop activation request. Actual native activation is not yet demonstrated; a denied request or active desktop stops safely. Do not synthesize input to force focus.
+
+## Historical troubleshooting records (superseded where applicable)
+
+> Dated notes below retain original symptoms and prior behavior. They are not current release instructions.
+
 **Unreleased v0.5.2 candidate.** An uncredited outcome keeps the credited totals unchanged. Continuous play can replay a verified receipt through its verified control. After two direct replays without credit, or if the receipt or button cannot be verified, automatic recovery can use its guarded relaunch budget. A protected stop still ends input. See [candidate verification](verification.md).
 
 **November 24 evening:** uncredited Hardcore outcomes may terminate v0.5.1 rather than recover (BUG-006); reversed wave-row OCR can prevent receipt confirmation (BUG-007). Do not credit failed results or click unknown controls. [Planned recovery fix](plans/2026-11-24-v0.5.2-uncredited-cycle-recovery.md) is not deployed; restart manually from verified lobby only when authorized. Explicit safety stops still apply.
@@ -75,7 +87,7 @@ Read the last reason in the app. Use F2 before adjusting the game. With recovery
 | Stop / condition | Check |
 |---|---|
 | Geometry or DPI mismatch | Physical client must be 1920×991 at 120 DPI. Window borders are excluded. |
-| Foreground interrupted | Input stops immediately. With recovery enabled, the same verified client must return naturally within five seconds, twice observed, before a fresh session can start. If it does not, return to the lobby and press F1 when ready. The macro cannot bring Roblox to the foreground. |
+| Foreground interrupted | Input stops immediately. With recovery enabled, wait up to 30 seconds for natural return. If the desktop has been idle for at least 30 seconds and the original client is still verified, make one ordinary Windows foreground request and observe two matching foreground samples within two more seconds. Then use the bounded fresh-session recovery, never resume an uncertain purchase. Active desktop, refused activation, changed geometry/identity or cancellation stops safely; return to the lobby and press F1 when ready. |
 | Window / identity changed | Position, size, DPI or client identity changes stop recovery. Restore the supported setup before F1. Only an armed recovery may bind its newly launched client. |
 | Hotkey registration failed | Close another controller that owns F1/F2/F8; never overlap workers. |
 | OCR unavailable | English Windows OCR must be available locally; no cloud fallback. |

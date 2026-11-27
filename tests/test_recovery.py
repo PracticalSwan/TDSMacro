@@ -174,6 +174,16 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual([row['stage'] for row in seen],['awaiting_foreground','foreground_restored'])
         self.assertEqual(self.platform.events,[])
 
+    def test_natural_focus_return_after_old_deadline_still_recovers(self):
+        recovery=self.module();expected=self.platform.window;seen=[]
+        recovery.await_foreground(SessionControl(self.path),self.platform,expected,
+            locate=lambda:replace(expected,foreground=self.platform.now()>=12),
+            report=lambda **row:seen.append(row))
+        self.assertGreaterEqual(self.platform.now(),12.2)
+        self.assertLess(self.platform.now(),30)
+        self.assertEqual(seen[0]['seconds'],30)
+        self.assertEqual(self.platform.events,[])
+
     def test_passive_focus_wait_cancels_for_stop_pause_and_emergency(self):
         recovery=self.module()
         for stop in ('stop','pause','emergency'):
@@ -228,7 +238,7 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual(rows[0]['stop_kind'],'focus_interrupted')
         self.assertEqual(rows[0]['stage'],'awaiting_foreground')
 
-    def test_persistent_focus_loss_stops_in_five_seconds_without_restart(self):
+    def test_persistent_focus_loss_stops_in_thirty_seconds_without_restart(self):
         recovery=self.module();restarts=[]
         def attempt(*args):
             self.platform.window=replace(self.platform.window,foreground=False)
@@ -236,8 +246,55 @@ class RecoveryTests(unittest.TestCase):
         result=recovery.supervise(self.path,self.platform,None,attempt=attempt,
             restart=lambda *args:restarts.append(1),locate=lambda:self.platform.window)
         self.assertEqual((result['stop_kind'],result['recoveries']),('focus_interrupted',0))
-        self.assertAlmostEqual(self.platform.now(),5)
+        self.assertAlmostEqual(self.platform.now(),30)
+        self.assertIn("30 seconds",result["reason"])
         self.assertEqual(restarts,[])
+        self.assertEqual(self.platform.events,[])
+
+    def test_idle_foreground_activation_recovers_once_after_thirty_seconds(self):
+        recovery=self.module();expected=self.platform.window;requests=[];restarts=[];calls=[]
+        def attempt(*args):
+            calls.append(1)
+            if len(calls)==1:
+                self.platform.window=replace(expected,foreground=False)
+                raise StopRun('Not foreground',kind='focus_lost')
+            return {'status':'victory'}
+        def activate(window,seconds):
+            requests.append((window,seconds,self.platform.now()))
+            self.platform.window=expected
+            return 'requested'
+        self.platform.request_recovery_foreground=activate
+        result=recovery.supervise(self.path,self.platform,None,attempt=attempt,
+            restart=lambda *args:restarts.append(1),locate=lambda:self.platform.window)
+        self.assertEqual((result['status'],result['recoveries']),('victory',1))
+        self.assertEqual(len(requests),1)
+        self.assertEqual(requests[0][:2],(expected,30))
+        self.assertGreaterEqual(requests[0][2],30)
+        self.assertEqual(restarts,[1])
+        self.assertEqual(self.platform.events,[])
+
+    def test_idle_activation_denial_never_relaunches_or_retries(self):
+        recovery=self.module();expected=self.platform.window;requests=[]
+        self.platform.window=replace(expected,foreground=False)
+        self.platform.request_recovery_foreground=lambda *args:requests.append(args) or 'requested'
+        with self.assertRaises(StopRun) as caught:
+            recovery.await_foreground(SessionControl(self.path),self.platform,expected,
+                locate=lambda:self.platform.window)
+        self.assertEqual(caught.exception.kind,'focus_interrupted')
+        self.assertEqual(len(requests),1)
+        self.assertLessEqual(self.platform.now(),32.1)
+        self.assertEqual(self.platform.events,[])
+
+    def test_active_desktop_skips_activation(self):
+        recovery=self.module();expected=self.platform.window;requests=[]
+        self.platform.window=replace(expected,foreground=False)
+        self.platform.request_recovery_foreground=lambda *args:requests.append(args) or 'desktop_active'
+        with self.assertRaises(StopRun) as caught:
+            recovery.await_foreground(SessionControl(self.path),self.platform,expected,
+                locate=lambda:self.platform.window)
+        self.assertEqual(caught.exception.kind,'focus_interrupted')
+        self.assertEqual(len(requests),1)
+        self.assertAlmostEqual(self.platform.now(),30)
         self.assertEqual(self.platform.events,[])
 
     def test_start_without_foreground_cannot_enter_passive_recovery(self):

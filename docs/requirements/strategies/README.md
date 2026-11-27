@@ -1,6 +1,6 @@
 # Strategy execution requirements
 
-**Status:** requirements documentation only; no runtime validation or loadout automation was added. Last reviewed: 2026-11-23 (Thailand). The live strategy/profiles, not these documents, remain the executable source of truth.
+**Status:** reviewed against released v0.5.2 on 2026-11-25 (Thailand). These requirements document existing guards; automatic loadout switching, strategy rotation and [explicit slot-4 tower selection](../../plans/2026-11-25-v1.0-slot4-tower-selection.md) are not implemented. The live profiles remain the executable source of truth.
 
 Each selectable strategy has a separate requirement sheet:
 
@@ -21,8 +21,8 @@ Each selectable strategy has a separate requirement sheet:
 - Mode access, map selection (including VIP when the calibrated flow requires it), and required towers/perks must exist on the account. Skills can be disabled in TDS Settings; owning a skill level does not prove it is active.
 - **Cash and price are authoritative only when read from the current match.** Published formulas and skill levels are screening information, not permission to buy. The worker must not send a paid action when price, cash, selected tower/level, preview, camera, focus, or postcondition is uncertain.
 - No unvalidated modifiers, event-only game modes, non-Solo queues, alternate UI scales/skins that break text recognition, changed input bindings, or client modifications.
-- F2 safe stop, F8/Escape emergency stop, restricted restart, up to two direct uncredited replays and three guarded client relaunches in the v0.5.2 candidate, and private result diagnostics remain available. Never silently retry an uncertain upgrade or placement.
-- A successful run means a **positively verified strategy-specific result**. Attempt, incomplete result, skipped optional XP tower, early Defeat, unattended idle time, and recovery are not successes by themselves.
+- F2 safe stop, F8/Escape emergency stop, restricted restart, up to two direct uncredited replays and three guarded client relaunches in released v0.5.2, and private result diagnostics remain available. Never silently retry an uncertain upgrade or placement.
+- A successful run means a **positively verified strategy-specific result**. Attempts, incomplete results, early Defeats, unattended idle time, and recovery are not successes by themselves. A deferred optional XP tower does not invalidate an otherwise qualifying Hardcore Gem result; it is not an XP placement success.
 - Result-screen Gems/Coins are not independent wallet audits. Any v1.0 requirements UI must say *displayed rewards* unless separately verified.
 
 ## Economy evidence and compatibility labels
@@ -37,3 +37,5 @@ Each selectable strategy has a separate requirement sheet:
 - [Local setup](../../setup.md), [strategy implementation provenance](../../strategies.md), [native verification](../../verification.md).
 - [v1.0 loadout switching plan](../../plans/2026-11-23-v1.0-loadout-switching.md) and [v1.0 successful-run rotation plan](../../plans/2026-11-23-v1.0-successful-run-rotation.md).
 - External rules (must be rechecked after TDS changes): https://tds.wiki/w/Waves ; https://tds.wiki/w/Skills ; https://tds.wiki/w/Golden_Scout ; https://tds.wiki/w/V1.89.0 .
+
+**v1.0 planning:** [Legacy consolidation](../../plans/2026-11-25-v1.0-legacy-consolidation.md) evaluates conditional retirement of Golden 9 and older preparation-only profiles; no current requirement or strategy removed.

@@ -24,7 +24,7 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 import zipfile
 
-CURRENT_VERSION = '0.5.3'
+CURRENT_VERSION = '0.5.5'
 RELEASE_API = 'https://api.github.com/repos/PracticalSwan/TDSMacro/releases/latest'
 MAX_ZIP_SIZE = 150 * 1024 * 1024
 MAX_EXTRACT_SIZE = 800 * 1024 * 1024

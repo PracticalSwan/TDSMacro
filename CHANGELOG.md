@@ -1,10 +1,37 @@
 # Changelog
 
+## Unreleased local v0.5.5
+- Foreground recovery: after 30 seconds of passive wait, one ordinary idle-desktop activation request; verify two matching foreground samples before bounded fresh-session recovery.
+- Include pending shifted reward-pane and isolated placement-preview corrections; add last-observed lobby and close-timeout diagnostics. Native shifted-pane scroll and passive preview reread confirmed; 25 consecutive credited Golden victories without recovery. Native idle activation not yet observed. Published stable v0.5.3 unchanged.
+
+## Unreleased v0.5.4 follow-up source corrections
+
+- Correct a third observed reward-pane raster layout on shifted Golden victory receipts; both saved failures now satisfy complete border checks.
+- Reobserve an isolated transient pre-click preview failure once, passively, retaining unchanged count, cash, quote, camera, focus and hotbar guards. No paid action retry.
+- Record unresolved intermittent recovery lobby timeout. Focused tests passed; further source corrections not yet installed/published.
+
+## Unreleased v0.5.4 local candidate
+
+- Extend passive foreground-return window from five to 30 seconds; keep immediate input stop, identity/geometry and cancellation guards.
+- Recognize the additional native Golden reward pane raster pair while preserving full border and receipt verification. v0.5.3 scroll confirmed natively on 28 recorded successful cases.
+- Record exact placement predicates and hover target on rare Golden guard failures. No unverified purchase retry, threshold weakening or v1.0 feature.
+
 ## v0.5.3 - November 26, 2026
 
 - Restored one guarded scroll for a verified Golden victory with unreadable Coins. Credit requires two fresh agreeing reads with the same receipt metadata. A readable reward skips the scroll.
 - Accepted a corroborated Wretched Front map OCR variant while retaining the established map template threshold and independent Hardcore result checks.
 - Reviewed OBS-010 and OBS-012. The available logs do not establish a cause for either observation. See [verification](docs/verification.md).
+
+## Historical November 26 investigation before v0.5.3
+
+- Confirmed BUG-011: v0.5.2 removed bounded Golden reward-pane scroll; extra item rewards hide Coins, leaving four full victories uncredited. Plan restores conditional guarded scroll and fresh receipt validation.
+- OBS-012: fourth Scout placement guard stopped once; exact predicate unresolved. BUG-009 and OBS-010 still open. [Focused plan](docs/plans/2026-11-26-v0.5.3-receipt-reliability.md). No runtime edits or release.
+
+## Unreleased ? local maintenance and investigation (November 25)
+
+- Local-only obsolete recovery/CI worktree and distribution cleanup; private evidence and latest rollback retained. Restored environment after shared .venv junction incident; 694 tests passed and all 1,322 installed files matched.
+- BUG-009 (Hardcore map OCR false negative) and OBS-010 (late-defense gap, cause unproved) recorded. No runtime fix or new release.
+- Added conditional [v1.0 legacy consolidation](docs/plans/2026-11-25-v1.0-legacy-consolidation.md) alongside loadout switching, rotation and explicit slot-4 profiles.
 
 ## v0.5.2 - November 25, 2026
 
@@ -22,12 +49,12 @@
 
 See [verification](docs/verification.md) for observed evidence and remaining exact native-condition limitations.
 
-## Unreleased — November 24 evening investigation (planning only)
+## Historical investigation — November 24 evening investigation (planning only)
 
 - Added BUG-006–008: uncredited outcome terminates continuous Hardcore, reversed wave-row OCR blocks receipt, repeated wave29 defeats before final Crook Boss upgrades (cause unresolved). BUG-003 also observed in Wretched Front. [Recovery plan](docs/plans/2026-11-24-v0.5.2-uncredited-cycle-recovery.md).
 - Latest worker stopped at 17:28 after four credited cycles/548 displayed Gems and uncredited fifth match; no recovery. No source/build/install/release change. v1.0 remains planning-only.
 
-## Unreleased — November 24, 2026 morning investigation (planning only)
+## Historical investigation — November 24, 2026 morning investigation (planning only)
 
 - Reproduced Golden Scout's **unconditional two-click deselect/reselect** in `MatchRunner.upgrade`; the ten-Scout profile performs 40 E-key upgrades, including 23 immediately same-target transitions that can potentially reuse verified selection. Added **BUG-004** and the [proposed v0.5.2 Golden upgrade/result revamp](docs/plans/2026-11-24-v0.5.2-golden-upgrade-selection-revamp.md), with no executable edits.
 - Reproduced **BUG-005** from a private native wave-20 TRIUMPH frame: a selected Scout overlay caused `Observer` to report `in_match` and the result reader to miss the visible 450-Coin Victory, followed by a 900-second result timeout and guarded recovery. Do not infer a wallet or session win from the screenshot without a positive verified result.

@@ -1572,6 +1572,34 @@ class SessionTests(unittest.TestCase):
             with self.assertRaisesRegex(StopRun,'Result banner'):playback.finish_if_result(pending)
         self.assertEqual(self.platform.events,[])
 
+    def test_native_reward_pane_raster_variant_preserves_all_four_edges(self):
+        from tds_auto.run import reward_scroll_point
+        frame=Image.new('RGB',(1920,991))
+        with Image.open(ROOT/'tests/fixtures/v054_golden_reward_pane.png') as panel:
+            frame.paste(panel,(642,515))
+        self.assertEqual(reward_scroll_point(frame,('victory',0)),(850,600))
+        for box in ((650,519,1007,523),(650,705,1007,711),
+                    (650,540,656,690),(1002,540,1008,690)):
+            with self.subTest(box=box):
+                altered=frame.copy()
+                altered.paste('black',box)
+                self.assertIsNone(reward_scroll_point(altered,('victory',0)))
+        self.assertIsNone(reward_scroll_point(frame,('defeat',0)))
+
+    def test_native_shifted_reward_pane_requires_all_four_edges(self):
+        from tds_auto.run import reward_scroll_point
+        frame=Image.new('RGB',(1920,991))
+        with Image.open(ROOT/'tests/fixtures/v054_golden_shifted_reward_pane.png') as panel:
+            frame.paste(panel,(642,509))
+        self.assertEqual(reward_scroll_point(frame,('victory',-6)),(850,594))
+        for box in ((646,512,1008,517),(646,700,1008,705),
+                    (648,534,655,685),(1002,534,1008,685)):
+            with self.subTest(box=box):
+                altered=frame.copy()
+                altered.paste('black',box)
+                self.assertIsNone(reward_scroll_point(altered,('victory',-6)))
+        self.assertIsNone(reward_scroll_point(frame,('defeat',-6)))
+
     def test_golden_clipped_reward_scroll_needs_same_pane_and_agreeing_readbacks(self):
         from dataclasses import replace
         from tds_auto.observer import Observer

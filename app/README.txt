@@ -1,4 +1,4 @@
-TDS Macro - Windows v0.5.3
+TDS Macro - Windows v0.5.5
 
 Run TDSMacro.exe from the entire extracted folder. Keep _internal,
 assets, calibrations, strategies, docs and notices together.
@@ -49,11 +49,14 @@ Do not send competing inputs or change foreground during play.
 
 Continuous mode separates successful credit from recovery. A complete
 uncredited result may safely restart with a verified result control.
-The candidate allows up to two direct replays and three guarded
+Continuous mode allows up to two direct replays and three guarded
 client relaunches without a new credited result. Client relaunch
 requires the recovery option. Explicit stops, persistent focus loss,
 changed client, invalid setup, unsafe terrain, low storage and
-exhausted recovery budget stop safely. Unknown or unconfirmed paid
+exhausted recovery budget stop safely. After a focus interruption,
+wait 30 seconds; only one idle-desktop foreground request is allowed,
+with two matching foreground samples required before fresh recovery.
+Unknown or unconfirmed paid
 actions are never repeated. Coins and Gems are result-screen totals,
 not an independent account-wallet audit.
 

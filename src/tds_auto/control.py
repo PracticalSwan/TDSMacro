@@ -13,7 +13,7 @@ import math
 import os
 import re
 import time
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 
 from . import phase1
@@ -278,6 +278,36 @@ class WindowsOS:
 
     def current(self):
         return phase1.locate_roblox()
+
+    def request_recovery_foreground(self, expected, min_idle_seconds):
+        """One ordinary activation request after the interrupted attempt ends."""
+        ensure_no_computer_use_controller()
+        current = self.current()
+        if replace(current,foreground=True) != expected:
+            raise StopRun('Roblox changed before recovery activation.',kind='window_changed')
+        if current.foreground:
+            return 'already_foreground'
+        class LastInput(ctypes.Structure):
+            _fields_ = [('cbSize', wintypes.UINT), ('dwTime', wintypes.DWORD)]
+        user = phase1.USER
+        kernel = ctypes.WinDLL('kernel32',use_last_error=True)
+        user.GetLastInputInfo.argtypes = [ctypes.POINTER(LastInput)]
+        user.GetLastInputInfo.restype = wintypes.BOOL
+        kernel.GetTickCount.restype = wintypes.DWORD
+        info = LastInput(ctypes.sizeof(LastInput), 0)
+        if not user.GetLastInputInfo(ctypes.byref(info)):
+            return 'idle_unknown'
+        idle_ms = (kernel.GetTickCount() - info.dwTime) & 0xffffffff
+        if idle_ms > 0x7fffffff:
+            return 'idle_unknown'
+        if idle_ms < min_idle_seconds * 1000:
+            return 'desktop_active'
+        if self.stop_requested():
+            raise StopRun('Emergency stop requested before recovery activation.',kind='user_stop')
+        # A native foreground request is not proof of activation. The supervisor
+        # still requires two matching foreground reads; no synthetic key or click.
+        user.SetForegroundWindow(expected.hwnd)
+        return 'requested'
 
     def stop_requested(self):
         if self.hotkey_registered:

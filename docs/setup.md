@@ -1,6 +1,6 @@
 # Setup — TDS Macro Windows
 
-Install the **complete** [v0.5.3 Windows ZIP](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.5.3); do not run just the EXE. Keep `TDSMacro.exe`, `_internal/`, `assets/`, `calibrations/`, `strategies/`, docs and notices together. The maintainer's installed version is `dist/TDSMacro/` with one `TDS Macro.lnk` Desktop shortcut. Earlier installations/captures remain in backup folders.
+Install the **complete** [v0.5.3 Windows ZIP](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.5.3); do not run just the EXE. Keep `TDSMacro.exe`, `_internal/`, `assets/`, `calibrations/`, `strategies/`, docs and notices together. The maintainer's installed version is `dist/TDSMacro/` with one `TDS Macro.lnk` Desktop shortcut. The latest verified previous installation is retained for rollback; older non-runtime diagnostic evidence is archived privately rather than retained as duplicate executable installations.
 
 ## Required computer and game setup
 
@@ -45,7 +45,7 @@ Different configurations are **not automatically validated**, particularly if Sk
 | Golden Scout — 10 Max | **1 Scout with Golden perk**, 2–5 empty | First placement currently **$250**; Easy baseline can cover it, later upgrades still depend on live income |
 | Golden Scout — 9 fallback | Same | Same first placement, separate 44-step calibration |
 | Hardcore Gem Grind — 3 Towers | **1 Boomerang; 2 regular Crook Boss; 3 Farm; 4–5 empty** | Four $300 Farms **before Ready**: need **≥$1,200 observed cash** |
-| Hardcore Gems + Tower XP — Slot 4 | Same 1–3; **4 supported verified XP tower** (Juggernaut proven); **5 empty** | Same $1,200 opening; optional X1 requires exact observed price $200–$10,000 and sufficient live cash |
+| Hardcore Gems + Tower XP — Slot 4 | Same 1–3; **4 supported verified XP tower** (Juggernaut proven); **5 empty** | Same $1,200 opening; optional X1 requires exact observed price $200–$10,000 and sufficient surplus after reserving the next verified core-upgrade quote |
 
 **Auto-Equip is disabled**. Change loadouts manually in Roblox inventory before starting, and confirm the intended slot ordering/empty slots and Golden perk. The macro rejects unreadable names or unsupported extra towers. Do not assume all accounts and skill combinations can run Hardcore: see [per-strategy requirements](requirements/strategies/README.md).
 
@@ -62,7 +62,7 @@ The map and camera are checked before placement. The Golden strategy uses separa
 ## Recovery and limitations
 
 - An enabled recovery option permits bounded official client relaunch after verified game failures. The worker must positively identify the same Roblox client; recognized disconnect dialogs are clicked only after exact-text checks. The worker never force-kills, steals focus during play or resumes an uncertain spent action.
-- A foreground interruption releases input; any short natural return must be verified before a **fresh session** is started. Persistent focus loss, changed geometry/window identity, manual stop, setup/storage errors or exhausted recovery budget stop safely. At most **three** guarded relaunches without a verified success.
+- A foreground interruption releases input; any short natural return must be verified before a **fresh session** is started. Persistent focus loss, changed geometry/window identity, manual stop, setup/storage errors or exhausted recovery budget stop safely. At most **two** verified direct replays and **three** guarded relaunches without a credited success; relaunch requires the recovery option.
 - Result-screen Coins/Gems are displayed rewards, **not** independently audited wallet credit. A wave-30 natural Defeat with 137 Gems is intentional for Hardcore Gem farming. Optional tower placement does not by itself establish a numerical Tower XP award.
 - Modifiers/challenges and alternate player counts are outside the currently verified strategy set. Do not enable them without a separate native trial.
 

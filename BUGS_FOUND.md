@@ -1,5 +1,72 @@
 # Bugs found — active TDS Macro defect register
 
+## November 27 afternoon — local v0.5.5 native evidence
+Passive review at 15:05 ICT: installed local v0.5.5, published stable v0.5.3. The same single continuous Golden 10 worker completed 25 consecutive credited wave-20 victories (11,250 displayed Coins), each 50/50 actions, ten L4 Scouts and 40 E upgrades, without any recovery. All 25 saved receipts independently reconciled after restoring compact captures to their documented original coordinates. No game input or focus change during the review.
+
+BUG-013: match 1 natively exercised the exact shifted layout (520,650,708), offset -6, point (850,594); same 444-second receipt changed from unreadable Coins to 450. Seven other before/after pairs used the original layout and all credited 450. The alternate (521,653,707) layout remains saved-frame verified only. OBS-012: match 14 recorded placement_preview_reobserved for Scout 4 and completed all 50 actions; narrow passive mitigation demonstrated, exact transient cause unknown. BUG-017: no foreground recovery or activation events; native idle activation remains unverified. OBS-010/015/016/018/019 remain open without new evidence. No speculative runtime changes.
+
+Packaging: the previous local build omitted 44 API-set/UCRT DLLs, absent from its PyInstaller dependency TOCs. PyInstaller includes these when resolvable but notes UCRT is provided by Windows 10 and later; Windows 11 is the supported target. The prior local candidate retained verified copies from the official ZIP. Use the exact-commit hosted Windows CI build as the release input, audit actual DLL inventory and verify the frozen package, rather than manually transplanting old DLLs or requiring an arbitrary file count. Do not claim byte-reproducibility across different host Python/Windows installations. Full suite, candidate CI and final publication/install still pending.
+
+## November 27 morning — incremental local v0.5.5 correction
+Evening v0.5.4 app_20261126_182013_037197 ended: 34 attempts, 32 completed, 30 credits / 13,500 Coins, two unreadable victories, five cumulative relaunches and terminal ordinary-close timeout. Morning app_20261127_070400_012838 credited six / 2,700 Coins, then stopped during Play Again. A short earlier session was explicitly stopped before gameplay.
+
+### BUG-017 — P1 foreground recovery passive-only (source corrected)
+- 07:59:02.100 ICT: recovery.jsonl recorded awaiting_foreground, 30 seconds, verified HWND 1511250 / PID 35028 after match 6 credit. Terminal focus_interrupted: Roblox did not regain foreground naturally within 30 seconds; no relaunch. Prior code never requested activation. What took focus and desktop idleness then remain unknown.
+- Immediate input stop, natural return for 30 seconds, one ordinary SetForegroundWindow request only for the unchanged verified client after at least 30 seconds desktop idle and no competing controller. Two matching foreground reads 200 ms apart within two additional seconds; then bounded close/relaunch to a new verified lobby, never resume an uncertain purchase. Active desktop, cancellation, denied request, unknown idle age, changed/hidden/minimized client remain safe stops. Record activation and failure details. Three regression tests failed on old code, passed with correction; mocked native adapter verifies idle and identity. Native activation remains unverified.
+
+### BUG-013 / OBS-012 repeat on old binary
+- Evening attempt_002/match_0002 is another full wave-20 victory with unreadable Coins, offset -6 and corrected scroll point (850,594); attempt_001/match_0011 likewise. Both pass current source geometry, no inferred historical credit.
+- Evening attempt_003/match_0003 at 3/50 again isolated preview=false, count 1/1, price 250/250, cash 555, hotbar true, Scout 2 at (866,373). Retain pending passive reread, no duplicate slot key or click. Native efficacy pending.
+- OBS-018: attempt_004/match_0011 stopped at 42/50 on selected tower/level/count mismatch. Saved frame reads in_match wave 18, count 10, cash 5719, no selected tower panel; exact cause unproved. Keep no-spend guard.
+- OBS-016/019: last attempt match_ready timeout, last saved frame unknown, ordinary close timed out. Added close-timeout flags and last-observed lobby state/geometry/focus or error type. No proof of exact close failure or permission to force terminate. OBS-010/015 remain open; no new Hardcore evidence.
+Source v0.5.5 includes pending receipt/preview fixes. 204 recovery/match/session tests and one mocked adapter test passed. Native F8 test blocked by live worker; rerun at idle. No public release or v1.0.
+
+## November 26 evening review (~20:05 ICT) ? further local v0.5.4 source corrections
+
+- Installed v0.5.4 session app_20261126_113406_426981 ended 16:48: 35 attempts, 33 full victories, 32 credits / 14,400 Coins, two placement interruptions, one unreadable victory, three cumulative relaunches; final recovery did not reach a foreground supported lobby/Login Rewards screen. Current app_20261126_182013_037197 at 20:05: 12 attempts, 11 full victories, 10 credits / 4,500 Coins, one unreadable victory and one relaunch; recovery reached lobby and match 12 playing. No foreground interruption recorded in either session. All 42 credited final frames independently replayed with matching Coin amounts; 16 saved before-scroll/final pairs reproduced None/450.
+
+### BUG-013 follow-up ? confirmed shifted reward-pane raster failure (corrected in source, pending installation)
+
+- app_20261126_113406_426981/attempt_003/match_0001 and app_20261126_182013_037197/attempt_001/match_0011 each completed 50 actions and showed wave-20 Victory, with clipped Coin amount (443/444 seconds). ResultReader returns coins=None; result_location returns (victory,-6); installed v0.5.4 reward_scroll_point returned None, no pre-scroll frame. Both specimens share actual top/bottom 514/702, left/right 650/1004. Banner-relative top 520 is one pixel above the previous 521 expectation. Existing border contrast thresholds pass unchanged on all four edges.
+- Source now accepts a third complete observed (top,left,bottom) combination (520,650,708), with unchanged right edge, interior pointer, contrast, receipt/control checks and single wheel operation. Two original failed frames now return (850,594); all 16 existing scroll controls still pass. Reward-only fixture v054_golden_shifted_reward_pane.png and four missing-edge negatives; no private full frame added. Native shifted-layout reveal still unverified; no inferred prior credit.
+
+### OBS-012 ? preview predicate identified; narrow mitigation implemented in source
+
+- Afternoon attempt_001/match_0029 failed at 3/50, placing Scout 2 at (866,373). selection.jsonl recorded expected/observed count 1/1, expected/observed quote 250/250, cash 555, hotbar_ok=true and preview_ok=false. Initial preview had passed; final pre-click preview failed. Saved endpoint with matching earlier camera bind agrees preview=false (Place OCR empty); does not establish whether OCR, animation, obstruction or true invalid placement caused the failure.
+- Afternoon attempt_002/match_0005 stopped at 15/50 with invalid/missing preview after existing bounded preview observation; no click. Endpoint after Q cannot establish the pre-cancel prompt. No threshold relaxation or new input retry.
+- Source now allows one passive .15s reobservation only when the formerly verified preview alone fails while count, quote, cash, hotbar still agree; all predicates must pass fresh before single click. Logs successful preview reobservation, retains failure diagnostics. No second slot key, movement, purchase or click. Positive transient-preview and changed-quote negatives pass; persistent invalid-preview test remains no-click. Native efficacy not yet demonstrated. OBS-015 hover and OBS-010 Hardcore late defeat remain open.
+
+### OBS-016 ? intermittent recovery lobby timeout
+
+- Afternoon third relaunch reached waiting_lobby at 16:45:58 ICT, then terminal setup timeout; prior two relaunches reached verified lobby. Current evening relaunch reached lobby at 20:02:47 after waiting_lobby at 20:02:14, then successfully resumed. Logs do not identify the final observed client state, geometry or focus during the failed wait. Do not extend the timeout or force relaunch without evidence. If recurrent, add bounded failure-only last-observed state/geometry/focus diagnostic, then isolate cause.
+- CHG-014 30-second focus wait and previous alternate-pane native verification remain pending. No new Hardcore evidence. Red-before-green for shifted pane and passive preview reread; 28 focused tests passed. Running executable remains original installed v0.5.4; corrected source awaits an idle build/install and release gates. No v1.0 implementation.
+
+## November 26 afternoon passive review ? installed local v0.5.4 (~13:10 ICT)
+
+- Session app_20261126_113406_426981: 11 attempts at inspection, ten credited wave-20 Dead Ahead/Easy victories, 4,500 displayed Coins, zero recovery events or failed/uncredited completed matches. Each of the ten receipts confirms all 50 actions, 10 level-4 Scouts, 34 selection clicks and 40 E upgrades. All ten saved final frames independently replayed through ResultReader with no Coin mismatch.
+- Five reward_before_scroll.png frames (matches 1, 3, 7, 8, 10) independently replay as coins=None before scroll and 450 afterward with unchanged receipt metadata. Each uses the original reward pane geometry; BUG-011 remains natively verified. BUG-013 alternate geometry has not yet appeared in this session; the prior offline positive and negative regressions remain valid, not live acceptance of that variant.
+- No recorded foreground loss, placement or hover rejection, fallback or invalidation among the ten completed receipts. CHG-014 30-second wait remains regression-verified only; OBS-012/015 remain open for exact future predicate evidence. OBS-010 remains open; no new Hardcore evidence. No new confirmed defect; no runtime source changes, forced focus interruptions, rebuild, test-suite rerun or restart justified. Continue passive observation of the single Golden 10 worker. See [status](docs/STATUS.md) and [verification](docs/verification.md).
+
+## November 26 morning installed v0.5.3 review; v0.5.4 local candidate
+
+- Overnight app_20261126_012848_593346: 43 attempts, 40 victories, 39 credited / 17,550 Coins, one unreadable victory, three relaunches, final foreground interruption at 07:59 ICT. Morning app_20261126_083122_663375 at ~11:24: 20 attempts, 18 credited / 8,100 Coins, one pre-click placement interruption, one relaunch, worker still playing. Counts are displayed receipt accounting, not wallet audits.
+- BUG-011 native acceptance: 18 overnight and ten morning recorded reward_before_scroll.png cases all credited 450 Coins. Independently replayed overnight attempt_001/match_0004 before and after: coins=None -> 450, same victory metadata (wave 20, 454 seconds). Native scroll and continuation are now demonstrated. A distinct raster variation remains below.
+
+### BUG-013 ? P2 / reward pane raster variation (installed local v0.5.4 correction)
+
+- Overnight attempt_003/match_0004/final.png: wave-20 victory, all 50 actions, 456 seconds, reward item pushes Coin caption below pane. Reader returns coins=None; no reward_before_scroll evidence. reward_scroll_point returns None. Exact grayscale samples show top/right at 521/1004, left at 653 (not 650) and bottom at 707 (not 708). All four edge checks pass using the newly observed left/bottom pair, unchanged contrast thresholds. Twenty-eight recorded successful pre-scroll frames pass original geometry. No arbitrary search or relaxed border thresholds.
+- Local correction recognizes either complete observed layout and retains same interior point, two fresh matching receipt checks, single scroll, safety and credit policy. Cropped reward-only fixture v054_golden_reward_pane.png reproduces old failure; positive and four missing-edge negatives pass after change. No native second-layout reveal yet; keep explicit limitation.
+
+### CHG-014 ? requested passive foreground return extension
+
+- Overnight terminal reason: Roblox did not regain foreground naturally within five seconds; no relaunch. User requested 30 seconds. FOCUS_RETURN_SECONDS changed from 5 to 30, CLI help and timeout text aligned. No active refocus, no gameplay input while waiting, same HWND/PID/origin/size/DPI, two foreground reads, immediate cancel and existing bounded fresh-session recovery. Tests prove natural return after 12 seconds accepted, persistent loss stops at 30, and changed identity/cancel remain terminal.
+
+### OBS-012 / OBS-015 ? recurring safe placement and hover interruptions
+
+- Overnight attempt_002/match_0007 repeats fourth-Scout guard at 9/50, three L2 Scouts; morning attempt_001/match_0014 rejects first placement at 0/50. Morning attempt_001 endpoint and its latest prepared bind map the first Scout to (866,323): camera valid, match_ready, cash 750, count 0, hotbar $250, preview false; footprint has 0 red/333 white pixels, plain Place OCR reads "lace P..." and masked read is empty. This is a concrete preview-recognition clue, not an exact pre-click predicate trace. Do not weaken preview, quote, count or affordability requirements.
+- OBS-015: overnight attempt_001/match_0027 stopped at 31/50, eight Scouts, before Scout 2 upgrade. Endpoint latest.png visually shows owned Scout L2. With earlier prepared bind mapped (865,374), local OCR returns 'Your Tower o Scout I' and current hover recognizer rejects; actual 27th-match bind/predicate sequence unavailable. No speculative recognition changes. Existing selection.jsonl now records target/count on hover rejection and exact pre-click placement predicates on failure; focused tests ensure no click. This is instrumentation, not a proved correction of either interruption.
+- OBS-010 remains unresolved. BUG-009 prior exact receipt fixed; no new Hardcore session in this review. No v1.0 implementation. See [status](docs/STATUS.md) and [verification](docs/verification.md).
+
 ## v0.5.3 receipt reliability
 
 - **BUG-011 — corrected.** v0.5.2 dropped the existing reward-pane scroll. Four archived Golden victories had a second reward row with the Coin amount clipped. Once the victory, Play Again control and reward-pane outline are verified, v0.5.3 permits one downward scroll. Two fresh readings must agree on the amount and the original receipt metadata before credit and direct replay.
@@ -9,9 +76,27 @@
 
 See [verification](docs/verification.md) for the evidence and native coverage.
 
+## Historical November 26 investigation of v0.5.2 Golden 10
+
+Session app_20261125_220348_802410 (Nov 25, 22:03:48?23:38:24 ICT): 10 attempts, nine complete 50-action victories, five credited / 2,250 displayed Coins, four unreadable rewards, one interrupted placement, four cumulative relaunches. Terminal reason: three relaunches without a credited Golden victory. At ~00:28 ICT November 26 the GUI and Roblox remained open, worker absent. Four cumulative relaunches do not violate the three-per-streak cap.
+
+### BUG-011 ? P1 / confirmed reward-panel scrolling regression
+
+- All four failed result frames show TRIUMPH, Dead Ahead/Easy/Survival/wave 20 and Play Again. An extra crate or bottle-like item pushes Coins into a second row; the amount is clipped beneath the reward pane. This is not primarily an OCR digit or tooltip issue.
+- Private evidence: dist/TDSMacro/captures/runs/app_20261125_220348_802410/{attempt_001,attempt_003,attempt_004,attempt_005}/match_0001/final.png. Released-equivalent ResultReader returns coins=None for all four (455,457,455,454 seconds). Five control frames in attempt_002/match_0001..0005 return 450 Coins each (compact captures padded at original 630,350 offset). All nine have 50 verified actions. No historical amount inferred or credited.
+- Historical tracked v0.2.3, v0.2.4 and commit 265ebdb (v0.5.1 source) contain Playback.finish_if_result() fallback in src/tds_auto/run.py: after matching receipts with coins=None, move(850,600), zoom(-3), wait(.3), read same receipt metadata again. Commit 41d9e09 removes it (also 32e12ee candidate history). Source export build/public-v0.2.3-source corroborates. Current code finishes even with coins=None; Session.play_matches withholds credit and direct replay. Reason for removal not established; current native scroll effect not yet independently verified.
+- Fix: restore one conditional guarded scroll in Playback.finish_if_result, not a new OCR/scroll subsystem. Verify matching result metadata, controls, reward pane and geometry; account for result_location vertical offset; historical point (850,600) and three downward notches are the candidate to validate. Recheck same client, focus, result and pane immediately after moving before wheel. No scroll for readable reward, unknown/changed state or outside pane; no repeated wheel loop, purchases or inferred 450. Require two fresh matching readable post-scroll receipts with original status/map/difficulty/wave/duration and verified mode. Preserve deadline, cancellation, storage/diagnostic and exact-once credit semantics. Keep failure uncredited if unresolved; normal Play Again/retained camera guard unchanged. Save pre/post evidence. [Focused v0.5.3 plan](docs/plans/2026-11-26-v0.5.3-receipt-reliability.md).
+- Verify via small fake-driver regression, readable no-scroll fast path, changed/unknown panel no wheel, failed/conflicting amount remains uncredited; use existing clipped-caption fixture and four failures/five controls. One bounded representative native scroll/replay when layout appears; report gap rather than farm indefinitely.
+
+### OBS-012 ? Golden placement pre-click interruption (unresolved, not confirmed defect)
+
+- attempt_002/match_0006 (attempt 7): 9/50 actions, three Scouts L2; next fourth Scout at profile point (862,462). Error: Golden placement precondition changed before click. MatchRunner.place refused input because one of preview, hotbar, quote, cash or count predicates failed; relaunch succeeded.
+- Saved attempt_002/latest.png: in_match wave 5, cash 344, count 3, slot 1 valid $250, visible white preview. Exact sixth-replay camera bind and per-predicate failure frame not retained; earlier prepared and second-match binds yield different preview/camera results, neither establishes the failed predicate. Do not relax guard or retry paid input. Inspect exact evidence or add minimal failure-only diagnostic if justified; fix only reproducible cause.
+- BUG-009 (Hardcore result-map OCR) and OBS-010 (late defense) remain open from preceding session; no newer Hardcore run recorded. No gameplay source, install, restart or publication in this investigation.
+
 ## v0.5.2 released corrective checkpoint
 
-The entries below document v0.5.1 behavior. All eight corrective changes were published and installed in v0.5.2 (tag `41d9e09`). The individual historical entries describe v0.5.1; the table records current evidence and residual risks, not a claim of exact rare-condition native verification. See [verification](docs/verification.md) for release evidence.
+The eight original issues have released corrections; this is not a list of eight newly open bugs. The entries below document v0.5.1 behavior. All eight corrective changes were published and installed in v0.5.2 (tag `41d9e09`). The individual historical entries describe v0.5.1; the table records current evidence and residual risks, not a claim of exact rare-condition native verification. See [verification](docs/verification.md) for release evidence.
 
 | Bug | Released correction | Evidence and remaining scope |
 | --- | --- | --- |
@@ -24,6 +109,31 @@ The entries below document v0.5.1 behavior. All eight corrective changes were pu
 | BUG-007 | Require a spatially verified label/value association for reversed Hardcore wave rows | The private failure now reads wave 29 and 133 Gems. Positive wave-30 and malformed-row regressions remain part of the suite. |
 | BUG-008 | Reserve the next verified core quote before optional slot-4 spending | Native play deferred the $10,000 Juggernaut and earned 137 Gems. With Scout in slot 4, the latest candidate reserved $14,000, confirmed the $250 X1 at wave 25, finished all 75 core actions, and credited 137 Gems at wave 30. |
 
+## Historical v0.5.2 Hardcore investigation (November 25)
+
+### BUG-009 ? P2 / confirmed Hardcore result-reader false negative (open)
+
+- Installed v0.5.2 session app_20261125_084849_082330, attempt_001/hardcore_cycle_024: 75 core confirmations, required levels, target wave, no X1. Saved result visibly shows clipped Wretched Front, Hardcore, Defeat, wave 30, 7m43s, 137 Gems and Restart Match. Receipt stayed uncredited and triggered guarded relaunch. No retroactive credit.
+- Offline replay using released-equivalent src/tds_auto/results.py reader returns None for hardcore_result.png and latest.png. No confirmed result image. First isolated rejection: map OCR '"retched Fron' (leading quote) absent from accepted labels, maximum overlap 0.644391 below 0.94 gate. Mode and difficulty read Hardcore; duration 463; reward lines include 137 Gems. Wave OCR also reads 'Wave: II 30' in one pass, while independent label/value read Wave: and 30. Additional wave-parser failure is not established because map rejection comes first.
+- Initial frame of credited cycle 023 rejected (mode OCR 'H ardcore'), but its confirmed frame passed. Some early initial frames also reject before confirmation. A single rejected initial frame is not itself an uncredited result.
+- Proposed incremental fix (not implemented): sanitized saved-frame fixture; isolate each field and compare approved bounded map crops/templates and spatial label/value evidence. If necessary handle demonstrated wave layout with independent association, not speculative digit extraction. Preserve strict map/Hardcore/outcome/amount/control validation, template gate unless justified by independent negative evidence, two fresh matching receipts and exact-once accounting. No map guessing or replay from an unreadable receipt.
+- Acceptance: original failure and valid wave-28/29/30 fixtures; wrong/missing/ambiguous map, incorrect mode/difficulty, conflicting wave digits, missing/clipped rewards, missing control and inconsistent receipts reject safely. Focused regressions, bounded native result/replay and normal incremental release gates. No source change.
+
+### OBS-010 ? P1 investigation / recurrent final-defense completion gap (BUG-008 residual)
+
+| Cycle (attempt_001) | Result | Last confirmation | Cash after C4 L3 |
+| --- | --- | --- | ---: |
+| 003 | wave 28 / 127 Gems / 414s | 74/75, C5 L2 | 561 |
+| 012 | wave 28 / 127 Gems / 415s | 74/75, C5 L2 | 488 |
+| 013 | wave 29 / 133 Gems / 418s | 74/75, C5 L2 | 3,119 |
+| 021 | wave 29 / 133 Gems / 417s | 74/75, C5 L2 | 10,083 |
+
+All four confirmed early receipts replay successfully through released reader. Final missing action: C5 L3 ($14,000). All 32 credited cycles and cycle 024 completed C5 L3 at wave 29; successful post-C4 cash spans 82?14,351, overlapping failures. All 37 completed receipts report missed deadline 18; that warning alone cannot discriminate outcomes. None placed Juggernaut, so optional spending cannot explain these defeats. No causal timing, income, OCR, leak or strategy-order defect proved.
+
+Next: compare wave transitions, C4/C5 quote, cash, time-to-affordability and actual enemy/HP evidence using existing logs/frames. If missing, plan minimal passive diagnostics during final affordability wait, not changed inputs/spending. Matched three-tower and Gem+XP-without-X1 trials only after authorization; establish cause before changing scheduling or pinned strategy. Keep 75 core actions, live quote/cash gates, reserve and wave-30 credit unchanged.
+
+Historical match-ready/inventory timeouts, narrow Golden camera correction, board-3 variant and combined tooltip/readable reward/replay remain open verification observations. Eight original corrections are released, not reopened wholesale. See [verification](docs/verification.md) and [roadmap](docs/PLAN.md).
+
 ## November 25 independent continuation review
 
 The candidate code and assets matched hosted commit `bae3634ade57a08b14ea6594a2c0b4292b957b00` across 477 compared files. Fresh local regression: 694 tests passed; all 18 dependencies compatible. Latest three-tower Hardcore native retry `v052_native_hardcore_three_r2_20261125` at 08:13:36 ICT verified all 75 actions and levels, wave 30, 463 seconds, 137 displayed Gems, one credited cycle. A preceding foreground stop correctly credited nothing. The eight historical v0.5.1 issues below have candidate source corrections; exact fresh live camera-correction, board-3 and tooltip-plus-replay cases remain explicitly unverified. Do not mark these rare branches native-verified from offline input recordings.
@@ -34,7 +144,7 @@ The last installed v0.5.1 Golden session (`app_20261125_011927_371574`) stopped 
 
 ## v0.5.1 historical investigation
 
-**Last investigated:** 2026-11-24 17:33 ICT (UTC+07). **Installed release:** v0.5.1. **Scope:** Current **open defects and reproducible reliability failures** that should be investigated/fixed in an incremental v0.x release, not historical release notes or unimplemented v1.0 features. Updated from native v0.5.1 session JSONL, saved frames, read-only replay of shipped OCR/camera/vote recognizers, and inspected source. This is a timestamped triage record, not an automatic diagnosis of subsequent sessions.
+**Last investigated:** 2026-11-24 17:33 ICT (UTC+07). **Installed release:** v0.5.1. **Historical scope:** then-open defects and reproducible reliability failures that should be investigated/fixed in an incremental v0.x release, not historical release notes or unimplemented v1.0 features. Updated from native v0.5.1 session JSONL, saved frames, read-only replay of shipped OCR/camera/vote recognizers, and inspected source. This is a timestamped triage record, not an automatic diagnosis of subsequent sessions.
 
 **Morning historical observation:** new installed Golden Scout 10 session `app_20261124_083539_998292` is actively playing match 3 with **3 verified Easy Solo Dead Ahead victories / 1,350 displayed Coins**, **24/50 confirmed actions** in match 4 and **zero recoveries** as of 09:08 ICT. The previous session `app_20261124_045640_615435` ended after 15 verified victories / 6,750 displayed Coins and four relaunches, then stopped on a foreground-interruption safety gate. The older `app_20261123_162916_410440` session ultimately stopped by user control with 57 victories, 25,650 displayed Coins and nine cumulative relaunches. **Do not combine separate-session counters as wallet credit.** No gameplay code, installed executable or running worker was altered during this investigation.
 
@@ -42,7 +152,7 @@ The last installed v0.5.1 Golden session (`app_20261125_011927_371574`) stopped 
 
 **Latest live state (17:33 ICT):** Hardcore Gem+XP session `app_20261124_164530_985617` stopped at 17:28 on an uncredited wave29 outcome after four verified cycles / 548 displayed Gems, zero recoveries. GUI and Roblox open; no worker. Earlier 12:43 XP session recovered once from a Wretched Front vote badge failure, restarted a verified wave29 defeat, credited four cycles, then emergency-stopped at 13:31. Golden morning session ended by user stop with ten wins / 4,500 displayed Coins and zero recoveries. No restart performed.
 
-## Active issues
+## Historical issue details (v0.5.1; corrections released in v0.5.2)
 
 ### BUG-001 — Golden Scout count 10 is deliberately excluded from pixel templates
 
@@ -127,7 +237,7 @@ The last installed v0.5.1 Golden session (`app_20261125_011927_371574`) stopped 
 - **Storage:** D: had **354.7 GiB free** at the 01:47 ICT check. No storage error or capacity blocker observed.
 - **Results:** Coin/Gem totals are **verified displays**, not independently audited wallet balances. Do not combine unrelated sessions into a single runtime counter.
 
-## Fix/release order and ongoing maintenance
+## Historical fix/release order (superseded by released v0.5.2)
 
 **First priority: BUG-006/007** — [uncredited-cycle continuation and receipt recognition](docs/plans/2026-11-24-v0.5.2-uncredited-cycle-recovery.md). Investigate BUG-008 defense timing alongside the existing backlog without assuming causality.
 

@@ -17,7 +17,7 @@ from .recording import append_jsonl,write_json
 
 ROBLOX_URI='roblox://experiences/start?placeId=3260590327'
 LAUNCHER_SETTLE_SECONDS=60
-FOCUS_RETURN_SECONDS=5
+FOCUS_RETURN_SECONDS=30
 DISCONNECT_HOME_SECONDS=5
 NO_RECOVERY={'user_stop','focus_lost','focus_interrupted','window_changed','setup','storage','strategy'}
 
@@ -53,13 +53,12 @@ def wait(control,platform,seconds):
 
 
 def await_foreground(control,platform,expected,*,locate=locate_client,report=lambda **detail:None):
-    """Observe natural focus return only; the interrupted strategy never resumes."""
+    """Observe natural return, then at most one idle-desktop activation; never resume the interrupted strategy."""
     if expected is None or not expected.foreground or (expected.width,expected.height,expected.dpi)!=(1920,991,120):
         raise StopRun('No verified foreground client before interruption; recovery cancelled.',kind='focus_interrupted')
     report(stage='awaiting_foreground',seconds=FOCUS_RETURN_SECONDS,client_pid=expected.pid,client_hwnd=expected.hwnd)
     deadline=platform.now()+FOCUS_RETURN_SECONDS
-    stable=0
-    while platform.now()<deadline:
+    def read_original():
         check_cancel(control,platform)
         try:current=locate()
         except StopRun:raise
@@ -67,12 +66,37 @@ def await_foreground(control,platform,expected,*,locate=locate_client,report=lam
             raise StopRun('Interrupted Roblox client could not be verified; no relaunch.',kind='focus_interrupted') from exc
         if replace(current,foreground=True)!=expected:
             raise StopRun('Roblox identity, position, size or DPI changed during focus interruption; no relaunch.',kind='window_changed')
+        return current
+    stable=0
+    while platform.now()<deadline:
+        current=read_original()
         stable=stable+1 if current.foreground else 0
         if stable>=2:
             report(stage='foreground_restored',client_pid=current.pid,client_hwnd=current.hwnd)
             return
         wait(control,platform,min(.2,max(0,deadline-platform.now())))
-    raise StopRun('Roblox did not regain foreground naturally within five seconds; no relaunch.',kind='focus_interrupted')
+    check_cancel(control,platform)
+    # Recheck the anchor at the boundary. Active desktops and an unavailable
+    # idle reading fail closed; Windows can refuse an ordinary focus request.
+    current=read_original()
+    activate=getattr(platform,'request_recovery_foreground',None)
+    action='already_foreground' if current.foreground else 'unavailable'
+    if not current.foreground and activate is not None:
+        action=activate(expected,FOCUS_RETURN_SECONDS)
+    if action in {'requested','already_foreground'}:
+        report(stage='foreground_activation',activation=action,client_pid=expected.pid,client_hwnd=expected.hwnd)
+        deadline=platform.now()+2
+        stable=0
+        while platform.now()<deadline:
+            current=read_original()
+            stable=stable+1 if current.foreground else 0
+            if stable>=2:
+                report(stage='foreground_restored',client_pid=current.pid,client_hwnd=current.hwnd)
+                return
+            wait(control,platform,min(.2,max(0,deadline-platform.now())))
+        action='not_restored'
+    report(stage='foreground_recovery_failed',activation=action,client_pid=expected.pid,client_hwnd=expected.hwnd)
+    raise StopRun(f'Roblox did not regain foreground within {FOCUS_RETURN_SECONDS} seconds; activation={action}; no relaunch.',kind='focus_interrupted')
 
 
 def close_client(window):
@@ -256,6 +280,9 @@ def restart_client(control,platform,report,*,locate=locate_client,close=close_cl
         while exists(window):
             check_cancel(control,platform)
             if platform.now()>=deadline:
+                report(stage='close_timeout',client_pid=window.pid,client_hwnd=window.hwnd,
+                       confirmed_close=confirmed_close,disconnect_consumed=disconnect_consumed,
+                       loading_close_checked=loading_close_checked,home_close_requested=home_close_requested)
                 raise StopRun('Roblox did not close; no force termination was attempted.',kind='setup')
             # The ordinary WM_CLOSE can be ignored during a hung TDS teleport.
             # One distinct standard Close is permitted only after two fresh
@@ -314,13 +341,17 @@ def restart_client(control,platform,report,*,locate=locate_client,close=close_cl
     launch()
     report(stage='waiting_lobby')
     deadline=platform.now()+timeout
-    previous=None;stable=0
+    previous=None;stable=0;last_observation={}
     while platform.now()<deadline:
         check_cancel(control,platform)
         try:
             window=locate()
             state=observe(window) if window.foreground and (window.width,window.height,window.dpi)==(1920,991,120) else None
-        except (RuntimeError,OSError):state=None
+            last_observation={'client_pid':window.pid,'client_hwnd':window.hwnd,
+                'foreground':window.foreground,'width':window.width,'height':window.height,
+                'dpi':window.dpi,'observed_state':state}
+        except (RuntimeError,OSError) as exc:
+            state=None;last_observation={'observation_error':type(exc).__name__}
         observed=(state,window) if state in {'lobby','login_rewards'} else None
         if observed is not None:
             stable=stable+1 if observed==previous else 1
@@ -330,6 +361,7 @@ def restart_client(control,platform,report,*,locate=locate_client,close=close_cl
         else:stable=0
         previous=observed
         wait(control,platform,.2)
+    report(stage='lobby_timeout',**last_observation)
     raise StopRun('Recovery did not reach a foreground supported lobby or Login Rewards screen.',kind='setup')
 
 

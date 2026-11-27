@@ -89,23 +89,27 @@ def reward_scroll_point(frame, location):
     if location is None or location[0]!='victory':
         return None
     _,dy=location
-    # The gray outline at (650,521)-(1004,708) surrounds the scrollable
-    # rewards. Check all four edges against nearby pixels outside the pane.
+    # Three observed native raster layouts. The shifted receipt can
+    # register the top border one pixel above the banner-relative position.
+    # Keep complete four-edge verification and the same interior point.
     pane=frame.crop((646,518+dy,1009,712+dy)).convert('L')
-    edge_pairs=(
-        ((x,edge),(x,outside))
-        for edge,outside in ((521,519),(708,710)) for x in (710,850,940)
-    )
-    side_pairs=(
-        ((edge,y),(outside,y))
-        for edge,outside in ((650,648),(1004,1006)) for y in (555,600,675)
-    )
-    for (x,y),(outside_x,outside_y) in (*edge_pairs,*side_pairs):
-        border=pane.getpixel((x-646,y-518))
-        outside=pane.getpixel((outside_x-646,outside_y-518))
-        if not 55<=border<=85 or border-outside<30:
-            return None
-    return 850,600+dy
+    for top,left,bottom in ((521,650,708),(521,653,707),(520,650,708)):
+        edge_pairs=(
+            ((x,edge),(x,outside))
+            for edge,outside in ((top,top-2),(bottom,bottom+2)) for x in (710,850,940)
+        )
+        side_pairs=(
+            ((edge,y),(outside,y))
+            for edge,outside in ((left,left-2),(1004,1006)) for y in (555,600,675)
+        )
+        def edge_matches(pair):
+            (x,y),(outside_x,outside_y)=pair
+            border=pane.getpixel((x-646,y-518))
+            outside=pane.getpixel((outside_x-646,outside_y-518))
+            return 55<=border<=85 and border-outside>=30
+        if all(edge_matches(pair) for pair in (*edge_pairs,*side_pairs)):
+            return 850,600+dy
+    return None
 
 
 class Playback:

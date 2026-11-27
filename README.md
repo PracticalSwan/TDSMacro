@@ -2,7 +2,7 @@
 
 Windows automation for **Roblox Tower Defense Simulator** using guarded mouse/keyboard inputs and screenshots/OCR to verify cash, prices, loadouts, placement, upgrades and results. Requires the official Windows Roblox client; **no injection or modified client**.
 
-**Version v0.5.3 (November 26, 2026).** [Download the Windows release](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.5.3) · [Setup](docs/setup.md) · [Project status](docs/STATUS.md) · [Defect register](BUGS_FOUND.md) · [Verification and limitations](docs/verification.md)
+**Latest stable v0.5.3 (November 26, 2026).** [Download the Windows release](https://github.com/PracticalSwan/TDSMacro/releases/tag/v0.5.3) · [Setup](docs/setup.md) · [Project status](docs/STATUS.md) · [Defect register](BUGS_FOUND.md) · [Verification and limitations](docs/verification.md)
 
 ## Supported strategies
 
@@ -27,12 +27,16 @@ Windows automation for **Roblox Tower Defense Simulator** using guarded mouse/ke
 
 The dashboard shows selected strategy/loadout, active phase, actions, waves, rewards and recovery count. **Diagnostics** and **Updates** open as separate utility windows. Automatic release updates are **OFF by default**; verified updates install only while gameplay is idle and retain prior installations for rollback. The maintainer uses one current `TDS Macro.lnk` Desktop shortcut.
 
+Continuous mode permits two guarded direct replays and up to three guarded client relaunches without a new credited cycle (relaunch requires automatic recovery). The optional XP tower is bought only with verified surplus after reserving the next core-upgrade quote; deferred XP does not invalidate a qualifying Gem result.
+
 The reported Coins/Gems are **verified result-screen displays**, not a separate wallet audit. For XP strategies, the current XP-placement counter does not itself prove the numerical XP reward. The macro may stop safely on unexpected UI/game versions, terrain, network, focus, unsupported skill economy or unreadable results.
 
 ## Roadmap and contribution
 
-**v1.0.0 planning only:** [safe loadout switching](docs/plans/2026-11-23-v1.0-loadout-switching.md) and [successful-run rotation](docs/plans/2026-11-23-v1.0-successful-run-rotation.md), such as five verified Golden Scout wins followed by five verified Hardcore Gem runs, then repeat. **Neither feature is implemented.** Fixes and independent changes continue in ordinary v0.x releases (v0.5.2, v0.6.0, etc.).
+**v1.0.0 planning only:** [safe loadout switching](docs/plans/2026-11-23-v1.0-loadout-switching.md), [successful-run rotation](docs/plans/2026-11-23-v1.0-successful-run-rotation.md), and [explicit slot-4 tower selection](docs/plans/2026-11-25-v1.0-slot4-tower-selection.md), such as five verified Golden Scout wins followed by five verified Hardcore Gem runs, then repeat. **These features are not implemented.** The planned slot-4 selector uses reviewed tower profiles and preserves the core-defense reserve and live purchase guards. Fixes and independent changes continue in ordinary v0.x releases (v0.5.3, v0.6.0, etc.).
 
 Contributions are limited to reviewed strategy submissions and suggestions: [Contributing](CONTRIBUTING.md) · [Strategy credit/provenance](docs/strategies.md) · [Development](docs/development.md) · [Changelog](CHANGELOG.md) · [Security](SECURITY.md) · [License/notices](NOTICE.md). Raw screenshots, captures and logs are private and must not be published.
 
 This is an unofficial automation project; users should assess Roblox/TDS rules and account risks before use.
+
+**v1.0 consolidation (planning only):** [Legacy removal and project consolidation](docs/plans/2026-11-25-v1.0-legacy-consolidation.md) evaluates retiring superseded profiles and duplicate compatibility code while preserving safe update rollback and required evidence. All four released v0.5.2 strategies remain unchanged.

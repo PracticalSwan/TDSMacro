@@ -1,8 +1,10 @@
 # Strategies and provenance
 
-**Latest release is v0.5.1.** Its selectable strategy set is Golden 10 Max, Golden 9 fallback, Hardcore Gem-only three-tower and Hardcore Gem+XP four-slot. Current account/skill prerequisites are in [strategy requirements](requirements/strategies/README.md). See [timestamped current status](STATUS.md) and [native v0.5.1 verification](verification.md). Dated descriptions of v0.5.0 and earlier below are **historical evidence**, not current release or worker-status claims.
+**Latest release is v0.5.2.** Its selectable strategy set is Golden 10 Max, Golden 9 fallback, Hardcore Gem-only three-tower and Hardcore Gem+XP four-slot. Current account/skill prerequisites are in [strategy requirements](requirements/strategies/README.md). See [timestamped current status](STATUS.md) and [native verification](verification.md). Dated descriptions of v0.5.1 and earlier below are **historical evidence**, not current release or worker-status claims.
 
-The v0.5.2 candidate reuses verified Scout selections in Golden 10. Its Hardcore XP variant protects the next verified core upgrade against slot-4 spending. An unplaced X1 can still qualify for Gem credit when the required defense and result evidence are present. [Candidate verification](verification.md)
+Released v0.5.2 reuses verified Scout selections in Golden 10. Its Hardcore XP variant protects the next verified core upgrade against slot-4 spending. An unplaced X1 can still qualify for Gem credit when the required defense and result evidence are present. [Release verification](verification.md)
+
+**Planned v1.0 slot-4 selector:** [design and qualification plan](plans/2026-11-25-v1.0-slot4-tower-selection.md). Choose a verified tower/perk and cost profile in the GUI instead of treating any OCR-recognized eligible tower as an equivalent choice. Existing core defense and live transaction checks remain. No runtime change.
 
 **Current strategy eligibility sheets:** [10-Golden](requirements/strategies/golden-scout-10.md), [9-Golden legacy](requirements/strategies/golden-scout-9.md), [3-tower Hardcore Gems](requirements/strategies/hardcore-gems-3.md), [4-tower Hardcore Gem + XP](requirements/strategies/hardcore-gems-xp-4.md), and [the future-strategy template](requirements/strategies/_TEMPLATE.md). The [requirements index](requirements/strategies/README.md) is normative for v1.0 compatibility planning; historical experimental notes below are not universal account guarantees.
 

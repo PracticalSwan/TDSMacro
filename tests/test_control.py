@@ -270,6 +270,28 @@ class ControlTests(unittest.TestCase):
             again = WindowsOS(stop_hotkey=True)
         again.close()
 
+    def test_recovery_activation_requires_idle_desktop_and_same_window(self):
+        from tds_auto import phase1
+        from unittest.mock import MagicMock
+        platform=WindowsOS.__new__(WindowsOS)
+        platform.current=lambda:replace(self.os.window,foreground=False)
+        platform.stop_requested=lambda:False
+        kernel=MagicMock();kernel.GetTickCount.return_value=50000
+        def last_input(info):
+            info._obj.dwTime=20000
+            return True
+        with patch('tds_auto.control.ensure_no_computer_use_controller'),                 patch('tds_auto.control.ctypes.WinDLL',return_value=kernel),                 patch.object(phase1.USER,'GetLastInputInfo',side_effect=last_input),                 patch.object(phase1.USER,'SetForegroundWindow') as request:
+            self.assertEqual(platform.request_recovery_foreground(self.os.window,30),'requested')
+            request.assert_called_once_with(self.os.window.hwnd)
+            request.reset_mock()
+            kernel.GetTickCount.return_value=49999
+            self.assertEqual(platform.request_recovery_foreground(self.os.window,30),'desktop_active')
+            request.assert_not_called()
+            platform.current=lambda:replace(self.os.window,pid=99,foreground=False)
+            with self.assertRaisesRegex(StopRun,'changed'):
+                platform.request_recovery_foreground(self.os.window,30)
+            request.assert_not_called()
+
     def test_failed_f8_registration_refuses_to_start(self):
         from tds_auto import phase1
         with patch('tds_auto.control.ensure_no_computer_use_controller'), \
