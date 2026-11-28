@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased v0.5.6
+- Enable best-effort native fault traceback logging in the private engine stderr log; the observed access violation root cause remains unresolved, no automatic worker respawn.
 - Handle the observed ordinary-close screenshot race only after original HWND disappearance; wait for the original PID to exit and recheck client absence before launch. Preserve all protected stops and deadlines.
 - Correct dashboard foreground wait text using the worker-reported duration instead of the obsolete five-second constant.
 - Handle the exact observed DataStore load-failure (267) Leave-only dialog in guarded recovery; record the confirmed dialog variant. Retain existing bounded close/relaunch, identity, foreground and cancellation safeguards. Saved-frame and fake-input tests pass; actual server rejoin remains unverified.

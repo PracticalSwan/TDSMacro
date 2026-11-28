@@ -45,6 +45,16 @@ class AppTests(unittest.TestCase):
             return self.preflight_window
         self.controller=Controller(self.root,launch,preflight=preflight)
 
+    def test_engine_enables_native_fault_logging_before_dispatch(self):
+        from tds_auto.app import main
+        calls=[]
+        with patch('faulthandler.enable',side_effect=lambda **kw:calls.append(('fault_logging',kw))), \
+             patch('tds_auto.session.main',side_effect=lambda args:calls.append(('engine',args)) or 0):
+            self.assertEqual(main(['--engine','start','--output',str(self.root/'test-run')]),0)
+        self.assertEqual([c[0] for c in calls],['fault_logging','engine'])
+        self.assertIs(calls[0][1]['file'],sys.stderr)
+        self.assertTrue(calls[0][1]['all_threads'])
+
     def test_refresh_button_hover_and_keyboard_focus_without_tk(self):
         from tds_auto.app import App
         class Button:

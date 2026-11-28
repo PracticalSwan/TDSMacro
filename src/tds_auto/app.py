@@ -789,6 +789,14 @@ def main(argv=None):
             output = Path(args[args.index('--output')+1])
             output.parent.mkdir(parents=True, exist_ok=True)
             sys.stdout = sys.stderr = (output.parent/f'{output.name}.log').open('a', encoding='utf-8')
+        # A native access violation bypasses Python exception handling.
+        # Preserve the thread stacks in the existing private worker log.
+        if sys.stderr is not None:
+            import faulthandler
+            try:
+                faulthandler.enable(file=sys.stderr,all_threads=True)
+            except (OSError,RuntimeError,ValueError):
+                print('Native fault logging unavailable.',file=sys.stderr)
         from .session import main as engine
         return engine(args[1:])
     parser = argparse.ArgumentParser(description=__doc__)
