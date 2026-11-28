@@ -295,6 +295,7 @@ def restart_client(control,platform,report,*,locate=locate_client,close=close_cl
     window=optional_window(locate)
     if expected is not None and window is not None and window!=expected:
         raise StopRun('Roblox changed during recovery cooldown; no close or relaunch.',kind='window_changed')
+    closed_during_confirmation=False
     if window is not None:
         if not window.foreground:
             raise StopRun('Roblox lost foreground; recovery cancelled.',kind='focus_lost')
@@ -343,7 +344,28 @@ def restart_client(control,platform,report,*,locate=locate_client,close=close_cl
                 if home_close_requested and client_window_hidden(window):
                     wait(control,platform,.05)
                     continue
-                dialog=confirm(window,control,platform,not disconnect_consumed)
+                try:
+                    dialog=confirm(window,control,platform,not disconnect_consumed)
+                except RuntimeError as exc:
+                    # An ordinary Close can destroy the original HWND during
+                    # a screenshot. Discard that frame; no further clicks.
+                    # Only the observed capture race and a vanished HWND
+                    # permit waiting for the original PID to exit.
+                    if (type(exc) is not RuntimeError
+                            or str(exc)!='Roblox lost focus during capture; frame discarded.'
+                            or client_exists(window)):
+                        raise
+                    while True:
+                        check_cancel(control,platform)
+                        if optional_window(locate) is not None:
+                            raise StopRun('Roblox changed during ordinary close; no relaunch.',kind='window_changed')
+                        if not exists(window):break
+                        if platform.now()>=deadline:
+                            raise StopRun('Roblox did not close; no force termination was attempted.',kind='setup')
+                        wait(control,platform,.05)
+                    closed_during_confirmation=True
+                    report(stage='closed_during_confirmation',client_pid=window.pid,client_hwnd=window.hwnd)
+                    break
                 if dialog=='close':
                     confirmed_close=True
                 elif dialog in {'disconnect','datastore_267'} and not disconnect_consumed:
@@ -367,6 +389,8 @@ def restart_client(control,platform,report,*,locate=locate_client,close=close_cl
     report(stage='settling_launcher',seconds=LAUNCHER_SETTLE_SECONDS)
     wait(control,platform,LAUNCHER_SETTLE_SECONDS)
     check_cancel(control,platform)
+    if closed_during_confirmation and optional_window(locate) is not None:
+        raise StopRun('Roblox changed during launcher settle; no relaunch.',kind='window_changed')
     report(stage='launching')
     launch()
     report(stage='waiting_lobby')

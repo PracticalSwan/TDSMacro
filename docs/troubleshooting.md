@@ -1,12 +1,12 @@
 # Troubleshooting
 
-**Current published and installed stable: v0.5.5.** See [defect register](../BUGS_FOUND.md) and [current status](STATUS.md). A qualifying Gem cycle may leave Juggernaut unplaced; the worker reserves the next verified core quote before X1. This is intentional, not a failed XP purchase.
+**Current published stable: v0.5.5; local unpublished v0.5.6 candidate installed.** See [defect register](../BUGS_FOUND.md) and [current status](STATUS.md). A qualifying Gem cycle may leave Juggernaut unplaced; the worker reserves the next verified core quote before X1. This is intentional, not a failed XP purchase.
 
 Continuous play allows up to two direct replays with a positively verified result and restart control, then up to three guarded client relaunches when automatic recovery is enabled. Only genuine credit resets the budgets. Uncredited outcomes never increase reward totals. Protected stops remain terminal.
 
 Golden count-10 recognition, redundant selection, obscured results, camera and vote recognition have released corrections. Hardcore reversed wave rows now have guarded parsing. If an old symptom recurs, preserve evidence and use the normal controller; never bypass a guard, blindly repeat a paid action, or infer success.
 
-The v0.5.5 release waits 30 seconds after focus loss and may make one ordinary idle-desktop activation request. Actual native activation is not yet demonstrated; a denied request or active desktop stops safely. Do not synthesize input to force focus.
+The v0.5.5 release waits 30 seconds after focus loss and may make one ordinary idle-desktop activation request. Native idle activation was demonstrated November 28; a later client-change guard correctly stopped. A denied request or active desktop stops safely. Do not synthesize input to force focus.
 
 The v0.5.6 candidate recognizes the exact observed DataStore load failed, please rejoin the game (267) dialog with its sole centered Leave button. It does not treat arbitrary moderation kicks as recoverable. One verified Leave, then existing Home/close and original-process exit checks; no force kill. Native server rejoin remains unverified. See the current verification record.
 

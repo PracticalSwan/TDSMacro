@@ -1,4 +1,10 @@
-# Current TDS Macro roadmap — November 27, 2026
+# Current TDS Macro roadmap — November 28, 2026
+
+## November 28 — incremental BUG-022 maintenance
+Complete exact-commit CI/build, artifact audit and idle GUI promotion of the revised unpublished v0.5.6. Existing cb9ee20 candidate is installed locally and GUI-managed; public stable remains v0.5.5. Preserve active match, use safe stop boundary, restart through GUI. Record native recovery limitations; no forced server failure, no v1.0.
+
+## November 27 evening — CI-qualified v0.5.6 candidate
+At final review, restarted official v0.5.5 Golden 10 worker is active with 1 credited victory/victories, 450 displayed Coins, zero recoveries; first saved receipt independently matched 444 seconds/wave 20/450 Coins and 50 confirmed actions. Direct replay reached match 2. Exact v0.5.6 candidate commit cb9ee20 hosted Windows CI passed 696 tests in 38 suites; 14 additional offline-module tests passed (710 across all 41 modules). Exact CI artifact audit passed: 438 files, 44 runtime DLLs, 36 relative documentation links, ZIP CRC/per-file hashes, pinned strategy/calibration data, privacy and frozen self-check. ZIP SHA-256 f48da91dcc1d51fcf960153328a62b425c92c60c0b4a532bb67c700946e5bf58; EXE SHA-256 9d1841a841967f4f6320a94c27eaf88b6d12983ef877c0144198a858a8fefa1f. Staged candidate only: no tag, publication or installation. Active match must not be interrupted for GUI smoke or promotion; native DataStore Leave and server rejoin remain unverified. Current published/installed stable v0.5.5 remains running. No v1.0 implementation.
 
 ## November 27 evening — incremental BUG-020 correction
 Candidate v0.5.6 adds exact DataStore error 267 Leave-only recovery support and explicit variant evidence. Focused tests pass. Complete exact-commit CI, artifact audit, frozen self-check and idle native smoke before release/install; retain single Golden worker and verify result/restart where feasible. Do not force the external failure. v1.0 planning-only.

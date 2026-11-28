@@ -928,6 +928,100 @@ class RecoveryTests(unittest.TestCase):
                 else:
                     with self.assertRaises(StopRun):recovery.confirm_close(self.platform.window,control,self.platform)
 
+    def test_close_capture_race_waits_for_original_exit_before_single_launch(self):
+        recovery=self.module()
+        for delayed in (False,True):
+            with self.subTest(delayed=delayed):
+                control=SessionControl(self.path)
+                actions=[];reports=[];closed_at=[None]
+                def exists(window):
+                    return closed_at[0] is None or self.platform.now()<closed_at[0]
+                def locate():
+                    if closed_at[0] is None or 'launch' in actions:return self.platform.window
+                    raise RuntimeError('No Roblox client window')
+                def confirm(*args):
+                    actions.append('capture')
+                    closed_at[0]=self.platform.now()+(1 if delayed else 0)
+                    raise RuntimeError('Roblox lost focus during capture; frame discarded.')
+                error=None
+                with patch.object(recovery,'client_exists',side_effect=lambda w:closed_at[0] is None):
+                    try:
+                        recovery.restart_client(control,self.platform,lambda **row:reports.append(row),
+                            locate=locate,close=lambda w:actions.append('close'),exists=exists,
+                            launch=lambda:actions.append('launch'),observe=lambda w:'lobby',confirm=confirm)
+                    except RuntimeError as exc:error=str(exc)
+                self.assertIsNone(error)
+                self.assertEqual(actions,['close','capture','launch'])
+                self.assertIn('closed_during_confirmation',[r['stage'] for r in reports])
+
+    def test_close_capture_race_never_relaunches_live_window_or_protected_stop(self):
+        recovery=self.module()
+        for error,visible in ((RuntimeError('Roblox lost focus during capture; frame discarded.'),True),
+                              (StopRun('F2',kind='user_stop'),False)):
+            with self.subTest(error=error):
+                launches=[]
+                def confirm(*args):raise error
+                with patch.object(recovery,'client_exists',return_value=visible):
+                    with self.assertRaises(type(error)):
+                        recovery.restart_client(SessionControl(self.path),self.platform,lambda **row:None,
+                            locate=lambda:self.platform.window,close=lambda w:None,exists=lambda w:True,
+                            launch=lambda:launches.append(1),observe=lambda w:'lobby',confirm=confirm)
+                self.assertEqual(launches,[])
+
+    def test_close_capture_race_does_not_launch_over_another_client(self):
+        recovery=self.module();actions=[];closed=[False]
+        def locate():
+            return replace(self.platform.window,pid=999) if closed[0] else self.platform.window
+        def confirm(*args):
+            closed[0]=True
+            raise RuntimeError('Roblox lost focus during capture; frame discarded.')
+        with patch.object(recovery,'client_exists',return_value=False):
+            with self.assertRaisesRegex(StopRun,'Roblox changed'):
+                recovery.restart_client(SessionControl(self.path),self.platform,lambda **row:None,
+                    locate=locate,close=lambda w:actions.append('close'),exists=lambda w:not closed[0],
+                    launch=lambda:actions.append('launch'),observe=lambda w:'lobby',confirm=confirm)
+        self.assertEqual(actions,['close'])
+
+    def test_close_capture_race_deadline_and_cancellation_prevent_launch(self):
+        recovery=self.module()
+        for stop in (False,True):
+            with self.subTest(stop=stop):
+                control=SessionControl(self.path)
+                actions=[];closed=[False]
+                def locate():
+                    if closed[0]:raise RuntimeError('No Roblox client window')
+                    return self.platform.window
+                def confirm(*args):
+                    closed[0]=True
+                    if stop:(self.path/'stop').touch()
+                    raise RuntimeError('Roblox lost focus during capture; frame discarded.')
+                with patch.object(recovery,'client_exists',return_value=False):
+                    with self.assertRaises(StopRun) as caught:
+                        recovery.restart_client(control,self.platform,lambda **row:None,
+                            locate=locate,close=lambda w:actions.append('close'),
+                            exists=lambda w:True,launch=lambda:actions.append('launch'),
+                            observe=lambda w:'lobby',confirm=confirm)
+                self.assertEqual(caught.exception.kind,'user_stop' if stop else 'setup')
+                self.assertEqual(actions,['close'])
+                (self.path/'stop').unlink(missing_ok=True)
+
+    def test_close_capture_race_checks_again_after_launcher_settle(self):
+        recovery=self.module();actions=[];closed_at=[None]
+        def locate():
+            if closed_at[0] is None:return self.platform.window
+            if self.platform.now()>=closed_at[0]+30:return replace(self.platform.window,pid=999)
+            raise RuntimeError('No Roblox client window')
+        def confirm(*args):
+            closed_at[0]=self.platform.now()
+            raise RuntimeError('Roblox lost focus during capture; frame discarded.')
+        with patch.object(recovery,'client_exists',return_value=False):
+            with self.assertRaisesRegex(StopRun,'changed during launcher settle'):
+                recovery.restart_client(SessionControl(self.path),self.platform,lambda **row:None,
+                    locate=locate,close=lambda w:actions.append('close'),
+                    exists=lambda w:closed_at[0] is None,launch=lambda:actions.append('launch'),
+                    observe=lambda w:'lobby',confirm=confirm)
+        self.assertEqual(actions,['close'])
+
     def test_unreadable_reopened_lobby_has_a_deadline_and_sends_no_input(self):
         recovery=self.module();control=SessionControl(self.path);actions=[]
         with self.assertRaisesRegex(StopRun,'did not reach'):
